@@ -18,6 +18,10 @@ const RATINGS: Record<string, { power: number; speed: number; range: number }> =
   archimedes: { power: 5, speed: 1, range: 3 },
   faraday: { power: 3, speed: 3, range: 4 },
   hooke: { power: 3, speed: 4, range: 4 },
+  schrodinger: { power: 3, speed: 3, range: 4 },
+  heisenberg: { power: 2, speed: 5, range: 3 },
+  hawking: { power: 4, speed: 1, range: 5 },
+  doppler: { power: 5, speed: 2, range: 4 },
 };
 
 export interface SelectPlayer {

@@ -417,7 +417,7 @@ class Phase7MechanicsTest {
             ObjectView rock = s.snapshot().objects().get(0);
             double dx = rock.x() - well.x(), dy = rock.y() + rock.h() / 2 - well.y();
             double r = Math.sqrt(dx * dx + dy * dy);
-            assertThat(r).isBetween(200.0, 330.0); // a bound, roughly circular orbit
+            assertThat(r).isBetween(140.0, 260.0); // a bound, roughly circular orbit
             double a = Math.atan2(dy, dx);
             if (!Double.isNaN(prevA)) {
                 double d = a - prevA;

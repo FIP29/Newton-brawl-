@@ -12,8 +12,16 @@
  *   Faraday  — wavy greying hair, Victorian frock coat and stock
  *   Hooke    — no authentic portrait survives; drawn from contemporaries' descriptions: thin,
  *              stooped, long unpowdered brown hair, in a plain steel-grey coat
+ *   Schrödinger — round wire-rimmed glasses, receding dark hair swept back, bow tie, grey suit;
+ *              a flickering cat (alive? dead?) rides on his shoulder
+ *   Heisenberg — young, with a thick upswept wave of sandy-blond hair, slate suit
+ *   Hawking  — side-parted brown hair, glasses, dark jacket and open-collared blue shirt, in a
+ *              futuristic hover chair (in life he used a motorised wheelchair and a speech computer;
+ *              here it hovers, with his screen mounted at the side)
+ *   Doppler  — 1840s Austrian: high forehead, dark hair and side-whiskers, high collar and black
+ *              stock, navy coat; a tuning fork in hand
  */
-export type HairStyle = 'periwig' | 'slick' | 'bun' | 'wild' | 'balding' | 'curly' | 'wavy' | 'long';
+export type HairStyle = 'periwig' | 'slick' | 'bun' | 'wild' | 'balding' | 'curly' | 'wavy' | 'long' | 'receding' | 'quiff' | 'side';
 export type Outfit = 'frockcoat' | 'suit' | 'dress' | 'cardigan' | 'robe' | 'chiton';
 export type Stance = 'boxer' | 'showman' | 'chemist' | 'professor';
 
@@ -39,8 +47,13 @@ export interface Look {
   brows: 'stern' | 'fine' | 'soft' | 'bushy';
   /** Shoulder width as a fraction of height. */
   shoulders: number;
-  /** Visual-only prop held in the back hand. */
-  prop?: 'vial' | 'telescope';
+  /** Visual-only prop held in the back hand (the cat sits on the back shoulder). */
+  prop?: 'vial' | 'telescope' | 'cat' | 'fork';
+  glasses?: 'round' | 'square';
+  tie?: 'bow';
+  sideburns?: boolean;
+  /** Sits in a hover chair (Hawking). */
+  seated?: boolean;
 }
 
 export const LOOKS: Record<string, Look> = {
@@ -91,6 +104,30 @@ export const LOOKS: Record<string, Look> = {
     coat: 0x56606c, coatShade: 0x3f4650, trim: 0xc8d2dc, shirt: 0xece8df, accent: 0x8a96a3,
     legs: 0x2b2f36, shoes: 0x141518, hairStyle: 'long', outfit: 'frockcoat', stance: 'showman',
     moustache: 'none', brows: 'fine', shoulders: 0.2, posture: 0.12,
+  },
+  schrodinger: {
+    glow: 0x2ee6c9, skin: 0xefc6a3, hair: 0x3b2e26, hairShade: 0x261d18,
+    coat: 0x343a45, coatShade: 0x252a33, trim: 0x8d98a6, shirt: 0xf1eee6, accent: 0x1f7a6e,
+    legs: 0x343a45, shoes: 0x15161a, hairStyle: 'receding', outfit: 'suit', stance: 'professor',
+    moustache: 'none', brows: 'fine', shoulders: 0.23, glasses: 'round', tie: 'bow', prop: 'cat',
+  },
+  heisenberg: {
+    glow: 0xff3df2, skin: 0xf2cfb3, hair: 0xd8b46a, hairShade: 0xa8873f,
+    coat: 0x4a5568, coatShade: 0x384152, trim: 0xc3cad6, shirt: 0xf3f1ea, accent: 0x7a2b5c,
+    legs: 0x4a5568, shoes: 0x1b1a1d, hairStyle: 'quiff', outfit: 'suit', stance: 'boxer',
+    moustache: 'none', brows: 'soft', shoulders: 0.24,
+  },
+  hawking: {
+    glow: 0x6f7bff, skin: 0xecc5a5, hair: 0x6b4a33, hairShade: 0x4a3322,
+    coat: 0x262a36, coatShade: 0x1b1e27, trim: 0x6f7bff, shirt: 0xdfe6f2, accent: 0xdfe6f2,
+    legs: 0x2c3140, shoes: 0x111216, hairStyle: 'side', outfit: 'suit', stance: 'professor',
+    moustache: 'none', brows: 'soft', shoulders: 0.21, glasses: 'square', seated: true,
+  },
+  doppler: {
+    glow: 0xff4d6d, skin: 0xeec7a5, hair: 0x2e2420, hairShade: 0x1e1714,
+    coat: 0x1d2433, coatShade: 0x141924, trim: 0xb8a07a, shirt: 0xf2eee4, accent: 0x161616,
+    legs: 0x262a33, shoes: 0x101012, hairStyle: 'balding', outfit: 'suit', stance: 'boxer',
+    moustache: 'none', brows: 'stern', shoulders: 0.27, sideburns: true, prop: 'fork',
   },
   prototype: {
     glow: 0xe9ece4, skin: 0xd0d4d8, hair: 0x3a3f45, hairShade: 0x2a2e33,

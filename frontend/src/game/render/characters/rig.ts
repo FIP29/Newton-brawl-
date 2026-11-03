@@ -185,6 +185,24 @@ export function computePose(v: FighterView, def: FighterDefinition, look: Look, 
   }
   if (v.reflect > 0) power = Math.max(power, 0.6);
 
+  if (look.seated) {
+    // Hover chair: seated torso, feet on the footrest, gentle bob. A KO sets the chair down instead
+    // of toppling it; crouching lowers it and he leans in.
+    const hover = Math.sin(t * 2.2) * H * 0.012;
+    const down = v.action === 'KO' ? H * 0.07 * Math.min(1, st.koTime * 2) : v.action === 'CROUCH' ? H * 0.12 : 0;
+    const dy = hover + down;
+    hip = { x: -H * 0.05, y: -H * 0.38 + dy };
+    chest = { x: H * 0.0, y: -H * 0.64 + breathe + dy };
+    head = { x: H * 0.03, y: -H * 0.8 + breathe + dy };
+    footF = { x: H * 0.2, y: -H * 0.09 + dy };
+    footB = { x: H * 0.15, y: -H * 0.09 + dy };
+    handF = { x: handF.x, y: handF.y + H * 0.1 + dy };
+    handB = { x: handB.x, y: handB.y + H * 0.1 + dy };
+    if (v.action === 'CROUCH') lean = 0.45;
+    if (v.action === 'KO') { bodyRot = 0; lean = 0.25; headTilt = 0.5; }
+    if (v.action === 'WALK') lean = 0.06;
+  }
+
   // Lean rotates the upper body around the hip.
   const rot = (p: P, a: number): P => {
     const dx = p.x - hip.x, dy = p.y - hip.y;
@@ -242,6 +260,18 @@ function castPoseFor(id: string, move: string, H: number): { f: P; b: P; lean: n
     case 'faraday.special2':  return { f: { x: H * 0.3, y: -H * 0.32 }, b: { x: -H * 0.04, y: -H * 0.58 }, lean: 0.22 }; // sets the coil
     case 'faraday.ultimate':  return { f: { x: H * 0.3, y: -H * 0.82 }, b: { x: -H * 0.3, y: -H * 0.82 }, lean: 0 };     // spins up the dynamo
     case 'hooke.special1':    return { f: { x: H * 0.22, y: -H * 0.06 }, b: { x: -H * 0.02, y: -H * 0.45 }, lean: 0.2, crouch: true };
+    case 'schrodinger.special1': return { f: { x: H * 0.28, y: -H * 0.72 }, b: { x: -H * 0.26, y: -H * 0.7 }, lean: 0 };     // splits in two
+    case 'schrodinger.special2': return { f: { x: H * 0.24, y: -H * 0.08 }, b: { x: -H * 0.02, y: -H * 0.45 }, lean: 0.2, crouch: true }; // sets down the box
+    case 'schrodinger.ultimate': return { f: { x: H * 0.18, y: -H * 1.08 }, b: { x: -H * 0.12, y: -H * 1.05 }, lean: -0.06 }; // conducts the wave
+    case 'heisenberg.special1':  return { f: { x: H * 0.3, y: -H * 0.68 }, b: { x: -H * 0.2, y: -H * 0.6 }, lean: 0.32 };   // smeared forward
+    case 'heisenberg.special2':  return { f: { x: H * 0.34, y: -H * 0.7 }, b: { x: H * 0.02, y: -H * 0.55 }, lean: 0.1 };   // fires a photon
+    case 'heisenberg.ultimate':  return { f: { x: H * 0.3, y: -H * 0.86 }, b: { x: H * 0.26, y: -H * 0.8 }, lean: -0.05 };
+    case 'hawking.special1':     return { f: { x: H * 0.32, y: -H * 0.66 }, b: { x: H * 0.1, y: -H * 0.55 }, lean: 0.05 };
+    case 'hawking.special2':     return { f: { x: H * 0.24, y: -H * 0.95 }, b: { x: H * 0.02, y: -H * 0.55 }, lean: 0 };
+    case 'hawking.ultimate':     return { f: { x: H * 0.18, y: -H * 1.06 }, b: { x: -H * 0.12, y: -H * 1.02 }, lean: -0.05 };
+    case 'doppler.special1':     return { f: { x: H * 0.32, y: -H * 0.72 }, b: { x: H * 0.1, y: -H * 0.66 }, lean: 0.1 };    // strikes the fork
+    case 'doppler.special2':     return { f: { x: H * 0.3, y: -H * 0.62 }, b: { x: -H * 0.24, y: -H * 0.62 }, lean: 0.35 };  // breaks the sound barrier
+    case 'doppler.ultimate':     return { f: { x: H * 0.33, y: -H * 0.72 }, b: { x: H * 0.3, y: -H * 0.66 }, lean: 0.15 };
     case 'hooke.ultimate':    return { f: { x: H * 0.16, y: -H * 0.52 }, b: { x: -H * 0.1, y: -H * 0.52 }, lean: -0.12 }; // strains past the limit
     default: return { f: { x: H * 0.28, y: -H * 0.7 }, b: { x: H * 0.05, y: -H * 0.6 }, lean: 0.08 };
   }

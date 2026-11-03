@@ -66,6 +66,10 @@ const SIGNATURE: Record<string, () => void> = {
   archimedes: () => { tone(220, 110, 0.3, 'triangle', 0.1); hiss(0.25, 0.06, 600, 'lowpass', 0.05); },      // creaking wood, splash
   faraday: () => { tone(300, 900, 0.35, 'sawtooth', 0.035); tone(320, 960, 0.35, 'sawtooth', 0.03); },      // dynamo spin-up hum
   hooke: () => { tone(180, 900, 0.18, 'square', 0.04); tone(900, 140, 0.2, 'square', 0.04, 0.16); },        // boing
+  schrodinger: () => { tone(620, 620, 0.2, 'sine', 0.05); tone(931, 931, 0.2, 'sine', 0.05); tone(1240, 300, 0.25, 'triangle', 0.03, 0.12); }, // two states at once, then collapse
+  heisenberg: () => { for (let i = 0; i < 4; i++) tone(500 + Math.random() * 1400, 300 + Math.random() * 1600, 0.06, 'square', 0.025, i * 0.04); }, // jittery, never the same twice
+  hawking: () => { tone(90, 30, 0.6, 'sine', 0.2); hiss(0.4, 0.05, 300, 'lowpass', 0.05); },               // deep gravitational rumble
+  doppler: () => { tone(980, 620, 0.45, 'sawtooth', 0.04); tone(990, 610, 0.45, 'triangle', 0.04); },       // a siren falling in pitch as it passes
 };
 
 export const sfx = {

@@ -59,10 +59,10 @@ public record Arena(String id, String name, double width, double height, double 
      * fighters drift slowly toward the middle. Rocks that fall in are swallowed and reappear.
      */
     public static final Arena BLACK_HOLE_EDGE = new Arena("black-hole-edge", "Black Hole Edge", 1600, 900, 2200, 0, 0.7, 0.7, List.of(
-        new ObjectSpawn("rock", 1060, 540, 0, 209, 52, 46, false),
-        new ObjectSpawn("rock", 540, 540, 0, -209, 46, 40, false),
-        new ObjectSpawn("rock", 800, 280, 180, 0, 58, 50, false)),
-        new Well(800, 560, 12_000_000, 60, 48, 45));
+        new ObjectSpawn("rock", 1000, 407, 0, 235, 52, 46, false),
+        new ObjectSpawn("rock", 600, 410, 0, -235, 46, 40, false),
+        new ObjectSpawn("rock", 800, 205, 200, 0, 58, 50, false)),
+        new Well(800, 430, 12_000_000, 60, 48, 45));
 
     public static final List<Arena> ALL = List.of(THE_LAB, SPACE_STATION, BLACK_HOLE_EDGE);
     private static final Map<String, Arena> BY_ID = Map.of(THE_LAB.id(), THE_LAB, SPACE_STATION.id(), SPACE_STATION,

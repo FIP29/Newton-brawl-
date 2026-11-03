@@ -7,6 +7,7 @@ import { createFighterVisual, type FighterVisual } from './characters/FighterVis
 import { lookFor } from './characters/looks';
 import { TheLab } from './arena/TheLab';
 import { SpaceStation } from './arena/SpaceStation';
+import { BlackHoleEdge } from './arena/BlackHoleEdge';
 import type { ArenaBackdrop } from './arena/types';
 import { EntityLayer } from './fx/EntityLayer';
 import { FxSystem, makeTextures, type FxTextures } from './fx/primitives';
@@ -54,6 +55,9 @@ export class FightRenderer {
   private lab: ArenaBackdrop | null = null;
   private entities: EntityLayer | null = null;
   private visuals: FighterVisual[] = [];
+  /** Schrödinger's superposed copies, one per GHOST zone id. */
+  private ghosts = new Map<number, FighterVisual>();
+  private skins: (string | null)[] = [];
   private trails: Trail[] = [];
   private trailTimer = 0;
 
@@ -95,9 +99,10 @@ export class FightRenderer {
       c.removeChildren().forEach((ch) => ch.destroy({ children: true }));
     }
     this.fx.clear();
-    this.lab = arena.id === 'space-station'
-      ? new SpaceStation(arena.width, arena.height, this.tex, this.fx, this.quality === 'high')
-      : new TheLab(arena.width, arena.height, this.tex, this.fx, this.quality === 'high');
+    const hq = this.quality === 'high';
+    this.lab = arena.id === 'space-station' ? new SpaceStation(arena.width, arena.height, this.tex, this.fx, hq)
+      : arena.id === 'black-hole-edge' ? new BlackHoleEdge(arena.width, arena.height, this.tex, this.fx, hq)
+      : new TheLab(arena.width, arena.height, this.tex, this.fx, hq);
     this.arenaBack.addChild(this.lab.back);
     this.arenaFront.addChild(this.lab.front);
     this.lightLayer.addChild(this.lab.lights);
@@ -107,6 +112,8 @@ export class FightRenderer {
     this.lightLayer.addChild(this.entities.lights);
     this.visuals.forEach((v) => v.destroy());
     this.visuals = [];
+    this.ghosts.clear(); // (their roots were in fighterLayer, destroyed above)
+    this.skins = skins;
     this.visuals = fighters.map((d, i) => {
       const v = createFighterVisual(d, skins[i] ?? null);
       this.fighterLayer.addChild(v.root);
@@ -125,12 +132,37 @@ export class FightRenderer {
     if (frame.zones.some((z) => z.kind === 'FIELD')) this.lab.surge = 1;
     this.entities.update(dt, frame.projectiles, frame.zones, frame.objects, frame.fighters, this.defs, this.colors);
     frame.fighters.forEach((v, i) => this.visuals[i].update(v, dt));
+    this.updateGhosts(frame, dt);
     this.updateTrails(frame.fighters, dt);
     this.fx.update(dt);
     this.updateFilters(realDt);
     this.drawDebug(frame);
     this.combo.timer -= dt;
     if (this.combo.timer <= 0) this.combo.count = 0;
+  }
+
+  /**
+   * Superposition: a translucent second Schrödinger mirroring the real one at the GHOST zone's
+   * position. Which one is real isn't decided until something hits him.
+   */
+  private updateGhosts(frame: RenderFrame, dt: number) {
+    const live = new Set<number>();
+    for (const z of frame.zones) {
+      if (z.kind !== 'GHOST') continue;
+      live.add(z.id);
+      let g = this.ghosts.get(z.id);
+      if (!g) {
+        g = createFighterVisual(this.defs[z.owner], this.skins[z.owner] ?? null);
+        this.fighterLayer.addChildAt(g.root, 0);
+        this.ghosts.set(z.id, g);
+        this.fx.burst(z.x, z.y, this.colors[z.owner], 24, 500, { grav: 0, life: 0.4 });
+      }
+      const real = frame.fighters[z.owner];
+      g.update({ ...real, x: z.x, y: 0, vx: 0, vy: 0, invuln: 0, action: real.action === 'WALK' ? 'IDLE' : real.action }, dt);
+      const fade = Math.min(1, z.age / 8) * Math.min(1, z.life / 20);
+      g.root.alpha = (0.4 + 0.12 * Math.sin(performance.now() / 1000 * 9 + z.id)) * fade;
+    }
+    for (const [id, g] of this.ghosts) if (!live.has(id)) { g.destroy(); this.ghosts.delete(id); }
   }
 
   /** React to a simulation event with VFX. Returns the combo count for HIT events. */
@@ -181,6 +213,21 @@ export class FightRenderer {
           });
         }
         this.fx.burst(e.x, e.y, 0xc8d2dc, 60, 1200, { streak: true, life: 0.6 });
+        break;
+      case 'COLLAPSE': {
+        // a superposition resolves: the wavefunction snaps to one outcome
+        const c = 0x2ee6c9;
+        this.fx.ring(e.x, e.y, c, 220, 10, 0.35);
+        this.fx.ring(e.x, e.y, 0xffffff, 120, 6, 0.25);
+        this.fx.burst(e.x, e.y, c, 34, 700, { grav: 0, life: 0.45, streak: true });
+        if (e.move === 'special2') this.fx.burst(e.x, e.y, e.damage === 1 ? 0xfff1c4 : 0x9be07a, 30, 500, { life: 0.6 });
+        this.cam.shake = Math.max(this.cam.shake, 10);
+        break;
+      }
+      case 'SWALLOW':
+        // something crossed an event horizon: a flash of stretched light, then nothing
+        this.fx.burst(e.x, e.y, 0xffc46a, 18, 300, { grav: 0, life: 0.35, streak: true });
+        this.fx.ring(e.x, e.y, 0x6f7bff, 70, 5, 0.3);
         break;
       case 'CLANK':
         this.fx.burst(e.x, e.y, 0xd7dde3, 14, 700, { streak: true, life: 0.25 });

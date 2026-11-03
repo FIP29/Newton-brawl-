@@ -18,7 +18,8 @@ import { codexApi, unlocksApi, type LabNote } from '../api/progress';
 
 const NAMES = ['Player 1', 'Player 2'];
 const ROSTER = ROSTER_IDS.map((id) => FIGHTERS[id]);
-type ArenaChoice = 'the-lab' | 'space-station' | 'random';
+type ArenaChoice = 'the-lab' | 'space-station' | 'black-hole-edge' | 'random';
+const ARENA_CYCLE: ArenaChoice[] = ['random', 'the-lab', 'space-station', 'black-hole-edge'];
 const hex = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
 
 /**
@@ -77,7 +78,7 @@ function LocalSelect({ onDone }: { onDone: (picks: [string, string], arena: stri
         case 'ArrowRight': e.preventDefault(); move(1, 1); break;
         case 'Numpad1': case 'Comma': lock(1, true); break;
         case 'Numpad2': case 'Period': lock(1, false); break;
-        case 'KeyQ': sfx.click(); setArena((a) => (a === 'random' ? 'the-lab' : a === 'the-lab' ? 'space-station' : 'random')); break;
+        case 'KeyQ': sfx.click(); setArena((a) => ARENA_CYCLE[(ARENA_CYCLE.indexOf(a) + 1) % ARENA_CYCLE.length]); break;
       }
     };
     window.addEventListener('keydown', onKey);
@@ -113,7 +114,7 @@ function LocalSelect({ onDone }: { onDone: (picks: [string, string], arena: stri
         footer={
           <div className="cs-footer">
             <span className="arena-pick">Arena:
-              {(['random', 'the-lab', 'space-station'] as const).map((a) => (
+              {ARENA_CYCLE.map((a) => (
                 <button key={a} className={`cs-skin ${arena === a ? 'on' : ''}`} style={{ '--accent': 'var(--tesla)' } as React.CSSProperties}
                         onClick={() => { sfx.click(); setArena(a); }}>{a === 'random' ? 'Random' : ARENAS.find((x) => x.id === a)!.name}</button>
               ))}

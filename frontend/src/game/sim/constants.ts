@@ -44,11 +44,11 @@ export const SPACE_STATION: ArenaInfo = {
 export const BLACK_HOLE_EDGE: ArenaInfo = {
   id: 'black-hole-edge', name: 'Black Hole Edge', width: 1600, height: 900, gravity: 2200, objectGravity: 0, bounce: 0.7, wallBounce: 0.7,
   objects: [
-    { kind: 'rock', x: 1060, y: 540, vx: 0, vy: 209, w: 52, h: 46, metal: false },
-    { kind: 'rock', x: 540, y: 540, vx: 0, vy: -209, w: 46, h: 40, metal: false },
-    { kind: 'rock', x: 800, y: 280, vx: 180, vy: 0, w: 58, h: 50, metal: false },
+    { kind: 'rock', x: 1000, y: 407, vx: 0, vy: 235, w: 52, h: 46, metal: false },
+    { kind: 'rock', x: 600, y: 410, vx: 0, vy: -235, w: 46, h: 40, metal: false },
+    { kind: 'rock', x: 800, y: 205, vx: 200, vy: 0, w: 58, h: 50, metal: false },
   ],
-  well: { x: 800, y: 560, gm: 12_000_000, soft: 60, core: 48, drift: 45 },
+  well: { x: 800, y: 430, gm: 12_000_000, soft: 60, core: 48, drift: 45 },
 };
 
 export const ARENAS: ArenaInfo[] = [THE_LAB, SPACE_STATION, BLACK_HOLE_EDGE];

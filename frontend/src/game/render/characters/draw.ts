@@ -20,10 +20,13 @@ export function drawCharacter(g: Graphics, pose: Pose, look: Look, H: number, ti
   if (look.hairStyle === 'wild') wildHairBack(g, pose.head, r, look, ow, time);
   if (look.hairStyle === 'long') longHairBack(g, pose.head, r, look, ow, pose.sway);
 
+  if (look.seated) hoverChair(g, pose, H, look, ow, time);
+
   // back arm
   arm(g, pose.shoulderB, pose.elbowB, pose.handB, look, H, ow, true, true);
   if (look.prop === 'vial') vial(g, pose.handB, H, look, time);
   if (look.prop === 'telescope') telescope(g, pose.elbowB, pose.handB, H, look, ow);
+  if (look.prop === 'fork') tuningFork(g, pose.elbowB, pose.handB, H, look, ow, pose.power, time);
 
   // back leg + skirts/coat tails behind
   if (!longSkirt) leg(g, pose.hipB, pose.kneeB, pose.footB, look, H, ow, true);
@@ -43,6 +46,8 @@ export function drawCharacter(g: Graphics, pose: Pose, look: Look, H: number, ti
     .stroke({ width: H * 0.06, color: look.skin, cap: 'round' });
   collar(g, pose, look, H, ow);
   head(g, pose, look, r, ow, time);
+  if (look.prop === 'cat') quantumCat(g, pose.shoulderB, H, look, ow, time);
+  if (look.seated) chairScreen(g, pose, H, look, ow, time);
 
   // front arm last so punches read clearly
   arm(g, pose.shoulderF, pose.elbowF, pose.handF, look, H, ow, false, pose.handFOpen);
@@ -171,7 +176,14 @@ function torso(g: Graphics, pose: Pose, look: Look, H: number, sw: number, ow: n
   } else if (look.outfit === 'suit') {
     // lapels, shirt V, glowing tie, buttons
     g.poly([c.x + sw * 0.05, c.y, c.x + sw * 0.36, c.y + H * 0.005, c.x + sw * 0.2, c.y + H * 0.13]).fill(look.shirt);
-    g.moveTo(c.x + sw * 0.22, c.y + H * 0.01).lineTo(c.x + sw * 0.21, c.y + H * 0.12).stroke({ width: H * 0.018, color: look.accent, cap: 'round' });
+    if (look.tie === 'bow') {
+      const bx = c.x + sw * 0.22, by = c.y + H * 0.012, k = H * 0.03;
+      g.poly([bx, by, bx - k, by - k * 0.6, bx - k, by + k * 0.6]).fill(look.accent).stroke({ width: ow * 0.4, color: look.glow });
+      g.poly([bx, by, bx + k, by - k * 0.6, bx + k, by + k * 0.6]).fill(look.accent).stroke({ width: ow * 0.4, color: look.glow });
+      g.circle(bx, by, k * 0.3).fill(look.accent);
+    } else if (look.accent !== look.shirt) {
+      g.moveTo(c.x + sw * 0.22, c.y + H * 0.01).lineTo(c.x + sw * 0.21, c.y + H * 0.12).stroke({ width: H * 0.018, color: look.accent, cap: 'round' });
+    }
     g.moveTo(c.x + sw * 0.02, c.y).lineTo(c.x + sw * 0.18, c.y + H * 0.15).moveTo(c.x + sw * 0.4, c.y).lineTo(c.x + sw * 0.24, c.y + H * 0.15)
       .stroke({ width: ow * 0.8, color: look.trim });
     for (let i = 0; i < 2; i++) g.circle(c.x + sw * 0.2, c.y + H * (0.19 + i * 0.06), H * 0.007).fill(look.trim);
@@ -239,6 +251,11 @@ function head(g: Graphics, pose: Pose, look: Look, r: number, ow: number, time: 
   const [ex, ey] = rot(-r * 0.12, r * 0.05);
   g.ellipse(ex, ey, r * 0.16, r * 0.24).fill(shade(look.skin, 0.88)).stroke({ width: ow * 0.5, color: look.glow });
 
+  if (look.sideburns) {
+    const pts = [rot(-r * 0.06, -r * 0.3), rot(r * 0.08, -r * 0.28), rot(r * 0.13, r * 0.36), rot(r * 0.03, r * 0.48), rot(-r * 0.1, r * 0.12)];
+    g.poly(pts.flat()).fill(look.hair).stroke({ width: ow * 0.4, color: look.hairShade, join: 'round' });
+  }
+
   if (look.beard === 'full') {
     const pts = [rot(-r * 0.05, r * 0.25), rot(r * 0.35, r * 0.38), rot(r * 0.95, r * 0.42), rot(r * 0.9, r * 0.85),
                  rot(r * 0.55, r * 1.35), rot(r * 0.1, r * 1.25), rot(-r * 0.2, r * 0.8)];
@@ -268,6 +285,17 @@ function head(g: Graphics, pose: Pose, look: Look, r: number, ow: number, time: 
     g.ellipse(eyx, eyy, r * 0.17, r * 0.12 * open * blink).fill(0xf8f6f0);
     g.circle(eyx + r * 0.05, eyy, r * 0.075 * Math.min(1, blink * 2)).fill(0x1d1b1a);
     if (pose.power > 0.5) g.circle(eyx + r * 0.05, eyy, r * 0.05).fill(look.glow); // eyes glow when powered up
+  }
+
+  if (look.glasses) {
+    const [gx, gy] = rot(r * 0.44, -r * 0.1);
+    const rim = 0x2a2622;
+    if (look.glasses === 'round') g.circle(gx, gy, r * 0.22).fill({ color: 0xbfe8ff, alpha: 0.18 }).stroke({ width: ow * 0.55, color: rim });
+    else g.roundRect(gx - r * 0.25, gy - r * 0.17, r * 0.5, r * 0.34, r * 0.06).fill({ color: 0xbfe8ff, alpha: 0.18 }).stroke({ width: ow * 0.75, color: rim });
+    const bridge = rot(r * 0.78, -r * 0.14), temple = rot(-r * 0.05, -r * 0.08);
+    g.moveTo(gx + r * 0.22, gy - r * 0.02).lineTo(bridge[0], bridge[1])
+      .moveTo(gx - r * 0.22, gy).lineTo(temple[0], temple[1]).stroke({ width: ow * 0.5, color: rim });
+    g.circle(gx - r * 0.07, gy - r * 0.07, r * 0.05).fill({ color: 0xffffff, alpha: 0.6 }); // glint
   }
 
   // brows
@@ -304,6 +332,9 @@ function head(g: Graphics, pose: Pose, look: Look, r: number, ow: number, time: 
     case 'curly': curlyHair(g, r, look, ow, rot); break;
     case 'wavy': wavyHair(g, r, look, ow, rot); break;
     case 'long': longHairFront(g, r, look, ow, rot); break;
+    case 'receding': recedingHair(g, r, look, ow, rot); break;
+    case 'quiff': quiffHair(g, r, look, ow, rot); break;
+    case 'side': sideHair(g, r, look, ow, rot); break;
   }
 }
 
@@ -446,6 +477,123 @@ function longHairFront(g: Graphics, r: number, look: Look, ow: number, rot: Rot)
     g.moveTo(a[0], a[1]).lineTo(b[0], b[1]);
   }
   g.stroke({ width: ow * 0.45, color: look.hairShade });
+}
+
+/** Schrödinger: dark hair swept straight back from a high, receding hairline. */
+function recedingHair(g: Graphics, r: number, look: Look, ow: number, rot: Rot) {
+  const pts = [rot(r * 0.2, -r * 0.92), rot(-r * 0.2, -r * 1.12), rot(-r * 0.75, -r * 0.92), rot(-r * 1.04, -r * 0.4),
+               rot(-r * 0.95, r * 0.25), rot(-r * 0.6, r * 0.2), rot(-r * 0.35, -r * 0.4), rot(-r * 0.05, -r * 0.82)];
+  g.poly(pts.flat()).fill(look.hair).stroke({ width: ow * 0.8, color: look.glow, join: 'round' });
+  for (let i = 0; i < 3; i++) {
+    const a = rot(r * (0.05 - i * 0.25), -r * (1.0 - i * 0.04)), b = rot(-r * (0.55 + i * 0.15), -r * (0.6 - i * 0.12));
+    g.moveTo(a[0], a[1]).lineTo(b[0], b[1]);
+  }
+  g.stroke({ width: ow * 0.4, color: look.hairShade });
+}
+
+/** Heisenberg: a thick wave of sandy hair brushed up and back from the forehead. */
+function quiffHair(g: Graphics, r: number, look: Look, ow: number, rot: Rot) {
+  const pts = [rot(r * 0.7, -r * 0.55), rot(r * 0.78, -r * 1.05), rot(r * 0.45, -r * 1.42), rot(-r * 0.15, -r * 1.4),
+               rot(-r * 0.7, -r * 1.15), rot(-r * 1.04, -r * 0.55), rot(-r * 0.95, r * 0.2), rot(-r * 0.58, r * 0.15),
+               rot(-r * 0.3, -r * 0.5), rot(r * 0.3, -r * 0.62)];
+  g.poly(pts.flat()).fill(look.hair).stroke({ width: ow * 0.8, color: look.glow, join: 'round' });
+  for (let i = 0; i < 3; i++) {
+    const a = rot(r * (0.6 - i * 0.3), -r * (0.7 + i * 0.05)), b = rot(r * (0.2 - i * 0.35), -r * (1.32 - i * 0.06));
+    g.moveTo(a[0], a[1]).quadraticCurveTo(a[0] + r * 0.25, (a[1] + b[1]) / 2, b[0], b[1]);
+  }
+  g.stroke({ width: ow * 0.45, color: look.hairShade });
+}
+
+/** Hawking: side parting with a soft fringe across the forehead. */
+function sideHair(g: Graphics, r: number, look: Look, ow: number, rot: Rot) {
+  const pts = [rot(r * 0.74, -r * 0.4), rot(r * 0.62, -r * 0.88), rot(r * 0.2, -r * 1.14), rot(-r * 0.4, -r * 1.1),
+               rot(-r * 0.92, -r * 0.7), rot(-r * 1.04, -r * 0.1), rot(-r * 0.8, r * 0.3), rot(-r * 0.5, r * 0.15),
+               rot(-r * 0.3, -r * 0.45), rot(r * 0.3, -r * 0.38)];
+  g.poly(pts.flat()).fill(look.hair).stroke({ width: ow * 0.8, color: look.glow, join: 'round' });
+  const p1 = rot(-r * 0.2, -r * 1.08), p2 = rot(r * 0.1, -r * 0.6);
+  g.moveTo(p1[0], p1[1]).lineTo(p2[0], p2[1]).stroke({ width: ow * 0.5, color: look.hairShade });
+}
+
+/** Schrödinger's cat: alive AND dead, flickering between the two on his shoulder. */
+function quantumCat(g: Graphics, shoulder: P, H: number, look: Look, ow: number, time: number) {
+  const s = H * 0.07;
+  const x = shoulder.x - s * 0.4, y = shoulder.y - s * 0.6;
+  const alive = Math.sin(time * 3.1) + Math.sin(time * 7.3) * 0.5 > 0;
+  const a = 0.75 + 0.2 * Math.sin(time * 11);
+  const col = 0xd8fff7;
+  // tail
+  g.moveTo(x - s * 0.9, y + s * 0.2).quadraticCurveTo(x - s * 1.9, y - s * 0.2, x - s * 1.4, y - s * 1.3)
+    .stroke({ width: s * 0.28, color: col, alpha: a * 0.8, cap: 'round' });
+  // body + head + ears
+  g.ellipse(x - s * 0.2, y, s * 0.85, s * 0.6).fill({ color: col, alpha: a * 0.45 }).stroke({ width: ow * 0.5, color: look.glow, alpha: a });
+  const hx = x + s * 0.55, hy = y - s * 0.75;
+  g.circle(hx, hy, s * 0.5).fill({ color: col, alpha: a * 0.5 }).stroke({ width: ow * 0.5, color: look.glow, alpha: a });
+  g.poly([hx - s * 0.42, hy - s * 0.2, hx - s * 0.3, hy - s * 0.85, hx - s * 0.02, hy - s * 0.45]).fill({ color: col, alpha: a * 0.6 });
+  g.poly([hx + s * 0.42, hy - s * 0.2, hx + s * 0.3, hy - s * 0.85, hx + s * 0.02, hy - s * 0.45]).fill({ color: col, alpha: a * 0.6 });
+  if (alive) {
+    g.circle(hx - s * 0.17, hy - s * 0.05, s * 0.09).fill(look.glow).circle(hx + s * 0.17, hy - s * 0.05, s * 0.09).fill(look.glow);
+  } else {
+    const k = s * 0.1;
+    for (const ex of [hx - s * 0.17, hx + s * 0.17]) {
+      g.moveTo(ex - k, hy - s * 0.05 - k).lineTo(ex + k, hy - s * 0.05 + k).moveTo(ex + k, hy - s * 0.05 - k).lineTo(ex - k, hy - s * 0.05 + k);
+    }
+    g.stroke({ width: ow * 0.45, color: 0x24403b });
+  }
+}
+
+/** Doppler's tuning fork; its tines shimmer with sound waves when he's powered up. */
+function tuningFork(g: Graphics, elbow: P, hand: P, H: number, look: Look, ow: number, power: number, time: number) {
+  const ang = Math.atan2(hand.y - elbow.y, hand.x - elbow.x) - Math.PI / 2;
+  const dx = Math.cos(ang), dy = Math.sin(ang), nx = -dy, ny = dx;
+  const at = (t: number, s: number) => [hand.x + dx * H * t + nx * H * s, hand.y + dy * H * t + ny * H * s];
+  const [s0x, s0y] = at(0.04, 0), [s1x, s1y] = at(-0.05, 0);
+  const [b1x, b1y] = at(-0.05, -0.022), [b2x, b2y] = at(-0.05, 0.022);
+  const [t1x, t1y] = at(-0.17, -0.022), [t2x, t2y] = at(-0.17, 0.022);
+  g.moveTo(s0x, s0y).lineTo(s1x, s1y).moveTo(b1x, b1y).lineTo(b2x, b2y).moveTo(b1x, b1y).lineTo(t1x, t1y).moveTo(b2x, b2y).lineTo(t2x, t2y)
+    .stroke({ width: ow * 1.1, color: 0xc9ced6, cap: 'round' });
+  if (power > 0.2) {
+    const [cx, cy] = at(-0.17, 0);
+    for (let i = 1; i <= 2; i++) {
+      const rr = H * 0.03 * i + ((time * 60) % 10) * 0.6;
+      g.circle(cx, cy, rr).stroke({ width: ow * 0.5, color: look.glow, alpha: 0.6 / i });
+    }
+  }
+}
+
+/** Hawking's hover chair: backrest, seat, footrest and a hovering base with glowing jets. */
+function hoverChair(g: Graphics, pose: Pose, H: number, look: Look, ow: number, time: number) {
+  const hx = pose.hip.x, seatY = pose.hip.y + H * 0.04;
+  const frame = 0x22252e, panel = 0x2f3340;
+  // backrest (behind the torso)
+  g.roundRect(hx - H * 0.2, pose.hip.y - H * 0.36, H * 0.09, H * 0.42, H * 0.03).fill(frame).stroke({ width: ow * 0.8, color: look.glow });
+  g.moveTo(hx - H * 0.155, pose.hip.y - H * 0.32).lineTo(hx - H * 0.155, seatY - H * 0.02).stroke({ width: ow * 0.6, color: look.glow, alpha: 0.6 });
+  // base pod and jets
+  const podY = Math.max(seatY + H * 0.12, -H * 0.12);
+  const flick = 0.6 + 0.4 * Math.sin(time * 23);
+  for (const jx of [-0.12, 0.0, 0.12]) {
+    g.poly([hx + H * (jx - 0.03), podY + H * 0.03, hx + H * (jx + 0.03), podY + H * 0.03, hx + H * jx, podY + H * (0.09 + 0.03 * flick)])
+      .fill({ color: look.glow, alpha: 0.55 * flick });
+  }
+  g.moveTo(hx + H * 0.02, seatY + H * 0.05).lineTo(hx + H * 0.02, podY).stroke({ width: H * 0.05, color: panel });
+  g.ellipse(hx + H * 0.02, podY, H * 0.2, H * 0.045).fill(frame).stroke({ width: ow * 0.8, color: look.glow });
+  g.ellipse(hx + H * 0.02, podY, H * 0.12, H * 0.015).fill({ color: look.glow, alpha: 0.5 });
+  // footrest
+  g.moveTo(hx + H * 0.12, seatY + H * 0.05).lineTo(pose.footF.x + H * 0.02, pose.footF.y + H * 0.012).stroke({ width: H * 0.025, color: panel });
+  g.roundRect(pose.footB.x - H * 0.05, pose.footF.y + H * 0.005, H * 0.17, H * 0.022, H * 0.01).fill(frame).stroke({ width: ow * 0.6, color: look.glow });
+  // seat cushion
+  g.roundRect(hx - H * 0.2, seatY, H * 0.38, H * 0.06, H * 0.025).fill(panel).stroke({ width: ow * 0.8, color: look.glow });
+}
+
+/** The screen of his communication computer, on an arm at the side of the chair. */
+function chairScreen(g: Graphics, pose: Pose, H: number, look: Look, ow: number, time: number) {
+  const hx = pose.hip.x, seatY = pose.hip.y + H * 0.04;
+  const sx = hx + H * 0.26, sy = pose.hip.y - H * 0.12;
+  g.moveTo(hx + H * 0.16, seatY + H * 0.02).lineTo(sx, sy + H * 0.06).stroke({ width: H * 0.014, color: 0x3a3f4d, cap: 'round' });
+  g.roundRect(sx - H * 0.06, sy - H * 0.045, H * 0.12, H * 0.09, H * 0.012).fill(0x0c1020).stroke({ width: ow * 0.6, color: look.glow });
+  for (let i = 0; i < 3; i++) {
+    const w = H * (0.04 + 0.03 * ((Math.sin(time * 1.3 + i * 2) + 1) / 2));
+    g.rect(sx - H * 0.045, sy - H * 0.028 + i * H * 0.022, w, H * 0.008).fill({ color: look.glow, alpha: 0.8 });
+  }
 }
 
 /** Galileo's brass telescope held along the forearm. */

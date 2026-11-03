@@ -3,7 +3,7 @@
   "name": "Christian Doppler",
   "title": "The Sonic Bruiser",
   "fighterClass": "BRUISER",
-  "color": "#ff4d5e",
+  "color": "#ff4d6d",
   "mass": 90,
   "maxHealth": 1080,
   "walkSpeed": 360,
