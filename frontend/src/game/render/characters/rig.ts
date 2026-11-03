@@ -272,6 +272,18 @@ function castPoseFor(id: string, move: string, H: number): { f: P; b: P; lean: n
     case 'doppler.special1':     return { f: { x: H * 0.32, y: -H * 0.72 }, b: { x: H * 0.1, y: -H * 0.66 }, lean: 0.1 };    // strikes the fork
     case 'doppler.special2':     return { f: { x: H * 0.3, y: -H * 0.62 }, b: { x: -H * 0.24, y: -H * 0.62 }, lean: 0.35 };  // breaks the sound barrier
     case 'doppler.ultimate':     return { f: { x: H * 0.33, y: -H * 0.72 }, b: { x: H * 0.3, y: -H * 0.66 }, lean: 0.15 };
+    case 'bernoulli.special1':  return { f: { x: H * 0.12, y: -H * 1.1 }, b: { x: -H * 0.1, y: -H * 1.05 }, lean: -0.05 };  // rides the updraft
+    case 'bernoulli.special2':  return { f: { x: H * 0.34, y: -H * 0.68 }, b: { x: H * 0.3, y: -H * 0.62 }, lean: 0.12 };
+    case 'bernoulli.ultimate':  return { f: { x: H * 0.26, y: -H * 1.0 }, b: { x: -H * 0.24, y: -H * 0.98 }, lean: 0 };       // whips up the wind
+    case 'edison.special1':     return { f: { x: H * 0.34, y: -H * 0.68 }, b: { x: H * 0.08, y: -H * 0.62 }, lean: 0.16 };   // a straight DC jab
+    case 'edison.special2':     return { f: { x: H * 0.1, y: -H * 0.98 }, b: { x: H * 0.28, y: -H * 0.8 }, lean: -0.05 };    // holds the bulb up high
+    case 'edison.ultimate':     return { f: { x: H * 0.3, y: -H * 0.8 }, b: { x: H * 0.06, y: -H * 0.62 }, lean: 0.05 };      // presents the patent
+    case 'sn-bose.special1':    return { f: { x: H * 0.32, y: -H * 0.7 }, b: { x: H * 0.28, y: -H * 0.64 }, lean: 0.08 };
+    case 'sn-bose.special2':    return { f: { x: H * 0.24, y: -H * 0.78 }, b: { x: -H * 0.24, y: -H * 0.78 }, lean: 0 };      // mirrors
+    case 'sn-bose.ultimate':    return { f: { x: H * 0.16, y: -H * 1.06 }, b: { x: -H * 0.14, y: -H * 1.04 }, lean: -0.05 };
+    case 'jc-bose.special1':    return { f: { x: H * 0.34, y: -H * 0.72 }, b: { x: H * 0.02, y: -H * 0.6 }, lean: 0.1 };      // aims the transmitter
+    case 'jc-bose.special2':    return { f: { x: H * 0.24, y: -H * 0.06 }, b: { x: -H * 0.02, y: -H * 0.45 }, lean: 0.2, crouch: true }; // plants a seed
+    case 'jc-bose.ultimate':    return { f: { x: H * 0.24, y: -H * 0.4 }, b: { x: -H * 0.22, y: -H * 0.4 }, lean: 0.1, crouch: true };  // hands to the earth
     case 'hooke.ultimate':    return { f: { x: H * 0.16, y: -H * 0.52 }, b: { x: -H * 0.1, y: -H * 0.52 }, lean: -0.12 }; // strains past the limit
     default: return { f: { x: H * 0.28, y: -H * 0.7 }, b: { x: H * 0.05, y: -H * 0.6 }, lean: 0.08 };
   }

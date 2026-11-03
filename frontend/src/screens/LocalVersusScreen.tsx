@@ -14,12 +14,14 @@ import { CharacterSelect } from '../components/CharacterSelect';
 import { useFightOverlays } from '../components/FightOverlays';
 import { fighterPortraits } from '../components/portraits';
 import { VictoryPanel } from '../components/VictoryPanel';
+import { RivalryIntro, RivalryOutcome } from '../components/RivalryIntro';
+import { rivalryFor } from '../game/data/rivalries';
 import { codexApi, unlocksApi, type LabNote } from '../api/progress';
 
 const NAMES = ['Player 1', 'Player 2'];
 const ROSTER = ROSTER_IDS.map((id) => FIGHTERS[id]);
-type ArenaChoice = 'the-lab' | 'space-station' | 'black-hole-edge' | 'random';
-const ARENA_CYCLE: ArenaChoice[] = ['random', 'the-lab', 'space-station', 'black-hole-edge'];
+type ArenaChoice = 'the-lab' | 'space-station' | 'black-hole-edge' | 'curzon-hall' | 'random';
+const ARENA_CYCLE: ArenaChoice[] = ['random', 'the-lab', 'space-station', 'black-hole-edge', 'curzon-hall'];
 const hex = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
 
 /**
@@ -256,6 +258,7 @@ function LocalFight({ picks, arenaId, onChangeFighters }: { picks: [string, stri
       <HudBar hud={hud} names={NAMES} fighters={fighterInfo} images={images} />
       {banner && !result && <Banner key={banner.key} text={banner.text} sub={banner.sub} />}
       {overlays.element}
+      {defs.length === 2 && <RivalryIntro key={`rv-${game}`} defs={defs} />}
 
       {paused && !result && (
         <div className="fight-overlay">
@@ -276,6 +279,7 @@ function LocalFight({ picks, arenaId, onChangeFighters }: { picks: [string, stri
             title={result.winner < 0 ? 'DRAW' : `${defs[result.winner].name.toUpperCase()} WINS`}
             score={`${result.roundWins[0]} – ${result.roundWins[1]}`}
             labNote={labNote}
+            extra={(() => { const rv = rivalryFor(defs[0].id, defs[1].id); return rv && <RivalryOutcome rivalry={rv} winner={result.winner >= 0 ? defs[result.winner] : null} />; })()}
             variant={result.winner === 1 ? 'p2' : result.winner === 0 ? 'victory' : 'draw'}
             actions={<>
               <button className="btn-neon" onClick={() => { sfx.click(); setGame((g) => g + 1); }}>Rematch</button>

@@ -20,9 +20,14 @@
  *              here it hovers, with his screen mounted at the side)
  *   Doppler  — 1840s Austrian: high forehead, dark hair and side-whiskers, high collar and black
  *              stock, navy coat; a tuning fork in hand
+ *   Bernoulli — 18th-century Basel: a white powdered wig and a sky-blue coat
+ *   Edison   — older Edison: white hair, heavy brows, dark suit and bow tie; a glowing bulb in hand
+ *   S.N. Bose — round glasses and swept-back dark hair (as in the 1920s, when he wrote to Einstein),
+ *              in a cream kurta with a woollen shawl over the shoulder, as he often wore
+ *   J.C. Bose — short dark side-parted hair, a full moustache and a dark suit; a potted seedling
  */
 export type HairStyle = 'periwig' | 'slick' | 'bun' | 'wild' | 'balding' | 'curly' | 'wavy' | 'long' | 'receding' | 'quiff' | 'side';
-export type Outfit = 'frockcoat' | 'suit' | 'dress' | 'cardigan' | 'robe' | 'chiton';
+export type Outfit = 'frockcoat' | 'suit' | 'dress' | 'cardigan' | 'robe' | 'chiton' | 'kurta';
 export type Stance = 'boxer' | 'showman' | 'chemist' | 'professor';
 
 export interface Look {
@@ -48,7 +53,7 @@ export interface Look {
   /** Shoulder width as a fraction of height. */
   shoulders: number;
   /** Visual-only prop held in the back hand (the cat sits on the back shoulder). */
-  prop?: 'vial' | 'telescope' | 'cat' | 'fork';
+  prop?: 'vial' | 'telescope' | 'cat' | 'fork' | 'bulb' | 'plant';
   glasses?: 'round' | 'square';
   tie?: 'bow';
   sideburns?: boolean;
@@ -128,6 +133,30 @@ export const LOOKS: Record<string, Look> = {
     coat: 0x1d2433, coatShade: 0x141924, trim: 0xb8a07a, shirt: 0xf2eee4, accent: 0x161616,
     legs: 0x262a33, shoes: 0x101012, hairStyle: 'balding', outfit: 'suit', stance: 'boxer',
     moustache: 'none', brows: 'stern', shoulders: 0.27, sideburns: true, prop: 'fork',
+  },
+  bernoulli: {
+    glow: 0x00e5ff, skin: 0xf1caa8, hair: 0xeeeae2, hairShade: 0xc2bdb2,
+    coat: 0x2f5f7a, coatShade: 0x224759, trim: 0xd9d2bd, shirt: 0xf6f2e8, accent: 0x9ab7c6,
+    legs: 0x2a3640, shoes: 0x141618, hairStyle: 'periwig', outfit: 'frockcoat', stance: 'showman',
+    moustache: 'none', brows: 'fine', shoulders: 0.22,
+  },
+  edison: {
+    glow: 0xffe14d, skin: 0xecc3a0, hair: 0xe9e6df, hairShade: 0xb8b3a8,
+    coat: 0x2a2724, coatShade: 0x1d1b19, trim: 0x8c8172, shirt: 0xf2efe6, accent: 0x1a1a1a,
+    legs: 0x2a2724, shoes: 0x121110, hairStyle: 'side', outfit: 'suit', stance: 'boxer',
+    moustache: 'none', brows: 'bushy', shoulders: 0.28, tie: 'bow', prop: 'bulb',
+  },
+  'sn-bose': {
+    glow: 0x9fe8ff, skin: 0xb98a63, hair: 0x1f1a17, hairShade: 0x141110,
+    coat: 0xefe8d6, coatShade: 0xd6ccb4, trim: 0xb8ad94, shirt: 0xefe8d6, accent: 0x6e5a4a,
+    legs: 0xf4efe3, shoes: 0x3b2a1e, hairStyle: 'receding', outfit: 'kurta', stance: 'professor',
+    moustache: 'none', brows: 'soft', shoulders: 0.23, glasses: 'round',
+  },
+  'jc-bose': {
+    glow: 0x2ecc71, skin: 0xb48560, hair: 0x1c1816, hairShade: 0x121010,
+    coat: 0x23262b, coatShade: 0x18191d, trim: 0x6f7a72, shirt: 0xf1eee6, accent: 0x2f4a3a,
+    legs: 0x23262b, shoes: 0x0f0f10, hairStyle: 'side', outfit: 'suit', stance: 'professor',
+    moustache: 'bushy', brows: 'stern', shoulders: 0.24, prop: 'plant',
   },
   prototype: {
     glow: 0xe9ece4, skin: 0xd0d4d8, hair: 0x3a3f45, hairShade: 0x2a2e33,

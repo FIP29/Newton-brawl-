@@ -64,9 +64,17 @@ public record Arena(String id, String name, double width, double height, double 
         new ObjectSpawn("rock", 800, 205, 200, 0, 58, 50, false)),
         new Well(800, 430, 12_000_000, 60, 48, 45));
 
-    public static final List<Arena> ALL = List.of(THE_LAB, SPACE_STATION, BLACK_HOLE_EDGE);
+    /**
+     * Curzon Hall, University of Dhaka, at night: the lawn in front of the red-brick hall where
+     * S.N. Bose taught. Standard gravity; two terracotta flower pots to kick around (not metal).
+     */
+    public static final Arena CURZON_HALL = new Arena("curzon-hall", "Curzon Hall", 1600, 900, 2400, 1, 0.4, 0.5, List.of(
+        new ObjectSpawn("pot", 330, 0, 0, 0, 44, 50, false),
+        new ObjectSpawn("pot", 1270, 0, 0, 0, 44, 50, false)));
+
+    public static final List<Arena> ALL = List.of(THE_LAB, SPACE_STATION, BLACK_HOLE_EDGE, CURZON_HALL);
     private static final Map<String, Arena> BY_ID = Map.of(THE_LAB.id(), THE_LAB, SPACE_STATION.id(), SPACE_STATION,
-        BLACK_HOLE_EDGE.id(), BLACK_HOLE_EDGE);
+        BLACK_HOLE_EDGE.id(), BLACK_HOLE_EDGE, CURZON_HALL.id(), CURZON_HALL);
 
     public static Arena byId(String id) {
         Arena a = BY_ID.get(id);

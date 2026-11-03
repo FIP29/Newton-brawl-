@@ -117,5 +117,6 @@
         "interval": 20
       }
     }
-  }
+  },
+  "projectileEvade": 30
 }

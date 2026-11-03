@@ -50,6 +50,21 @@ public abstract class Fighter {
         return p;
     }
 
+    /**
+     * Copy moves (S.N. Bose's Boson Copy, Edison's Patent): re-runs the opponent's last special as if
+     * {@code self} had cast it. Melee specials and other copy moves can't be copied. Returns the copied
+     * move id, or null if there was nothing to copy.
+     */
+    protected static String copySpecial(MatchWorld world, FighterState self, FighterState opp) {
+        String id = opp.lastSpecial();
+        if (id == null) return null;
+        MoveDefinition src = opp.definition().move(id);
+        if (src == null || src.hitbox() != null || src.param("copies", 0) == 1) return null;
+        opp.fighter().onTrigger(world, self, opp, id, src);
+        world.event(com.newtonbrawl.engine.sim.GameEvent.COPY, self.slot(), opp.slot(), id, self.x(), self.y() + self.bodyHeight() / 2);
+        return id;
+    }
+
     /** A zone pre-filled from the move's damage/impulse/hitstun/hitstop. */
     protected static Zone zone(MatchWorld world, FighterState self, String kind, String moveId, MoveDefinition m) {
         Zone z = new Zone(world.nextId(), self.slot(), kind, moveId);

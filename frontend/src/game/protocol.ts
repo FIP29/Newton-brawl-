@@ -54,6 +54,8 @@ export interface FighterDefinition {
   airAcceleration: number;
   body: { width: number; height: number };
   moves: Record<string, MoveDefinition>;
+  /** % chance a projectile passes straight through (Heisenberg). */
+  projectileEvade?: number | null;
 }
 
 export interface FighterView {
@@ -82,6 +84,12 @@ export interface FighterView {
   cage: number;
   /** Ticks of swapped left/right controls left (Heisenberg). */
   scramble: number;
+  /** Condensate Freeze slowing (S.N. Bose). */
+  chill: number;
+  /** Lightbulb Flash dazzle (Edison). */
+  blind: number;
+  /** Last special triggered, for copy moves. */
+  last: string | null;
 }
 
 export interface ProjectileView {
@@ -95,7 +103,7 @@ export interface ProjectileView {
 export interface ZoneView {
   id: number; owner: number;
   kind: 'BUBBLE' | 'PULL' | 'TRAP' | 'BLAST' | 'BEAM' | 'FIELD' | 'LEVER' | 'FOCUS' | 'INDUCTION' | 'STORM' | 'SPRING'
-    | 'GHOST' | 'CATBOX' | 'CLOUD' | 'WAVE' | 'BURST' | 'UNCERTAIN' | 'SINGULARITY' | 'BOOM';
+    | 'GHOST' | 'CATBOX' | 'CLOUD' | 'WAVE' | 'BURST' | 'UNCERTAIN' | 'SINGULARITY' | 'BOOM' | 'VORTEX' | 'CURRENT' | 'VINE';
   move: string;
   x: number; y: number; w: number; h: number;
   age: number; life: number; delay: number; active: number; armed: boolean;
@@ -103,7 +111,8 @@ export interface ZoneView {
 
 export interface ObjectView { id: number; kind: string; x: number; y: number; vx: number; vy: number; w: number; h: number; owner: number }
 
-export type GameEventType = 'HIT' | 'REFLECT' | 'ULTIMATE' | 'CAST' | 'ARC' | 'CLANK' | 'BLOCK' | 'SHATTER' | 'COLLAPSE' | 'SWALLOW';
+export type GameEventType = 'HIT' | 'REFLECT' | 'ULTIMATE' | 'CAST' | 'ARC' | 'CLANK' | 'BLOCK' | 'SHATTER' | 'COLLAPSE' | 'SWALLOW'
+  | 'PHASE' | 'FREEZE' | 'CONDENSE' | 'COPY';
 
 /** Mirrors com.newtonbrawl.engine.sim.GameEvent. */
 export interface GameEvent { type: GameEventType; attacker: number; defender: number; move: string | null; damage: number; x: number; y: number }

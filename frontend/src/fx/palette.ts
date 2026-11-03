@@ -12,6 +12,8 @@ export const NEON = {
   schrodinger: 0x2ee6c9,// teal
   heisenberg: 0xff3df2, // magenta
   hawking: 0x6f7bff,    // indigo
+  bernoulli: 0x00e5ff,  // sky cyan
+  edison: 0xffe14d,     // warm filament yellow
   bose: 0x9fe8ff,       // ice blue
   jcbose: 0x2ecc71,     // emerald
   doppler: 0xff4d6d,    // red-shift
@@ -33,5 +35,7 @@ export const BACKDROP_EQUATIONS: Array<{ text: string; color: number }> = [
   { text: 'T = 2π√(L/g)', color: NEON.galileo },
   { text: 'f′ = f·(c + v)/(c − v)', color: NEON.doppler },
   { text: 'n = 1 / (e^(hν/kT) − 1)', color: NEON.bose },
+  { text: 'P + ½ρv² = const', color: NEON.bernoulli },
+  { text: 'V = IR', color: NEON.edison },
   { text: 'c = fλ', color: NEON.jcbose },
 ];

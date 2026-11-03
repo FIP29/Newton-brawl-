@@ -21,7 +21,11 @@ const RATINGS: Record<string, { power: number; speed: number; range: number }> =
   schrodinger: { power: 3, speed: 3, range: 4 },
   heisenberg: { power: 2, speed: 5, range: 3 },
   hawking: { power: 4, speed: 1, range: 5 },
-  doppler: { power: 5, speed: 2, range: 4 },
+  doppler: { power: 3, speed: 5, range: 4 },
+  bernoulli: { power: 2, speed: 5, range: 3 },
+  edison: { power: 5, speed: 2, range: 2 },
+  'sn-bose': { power: 3, speed: 3, range: 4 },
+  'jc-bose': { power: 3, speed: 2, range: 5 },
 };
 
 export interface SelectPlayer {

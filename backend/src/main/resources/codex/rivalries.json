@@ -1,0 +1,76 @@
+{
+  "rivalries": [
+    {
+      "id": "war-of-currents",
+      "kind": "RIVALRY",
+      "fighters": [
+        "tesla",
+        "edison"
+      ],
+      "title": "The War of the Currents",
+      "intro": {
+        "tesla": "Alternating current will light the world, Mr. Edison. Yours barely reaches the end of the street.",
+        "edison": "Genius is one percent inspiration and ninety-nine percent perspiration. Let's see you sweat, Tesla."
+      },
+      "victory": {
+        "tesla": "AC: carried for miles. Your DC: lost in the wire.",
+        "edison": "Steady current. Steady fists."
+      },
+      "fact": "Tesla worked for Edison in 1884 before they parted on bad terms. Through the 1880s and 1890s, Edison's direct current competed with alternating current, backed by Westinghouse with Tesla's patents. AC won, because transformers can raise its voltage for transmission over long distances."
+    },
+    {
+      "id": "inverse-square",
+      "kind": "RIVALRY",
+      "fighters": [
+        "newton",
+        "hooke"
+      ],
+      "title": "The Inverse-Square Feud",
+      "intro": {
+        "newton": "If I have seen further, Mr. Hooke, it is by standing on the shoulders of giants.",
+        "hooke": "I wrote to you of the inverse square long before your Principia, Isaac."
+      },
+      "victory": {
+        "newton": "Hypotheses non fingo. I frame no hypotheses. I simply win.",
+        "hooke": "Ut tensio, sic vis. As the stretch, so the force, and you have been stretched."
+      },
+      "fact": "Newton's famous \"shoulders of giants\" line comes from a 1675 letter to Hooke. Later, Hooke claimed he had suggested the inverse-square law of gravity to Newton in letters of 1679–80. Newton was furious and removed several mentions of Hooke from the Principia (1687)."
+    },
+    {
+      "id": "waves-vs-matrices",
+      "kind": "RIVALRY",
+      "fighters": [
+        "schrodinger",
+        "heisenberg"
+      ],
+      "title": "Waves versus Matrices",
+      "intro": {
+        "schrodinger": "Your matrices can't even be pictured, Werner. My waves you can see.",
+        "heisenberg": "The more I think about your theory, Erwin, the more repulsive I find it."
+      },
+      "victory": {
+        "schrodinger": "Observed. Collapsed. You lose.",
+        "heisenberg": "I can't say exactly where you are. On the floor, probably."
+      },
+      "fact": "In 1925–26 Heisenberg's matrix mechanics and Schrödinger's wave mechanics competed to explain the atom. In 1926 Heisenberg wrote to Pauli that the more he thought about Schrödinger's theory, the more repulsive he found it. Schrödinger soon showed that the two theories make the same predictions."
+    },
+    {
+      "id": "bose-einstein",
+      "kind": "DUO",
+      "fighters": [
+        "sn-bose",
+        "einstein"
+      ],
+      "title": "Bose–Einstein",
+      "intro": {
+        "sn-bose": "Respected Sir, I have ventured to send you the accompanying article for your perusal and opinion.",
+        "einstein": "Your derivation is an important step forward, Professor Bose. Now let's see whether you fight as well as you count."
+      },
+      "victory": {
+        "sn-bose": "The same state, but not the same result.",
+        "einstein": "God does not play dice, but He does count bosons."
+      },
+      "fact": "In 1924 Bose, then teaching at the University of Dhaka, sent Einstein a new derivation of Planck's law. Einstein translated it into German, had it published, and extended the idea to atoms, predicting what is now called the Bose–Einstein condensate. Bose's letter opened with the words in his intro."
+    }
+  ]
+}

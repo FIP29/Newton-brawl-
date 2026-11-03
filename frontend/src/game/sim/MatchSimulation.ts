@@ -1,7 +1,7 @@
 import { Btn, type ArenaInfo, type FighterDefinition, type GameEvent, type GameEventType, type MatchPhase,
          type MatchRules, type MoveDefinition, type RoundResult, type Snapshot } from '../protocol';
 import { intersects, overlapCenter, type Aabb } from './aabb';
-import { BUOY_GRAVITY, CINEMATIC_TICKS, DT, ENERGY_MAX, ENERGY_PER_DAMAGE_DEALT, ENERGY_PER_DAMAGE_TAKEN, FLIP_GRAVITY,
+import { BUOY_GRAVITY, CHILL_SCALE, CINEMATIC_TICKS, DT, ENERGY_MAX, ENERGY_PER_DAMAGE_DEALT, ENERGY_PER_DAMAGE_TAKEN, FLIP_GRAVITY,
          GROUND_FRICTION, OBJECT_DANGER_SPEED, OBJECT_MASS, SLOWMO_TICKS } from './constants';
 import { ArenaObject, Projectile, Zone, type ZoneKind } from './entities';
 import { FighterState, isFree, r, totalFrames } from './FighterState';
@@ -24,12 +24,14 @@ export interface MatchWorld {
   shatter(victimSlot: number, sourceSlot: number, x: number, y: number, speed: number): void;
   /** Deterministic random integer in [0, n) (xorshift32, identical to Java). */
   random(n: number): number;
+  condense(victimSlot: number, sourceSlot: number, x: number, y: number): void;
+  syncZones(owner: number, kind: ZoneKind, ticks: number): void;
+  event(type: GameEventType, attacker: number, defender: number, move: string | null, damage: number, x: number, y: number): void;
 }
 
 /** Hooks the per-fighter step functions need (implemented by the simulation and by the Predictor). */
 export interface StepHost extends MatchWorld {
   startUltimate(s: FighterState): void;
-  event(type: GameEventType, attacker: number, defender: number, move: string | null, damage: number, x: number, y: number): void;
 }
 
 /**
@@ -155,7 +157,9 @@ export class MatchSimulation implements StepHost {
   }
 
   private takeTimeSlice(s: FighterState): boolean {
-    s.timeAcc += this.timeScaleAt(s.x, s.y + s.def.body.height / 2, s.slot);
+    let scale = this.timeScaleAt(s.x, s.y + s.def.body.height / 2, s.slot);
+    if (s.chillTicks > 0) scale = Math.min(scale, CHILL_SCALE);
+    s.timeAcc += scale;
     if (s.timeAcc >= 1.0) {
       s.timeAcc -= 1.0;
       return true;
@@ -168,12 +172,17 @@ export class MatchSimulation implements StepHost {
   private applyZoneForces() {
     for (const z of this.zones) {
       if (z.dead) continue;
-      if (z.kind === 'STORM') {
+      if (z.kind === 'STORM' || z.kind === 'VORTEX') {
         const t = this.f[1 - z.owner];
         const dx = z.x - t.x;
-        if (z.contains(t.x, t.y + t.def.body.height / 2) && Math.abs(dx) > 20 && t.invulnTicks === 0) {
+        const inside = z.contains(t.x, t.y + t.def.body.height / 2) && t.invulnTicks === 0;
+        if (inside && Math.abs(dx) > 20) {
           t.x += Math.sign(dx) * z.strength * DT;
           clampToWalls(this.arena, t);
+        }
+        if (inside && z.kind === 'VORTEX' && t.y < z.lift) {
+          t.vy = Math.max(t.vy, 520);
+          t.grounded = false;
         }
         continue;
       }
@@ -362,8 +371,14 @@ export class MatchSimulation implements StepHost {
 
       const target = this.f[1 - p.owner];
       const box = p.box(), hurt = target.hurtbox();
-      if (target.invulnTicks === 0 && intersects(box, hurt)) {
+      if (target.invulnTicks === 0 && !p.evaded && intersects(box, hurt)) {
         const pt = overlapCenter(box, hurt);
+        const evade = target.def.projectileEvade ?? 0;
+        if (evade > 0 && this.random(100) < evade) {
+          p.evaded = true;
+          this.event('PHASE', target.slot, p.owner, p.move, 0, r(pt[0]), r(pt[1]));
+          continue;
+        }
         if (p.electric && target.cageTicks > 0) {
           this.event('BLOCK', target.slot, p.owner, p.move, 0, r(pt[0]), r(pt[1]));
           p.dead = true;
@@ -394,12 +409,23 @@ export class MatchSimulation implements StepHost {
             const ratio = clamp((p.waveSpeed + vo) / (p.waveSpeed - p.vs), 0.5, 2.5);
             dmg = Math.round(dmg * ratio);
           }
-          const landed = this.hitFighter(this.f[p.owner], target, dmg, ix, iy, p.hitstun, p.hitstop, p.move, pt);
+          let stun = p.hitstun;
+          const freeze = p.effect === 'CHILL' && target.chillTicks > 0;
+          if (freeze) stun = p.freezeStun;
+          const landed = this.hitFighter(this.f[p.owner], target, dmg, ix, iy, stun, p.hitstop, p.move, pt);
+          if (landed && p.effect === 'CHILL') {
+            target.chillTicks = freeze ? 0 : p.effectTicks;
+            if (freeze) this.event('FREEZE', p.owner, target.slot, p.move, 0, r(pt[0]), r(pt[1]));
+          }
           if (landed && p.effect === 'GRAVITY_FLIP') target.flipTicks = p.effectTicks;
           if (landed && p.effect === 'BUOY') target.buoyTicks = p.effectTicks;
           p.dead = true;
           continue;
         }
+      }
+      if (p.wraps > 0 && (p.x < 0 || p.x > this.arena.width)) {
+        p.x = p.x < 0 ? p.x + this.arena.width : p.x - this.arena.width;
+        p.wraps--;
       }
       const hitFloor = p.y - p.h / 2 <= 0 && p.vy < 0;
       const outside = p.x < -100 || p.x > this.arena.width + 100 || p.y > this.arena.height + 200;
@@ -490,8 +516,9 @@ export class MatchSimulation implements StepHost {
           if (live && (z.hitMask & (1 << t.slot)) === 0 && t.invulnTicks === 0 && intersects(z.box(), hurt)) {
             z.hitMask |= 1 << t.slot;
             const dir = z.kind === 'BEAM' || z.kind === 'BOOM' ? z.dir : (t.x >= z.x ? 1 : -1);
-            this.hitFighter(src, t, z.damage, dir * z.impulseX, z.impulseY, z.hitstun, z.hitstop, z.move,
+            const landed = this.hitFighter(src, t, z.damage, dir * z.impulseX, z.impulseY, z.hitstun, z.hitstop, z.move,
               overlapCenter(z.box(), hurt));
+            if (landed && z.blind > 0) t.blindTicks = z.blind;
           }
           if (z.age > z.delay + z.active) z.dead = true;
           break;
@@ -520,6 +547,7 @@ export class MatchSimulation implements StepHost {
           }
           break;
         case 'STORM':
+        case 'VORTEX':
           if (z.age % z.interval === 0 && t.invulnTicks === 0 && z.contains(t.x, t.y + t.def.body.height / 2)) {
             if (electricBlocked(z, t)) {
               this.event('BLOCK', t.slot, z.owner, z.move, 0, r(t.x), r(t.y + 60));
@@ -546,10 +574,32 @@ export class MatchSimulation implements StepHost {
           if (z.age >= z.delay) this.openBox(z, t);
           break;
         case 'CLOUD':
+        case 'CURRENT':
           if (z.age % z.interval === 0 && t.invulnTicks === 0 && intersects(z.box(), hurt)) {
-            const dir = t.x >= z.x ? 1 : -1;
-            this.hitFighter(src, t, z.damage, dir * z.impulseX, z.impulseY, z.hitstun, z.hitstop, z.move,
-              [t.x, t.y + t.def.body.height * 0.6]);
+            if (electricBlocked(z, t)) {
+              this.event('BLOCK', t.slot, z.owner, z.move, 0, r(t.x), r(t.y + 60));
+            } else {
+              const dir = t.x >= z.x ? 1 : -1;
+              this.hitFighter(src, t, z.damage, dir * z.impulseX, z.impulseY, z.hitstun, z.hitstop, z.move,
+                [t.x, t.y + t.def.body.height * 0.6]);
+            }
+          }
+          break;
+        case 'VINE':
+          if (z.arm > 0) {
+            z.arm--;
+          } else {
+            const inside = t.invulnTicks === 0 && intersects(z.box(), hurt);
+            const synced = z.delay > 0;
+            const moving = Math.abs(t.vx) + Math.abs(t.vy) > 60;
+            if (synced ? z.age >= z.delay : inside && moving) {
+              if (inside) {
+                const dir = z.x >= t.x ? 1 : -1;
+                this.hitFighter(src, t, z.damage, dir * z.impulseX, z.impulseY, z.hitstun, z.hitstop, z.move,
+                  overlapCenter(z.box(), hurt));
+              }
+              z.dead = true;
+            }
           }
           break;
         case 'UNCERTAIN':
@@ -667,6 +717,18 @@ export class MatchSimulation implements StepHost {
     }
     this.event('SHATTER', sourceSlot, victimSlot, 'ultimate', 0, r(x), r(y));
   }
+  condense(victimSlot: number, sourceSlot: number, x: number, y: number) {
+    for (const p of this.projectiles) if (p.owner === victimSlot) p.dead = true;
+    for (const o of this.objects) { o.vx = 0; o.vy = 0; o.owner = -1; }
+    this.event('CONDENSE', sourceSlot, victimSlot, 'ultimate', 0, r(x), r(y));
+  }
+  syncZones(owner: number, kind: ZoneKind, ticks: number) {
+    for (const z of this.zones) {
+      if (z.dead || z.owner !== owner || z.kind !== kind) continue;
+      z.arm = 0;
+      z.delay = z.age + ticks;
+    }
+  }
   random(n: number): number {
     let x = this.rng;
     x ^= x << 13;
@@ -715,7 +777,7 @@ export function control(s: FighterState, raw: InputFrame, opponent: FighterState
   if (s.scrambleTicks > 0) dir = -dir;
 
   if (s.grounded) {
-    s.facing = opponent.x >= s.x ? 1 : -1;
+    if (s.blindTicks === 0) s.facing = opponent.x >= s.x ? 1 : -1;
     if (tryAttack(s, inp, host)) {
       s.vx *= 0.3;
       return;
@@ -743,13 +805,14 @@ function tryAttack(s: FighterState, inp: InputFrame, host: StepHost): boolean {
   const ultPress = (inp.pressed & Btn.ULTIMATE) !== 0
     || ((inp.pressed & Btn.SPECIAL) !== 0 && (inp.held & Btn.HEAVY) !== 0)
     || ((inp.pressed & Btn.HEAVY) !== 0 && (inp.held & Btn.SPECIAL) !== 0);
-  if (ultPress && s.energy >= ENERGY_MAX && s.def.moves.ultimate) {
+  const canSee = s.blindTicks === 0;
+  if (canSee && ultPress && s.energy >= ENERGY_MAX && s.def.moves.ultimate) {
     s.startMove('ultimate');
     s.energy = 0;
     host.startUltimate(s);
     return true;
   }
-  if (inp.pressed & Btn.SPECIAL) {
+  if (canSee && (inp.pressed & Btn.SPECIAL)) {
     const idx = (inp.held & Btn.DOWN) ? 1 : 0;
     const id = idx === 0 ? 'special1' : 'special2';
     const m = s.def.moves[id];
@@ -836,6 +899,7 @@ export function advance(s: FighterState, opponent: FighterState, host: StepHost)
     s.moveFrame++;
     const m = s.move!;
     if ((m.kind ?? 'NORMAL') !== 'NORMAL' && s.moveFrame === m.startup) {
+      if (m.kind === 'SPECIAL') s.lastSpecial = s.moveId;
       onTrigger(host, s, opponent, s.moveId!, m);
       host.event('CAST', s.slot, -1, s.moveId, 0, r(s.x), r(s.y + s.def.body.height / 2));
     }
@@ -853,6 +917,8 @@ export function tickStatuses(s: FighterState) {
   if (s.buoyTicks > 0) s.buoyTicks--;
   if (s.cageTicks > 0) s.cageTicks--;
   if (s.scrambleTicks > 0) s.scrambleTicks--;
+  if (s.chillTicks > 0) s.chillTicks--;
+  if (s.blindTicks > 0) s.blindTicks--;
   if (s.reflectTicks > 0) s.reflectTicks--;
   if (s.invulnTicks > 0) s.invulnTicks--;
   if (s.cooldowns[0] > 0) s.cooldowns[0]--;

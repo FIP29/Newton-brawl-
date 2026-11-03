@@ -44,6 +44,15 @@ public final class Zone {
     public static final String SINGULARITY = "SINGULARITY";
     /** Doppler's sonic boom: a BEAM along his path that arrives after he has passed (visual difference only). */
     public static final String BOOM = "BOOM";
+    /** Bernoulli's hurricane: like STORM (pull + periodic hits, not electric) and it lifts the opponent to {@link #lift}. */
+    public static final String VORTEX = "VORTEX";
+    /** Edison's DC current: hurts the opponent every {@link #interval} ticks while inside (electric, short range). */
+    public static final String CURRENT = "CURRENT";
+    /**
+     * J.C. Bose's vine: grows for {@link #arm} ticks, then grabs the opponent when they MOVE inside it
+     * (plants respond to stimuli). With {@link #delay} > 0 it instead strikes at that age regardless.
+     */
+    public static final String VINE = "VINE";
 
     public final int id;
     public final int owner;
@@ -61,6 +70,10 @@ public final class Zone {
     public double acc, springK, maxStretch;
     /** SINGULARITY: event-horizon radius. Projectiles inside it are swallowed; a fighter whose centre is within 2× takes damage. GHOST: invulnerability after a dodge is {@link #arm}. */
     public double core;
+    /** VORTEX: height the opponent is lifted to. */
+    public double lift;
+    /** BLAST-type zones: dazzle ticks applied on hit (Edison's Lightbulb Flash). */
+    public int blind;
     public boolean electric;
     /** The move that created it (CATBOX reads its outcome parameters from here). */
     public com.newtonbrawl.engine.fighter.FighterDefinition.MoveDefinition source;

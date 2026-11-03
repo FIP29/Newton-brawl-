@@ -14,6 +14,7 @@ export const ENERGY_PER_DAMAGE_TAKEN = 0.6;
 
 export const REAL_G = 980;
 export const FLIP_GRAVITY = -0.35;
+export const CHILL_SCALE = 0.5;
 export const BUOY_GRAVITY = -0.12;
 export const CINEMATIC_TICKS = 60;
 export const OBJECT_MASS = 50;
@@ -51,7 +52,14 @@ export const BLACK_HOLE_EDGE: ArenaInfo = {
   well: { x: 800, y: 430, gm: 12_000_000, soft: 60, core: 48, drift: 45 },
 };
 
-export const ARENAS: ArenaInfo[] = [THE_LAB, SPACE_STATION, BLACK_HOLE_EDGE];
+/** Curzon Hall, University of Dhaka, at night: terracotta pots on the lawn. */
+export const CURZON_HALL: ArenaInfo = {
+  id: 'curzon-hall', name: 'Curzon Hall', width: 1600, height: 900, gravity: 2400, objectGravity: 1, bounce: 0.4, wallBounce: 0.5,
+  objects: [330, 1270].map((x) => ({ kind: 'pot', x, y: 0, vx: 0, vy: 0, w: 44, h: 50, metal: false })),
+  well: null,
+};
+
+export const ARENAS: ArenaInfo[] = [THE_LAB, SPACE_STATION, BLACK_HOLE_EDGE, CURZON_HALL];
 
 export const STANDARD_RULES: MatchRules = {
   countdownTicks: 120, roundTimeTicks: 99 * 60, roundsToWin: 2, maxRounds: 5, roundEndTicks: 150,

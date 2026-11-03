@@ -27,13 +27,15 @@ export function drawCharacter(g: Graphics, pose: Pose, look: Look, H: number, ti
   if (look.prop === 'vial') vial(g, pose.handB, H, look, time);
   if (look.prop === 'telescope') telescope(g, pose.elbowB, pose.handB, H, look, ow);
   if (look.prop === 'fork') tuningFork(g, pose.elbowB, pose.handB, H, look, ow, pose.power, time);
+  if (look.prop === 'bulb') lightBulb(g, pose.handB, H, look, ow, pose.power, time);
+  if (look.prop === 'plant') seedling(g, pose.handB, H, look, ow, time);
 
   // back leg + skirts/coat tails behind
   if (!longSkirt) leg(g, pose.hipB, pose.kneeB, pose.footB, look, H, ow, true);
   else shoe(g, pose.footB, H, look, ow);
 
   // A long coat or tunic covers the front thigh; shorter garments sit behind the leg.
-  if (look.outfit === 'frockcoat' || look.outfit === 'chiton') leg(g, pose.hipF, pose.kneeF, pose.footF, look, H, ow, false);
+  if (look.outfit === 'frockcoat' || look.outfit === 'chiton' || look.outfit === 'kurta') leg(g, pose.hipF, pose.kneeF, pose.footF, look, H, ow, false);
   torso(g, pose, look, H, sw, ow);
   if (look.outfit === 'suit' || look.outfit === 'cardigan') leg(g, pose.hipF, pose.kneeF, pose.footF, look, H, ow, false);
   if (longSkirt) shoe(g, pose.footF, H, look, ow);
@@ -99,7 +101,9 @@ function arm(g: Graphics, s: P, e: P, h: P, look: Look, H: number, ow: number, b
 function leg(g: Graphics, hip: P, knee: P, foot: P, look: Look, H: number, ow: number, back: boolean) {
   const thick = H * 0.074;
   const trousers = back ? shade(look.legs, 0.8) : look.legs;
-  if (look.outfit === 'chiton') {
+  if (look.outfit === 'kurta') {
+    outlined(g, [hip, knee, foot], thick * 1.15, trousers, look.glow, ow); // loose cotton pyjama
+  } else if (look.outfit === 'chiton') {
     outlined(g, [hip, knee, foot], thick * 0.85, trousers, look.glow, ow); // bare legs
   } else if (look.outfit === 'frockcoat') {
     // breeches to the knee, then white stockings
@@ -155,6 +159,11 @@ function torso(g: Graphics, pose: Pose, look: Look, H: number, sw: number, ow: n
       shape = [shB, shF, { x: hip.x + sw * 0.42, y: hip.y + H * 0.02 }, { x: hip.x + sw * 0.5 + sway * 0.3, y: hip.y + H * 0.2 },
                { x: hip.x - sw * 0.62 + sway * 0.6, y: hip.y + H * 0.21 }, { x: hip.x - sw * 0.5, y: hip.y + H * 0.02 }];
       break;
+    case 'kurta':
+      // knee-length tunic, slit at the sides
+      shape = [shB, shF, { x: hip.x + sw * 0.4, y: hip.y + H * 0.02 }, { x: hip.x + sw * 0.46 + sway * 0.3, y: hip.y + H * 0.24 },
+               { x: hip.x - sw * 0.6 + sway * 0.6, y: hip.y + H * 0.25 }, { x: hip.x - sw * 0.5, y: hip.y + H * 0.02 }];
+      break;
     case 'cardigan':
       // baggy, slightly rumpled sweater
       shape = [{ x: shB.x - sw * 0.06, y: shB.y + H * 0.01 }, { x: shF.x + sw * 0.05, y: shF.y + H * 0.01 },
@@ -192,6 +201,14 @@ function torso(g: Graphics, pose: Pose, look: Look, H: number, sw: number, ow: n
     g.moveTo(c.x + sw * 0.18, c.y + H * 0.04).lineTo(hip.x + H * 0.04 + pose.sway * H * 0.02, -H * 0.04).stroke({ width: ow * 0.8, color: look.trim });
     for (let i = -1; i <= 1; i += 2) g.moveTo(hip.x + i * sw * 0.2, hip.y).lineTo(hip.x + i * H * 0.08 + pose.sway * H * 0.03, -H * 0.05);
     g.stroke({ width: ow * 0.6, color: look.coatShade });
+  } else if (look.outfit === 'kurta') {
+    // button placket at the neck, and a woollen shawl (chadar) over the back shoulder
+    g.moveTo(c.x + sw * 0.2, c.y).lineTo(c.x + sw * 0.18 + (hip.x - c.x) * 0.3, c.y + H * 0.12).stroke({ width: ow * 0.7, color: look.trim });
+    for (let i = 0; i < 3; i++) g.circle(c.x + sw * 0.2 + (hip.x - c.x) * 0.1 * i, c.y + H * (0.03 + i * 0.035), H * 0.006).fill(look.trim);
+    g.poly([c.x - sw * 0.56, c.y - H * 0.01, c.x - sw * 0.1, c.y - H * 0.02, c.x + sw * 0.05, c.y + H * 0.06,
+            hip.x - sw * 0.2 + pose.sway * H * 0.02, hip.y + H * 0.12, hip.x - sw * 0.62 + pose.sway * H * 0.04, hip.y + H * 0.08])
+      .fill({ color: look.accent, alpha: 0.95 }).stroke({ width: ow * 0.6, color: look.glow, join: 'round' });
+    g.moveTo(hip.x - sw * 0.58, hip.y + H * 0.08).lineTo(hip.x - sw * 0.24, hip.y + H * 0.11).stroke({ width: ow * 0.5, color: 0xcbb89a }); // fringe
   } else if (look.outfit === 'chiton') {
     // belt, himation sash over one shoulder, meander border at the hem
     g.moveTo(hip.x - sw * 0.5, hip.y + H * 0.02).lineTo(hip.x + sw * 0.42, hip.y + H * 0.02).stroke({ width: ow * 1.4, color: look.accent });
@@ -558,6 +575,27 @@ function tuningFork(g: Graphics, elbow: P, hand: P, H: number, look: Look, ow: n
       g.circle(cx, cy, rr).stroke({ width: ow * 0.5, color: look.glow, alpha: 0.6 / i });
     }
   }
+}
+
+/** Edison's incandescent bulb: glows brighter when he powers up. */
+function lightBulb(g: Graphics, hand: P, H: number, look: Look, ow: number, power: number, time: number) {
+  const r = H * 0.04, cx = hand.x, cy = hand.y - r * 1.5;
+  const glow = 0.55 + 0.45 * Math.max(power, 0.3 + 0.2 * Math.sin(time * 6));
+  g.circle(cx, cy, r * 2.2).fill({ color: look.glow, alpha: 0.18 * glow });
+  g.circle(cx, cy, r).fill({ color: 0xfff6c8, alpha: 0.85 }).stroke({ width: ow * 0.6, color: look.glow });
+  g.moveTo(cx - r * 0.4, cy + r * 0.2).lineTo(cx - r * 0.15, cy - r * 0.35).lineTo(cx + r * 0.15, cy + r * 0.1).lineTo(cx + r * 0.4, cy - r * 0.3)
+    .stroke({ width: ow * 0.5, color: 0xff9a2e });
+  g.rect(cx - r * 0.45, cy + r * 0.85, r * 0.9, r * 0.6).fill(0x9a9488);
+}
+
+/** J.C. Bose's seedling in a little clay pot. */
+function seedling(g: Graphics, hand: P, H: number, look: Look, ow: number, time: number) {
+  const s = H * 0.035, x = hand.x, y = hand.y - s * 0.6;
+  g.poly([x - s, y - s * 0.6, x + s, y - s * 0.6, x + s * 0.7, y + s * 0.8, x - s * 0.7, y + s * 0.8]).fill(0xb5653a).stroke({ width: ow * 0.5, color: look.glow });
+  const sway = Math.sin(time * 1.6) * s * 0.25;
+  g.moveTo(x, y - s * 0.6).quadraticCurveTo(x + sway, y - s * 1.6, x + sway * 1.5, y - s * 2.4).stroke({ width: ow * 0.7, color: 0x3c8a4a });
+  g.ellipse(x + sway * 1.5 - s * 0.45, y - s * 2.3, s * 0.5, s * 0.22).fill(0x4fbf66);
+  g.ellipse(x + sway * 1.5 + s * 0.45, y - s * 2.5, s * 0.5, s * 0.22).fill(0x4fbf66);
 }
 
 /** Hawking's hover chair: backrest, seat, footrest and a hovering base with glowing jets. */

@@ -8,6 +8,7 @@ import { lookFor } from './characters/looks';
 import { TheLab } from './arena/TheLab';
 import { SpaceStation } from './arena/SpaceStation';
 import { BlackHoleEdge } from './arena/BlackHoleEdge';
+import { CurzonHall } from './arena/CurzonHall';
 import type { ArenaBackdrop } from './arena/types';
 import { EntityLayer } from './fx/EntityLayer';
 import { FxSystem, makeTextures, type FxTextures } from './fx/primitives';
@@ -102,6 +103,7 @@ export class FightRenderer {
     const hq = this.quality === 'high';
     this.lab = arena.id === 'space-station' ? new SpaceStation(arena.width, arena.height, this.tex, this.fx, hq)
       : arena.id === 'black-hole-edge' ? new BlackHoleEdge(arena.width, arena.height, this.tex, this.fx, hq)
+      : arena.id === 'curzon-hall' ? new CurzonHall(arena.width, arena.height, this.tex, this.fx, hq)
       : new TheLab(arena.width, arena.height, this.tex, this.fx, hq);
     this.arenaBack.addChild(this.lab.back);
     this.arenaFront.addChild(this.lab.front);
@@ -224,6 +226,29 @@ export class FightRenderer {
         this.cam.shake = Math.max(this.cam.shake, 10);
         break;
       }
+      case 'PHASE':
+        // Heisenberg: the shot passes through a smear of probability
+        this.fx.burst(e.x, e.y, 0xff3df2, 16, 300, { grav: 0, life: 0.3 });
+        this.fx.ring(e.x, e.y, 0xff3df2, 60, 3, 0.25);
+        break;
+      case 'FREEZE':
+        this.fx.burst(e.x, e.y, 0xeaffff, 40, 700, { streak: true, life: 0.5 });
+        this.fx.ring(e.x, e.y, 0x9fe8ff, 160, 8, 0.4);
+        this.cam.shake = Math.max(this.cam.shake, 14);
+        break;
+      case 'CONDENSE': {
+        // the whole arena drops toward absolute zero and becomes one super-atom
+        this.shockwave(e.x, e.y, 1.4);
+        this.fx.ring(e.x, e.y, 0x9fe8ff, 1200, 14, 0.7);
+        for (let i = 0; i < 80; i++) this.fx.burst(Math.random() * this.arena.width, Math.random() * this.arena.height, 0xeaffff, 1, 40, { grav: -10, life: 1.2, size: 0.5 });
+        this.cam.shake = 26;
+        break;
+      }
+      case 'COPY':
+        // a copied special: a burst in the caster's colour plus the copied fighter's
+        this.fx.ring(e.x, e.y, color, 140, 6, 0.35);
+        this.fx.burst(e.x, e.y, this.colors[e.defender] ?? 0xffffff, 20, 450, { grav: 0, life: 0.4 });
+        break;
       case 'SWALLOW':
         // something crossed an event horizon: a flash of stretched light, then nothing
         this.fx.burst(e.x, e.y, 0xffc46a, 18, 300, { grav: 0, life: 0.35, streak: true });

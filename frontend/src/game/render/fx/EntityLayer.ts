@@ -4,6 +4,7 @@ import { NEON } from '../../../fx/palette';
 import { drawBolt, lightningPoints, type FxSystem, type FxTextures } from './primitives';
 
 const AMBER_C = 0xffa630, BRONZE_C = 0xcd7f32, COPPER_C = 0xe8834a, STEEL_C = 0xc8d2dc;
+const SKY_C = 0x00e5ff, BULB_C = 0xffe14d, ICE_C = 0x9fe8ff, EMERALD_C = 0x2ecc71;
 const TEAL_C = 0x2ee6c9, MAGENTA_C = 0xff3df2, INDIGO_C = 0x6f7bff, RED_C = 0xff4d6d, BLUESHIFT_C = 0x6fb8ff;
 /** Hot accretion-disk colours, inner to outer. */
 const DISK = [0xffffff, 0xffe0a0, 0xff9a40, 0xc8402a];
@@ -240,6 +241,45 @@ export class EntityLayer {
         this.light(p.x, p.y, c, 2, 0.35);
         break;
       }
+      case 'jet': {
+        // a narrow jet of fast air: streamlines squeezed together
+        const d = Math.sign(p.vx) || 1;
+        for (let i = -2; i <= 2; i++) {
+          const y = p.y + i * 8, ph = (this.time * 40 + i * 7) % 30;
+          f.moveTo(p.x - d * (p.w * 0.9 + ph), y).lineTo(p.x + d * p.w / 2, y + i * 2).stroke({ width: 3 - Math.abs(i) * 0.5, color: i === 0 ? 0xffffff : SKY_C, alpha: 0.85 });
+        }
+        f.ellipse(p.x + d * p.w * 0.35, p.y, 18, 16).fill({ color: SKY_C, alpha: 0.35 });
+        if (Math.random() < 0.6) this.fx.burst(p.x, p.y, 0xd8faff, 1, 260, { grav: 0, life: 0.25, streak: true, size: 0.4 });
+        this.light(p.x, p.y, SKY_C, 1.6, 0.35);
+        break;
+      }
+      case 'coldwave': {
+        // a cloud of ice crystals: six-armed flakes tumbling
+        const rr = p.w / 2;
+        f.circle(p.x, p.y, rr * 1.2).fill({ color: ICE_C, alpha: 0.18 });
+        for (let k = 0; k < 3; k++) {
+          const a0 = this.time * (2 + k) + k, cx = p.x + Math.cos(a0) * rr * 0.4, cy = p.y + Math.sin(a0) * rr * 0.4, len = rr * (0.7 - k * 0.15);
+          for (let i = 0; i < 3; i++) {
+            const a = a0 + i * Math.PI / 3;
+            f.moveTo(cx - Math.cos(a) * len, cy - Math.sin(a) * len).lineTo(cx + Math.cos(a) * len, cy + Math.sin(a) * len);
+          }
+          f.stroke({ width: 3 - k * 0.6, color: k === 0 ? 0xffffff : ICE_C, cap: 'round' });
+        }
+        if (Math.random() < 0.5) this.fx.burst(p.x, p.y, 0xeaffff, 1, 60, { grav: -30, life: 0.5, size: 0.3 });
+        this.light(p.x, p.y, ICE_C, 2, 0.4);
+        break;
+      }
+      case 'microwave': {
+        // millimetre waves: a tight train of crests
+        const d = Math.sign(p.vx) || 1;
+        for (let i = 0; i < 4; i++) {
+          const cx = p.x - d * i * 12;
+          f.moveTo(cx, p.y - p.h / 2).quadraticCurveTo(cx + d * 14, p.y, cx, p.y + p.h / 2)
+            .stroke({ width: 4 - i * 0.7, color: i === 0 ? 0xffffff : EMERALD_C, alpha: 1 - i * 0.2 });
+        }
+        this.light(p.x, p.y, EMERALD_C, 1.8, 0.4);
+        break;
+      }
       default:
         f.circle(p.x, p.y, p.w / 2).fill({ color, alpha: 0.8 });
     }
@@ -419,6 +459,55 @@ export class EntityLayer {
         this.light(z.x, 12, STEEL_C, 1.5 + stretch * 2, 0.15 + 0.35 * stretch * a);
         break;
       }
+      case 'VORTEX': {
+        // Hurricane: spiral bands around a calm, low-pressure eye
+        const k = Math.min(1, z.age / 10) * Math.min(1, z.life / 15);
+        for (let band = 0; band < 5; band++) {
+          const pts: number[] = [];
+          for (let j = 0; j <= 30; j++) {
+            const t = j / 30, a = this.time * 3 + band * 1.26 + t * 5;
+            const rr = 30 + t * z.w * 0.5;
+            pts.push(z.x + Math.cos(a) * rr, z.y * 0.6 + Math.sin(a) * rr * 0.45 + t * z.h * 0.25);
+          }
+          f.moveTo(pts[0], pts[1]);
+          for (let j = 2; j < pts.length; j += 2) f.lineTo(pts[j], pts[j + 1]);
+          f.stroke({ width: 4, color: band % 2 ? SKY_C : 0xd8faff, alpha: 0.45 * k });
+        }
+        if (Math.random() < 0.7) this.fx.burst(z.x + (Math.random() - 0.5) * z.w, 10, 0xd8faff, 1, 120, { grav: -200, life: 0.6, streak: true, size: 0.4 });
+        this.light(z.x, z.y, SKY_C, 5, 0.25 * k);
+        break;
+      }
+      case 'CURRENT': {
+        // a steady direct current: straight, unwavering lines (DC doesn't alternate)
+        const k = Math.min(1, z.life / 8);
+        const x0 = z.x - z.w / 2, x1 = z.x + z.w / 2;
+        for (let i = 0; i < 4; i++) {
+          const y = z.y - z.h * 0.3 + i * z.h * 0.2, ph = ((this.time * 3 + i * 0.25) % 1) * z.w;
+          f.moveTo(x0, y).lineTo(x1, y).stroke({ width: 3, color: BULB_C, alpha: 0.55 * k });
+          f.circle(x0 + ph, y, 4).fill({ color: 0xffffff, alpha: k });
+        }
+        this.light(z.x, z.y, BULB_C, 2.4, 0.45 * k);
+        break;
+      }
+      case 'VINE': {
+        // a vine growing from the floor; it coils when ready, and lashes when it strikes
+        const ready = z.armed;
+        const strikeSoon = z.delay > 0 && z.delay - z.age < 8;
+        const hgt = z.h * (ready ? 1 : 0.3 + 0.7 * Math.min(1, z.age / 30));
+        for (let side = -1; side <= 1; side += 2) {
+          const sway = Math.sin(this.time * 2 + z.id + side) * 10 + (strikeSoon ? Math.sin(this.time * 40) * 14 : 0);
+          b.moveTo(z.x + side * 12, 0).bezierCurveTo(z.x + side * 40 + sway, hgt * 0.3, z.x - side * 30 + sway, hgt * 0.7, z.x + side * 8 + sway, hgt)
+            .stroke({ width: 6, color: 0x2f7d3e });
+          for (let l = 1; l <= 3; l++) {
+            const ly = hgt * l / 4, lx = z.x + side * (18 + l * 4) + sway * (l / 4);
+            b.ellipse(lx, ly, 12, 5).fill({ color: EMERALD_C, alpha: 0.9 });
+          }
+        }
+        b.ellipse(z.x, 4, z.w * 0.45, 8).fill({ color: 0x3b2a1e, alpha: 0.7 });
+        if (ready && Math.random() < 0.15) this.fx.burst(z.x, hgt, EMERALD_C, 1, 40, { grav: -40, life: 0.6, size: 0.3 });
+        this.light(z.x, hgt * 0.6, EMERALD_C, 1.8, ready ? (strikeSoon ? 0.6 : 0.25) : 0.1);
+        break;
+      }
       case 'GHOST': {
         // the other half of the superposition (the copy itself is drawn by the renderer)
         const k = Math.min(1, z.age / 8) * Math.min(1, z.life / 20);
@@ -566,6 +655,7 @@ export class EntityLayer {
 
   private drawObject(b: Graphics, o: ObjectView, colors: number[], dt: number) {
     if (o.kind === 'rock') { this.drawRock(b, o, colors, dt); return; }
+    if (o.kind === 'pot') { this.drawPot(b, o, colors, dt); return; }
     const floating = o.kind !== 'beaker';
     const spin = (this.objSpin.get(o.id) ?? 0) + (floating ? (o.vx + o.vy) * dt * 0.006 : o.y > 0 ? o.vx * dt * 0.02 : 0);
     this.objSpin.set(o.id, spin);
@@ -608,6 +698,23 @@ export class EntityLayer {
     } else {
       this.light(cx, cy, NEON.tesla, 0.8, 0.12);
     }
+  }
+
+  /** Curzon Hall: a terracotta flower pot with marigolds. */
+  private drawPot(b: Graphics, o: ObjectView, colors: number[], dt: number) {
+    const spin = (this.objSpin.get(o.id) ?? 0) + (o.y > 0 ? o.vx * dt * 0.02 : 0);
+    this.objSpin.set(o.id, spin);
+    const cx = o.x, cy = o.y + o.h / 2, c = Math.cos(spin), sn = Math.sin(spin);
+    const pt = (x: number, y: number) => [cx + x * c - y * sn, cy + x * sn + y * c];
+    const hw = o.w / 2, hh = o.h / 2;
+    const danger = o.owner >= 0 && Math.abs(o.vx) + Math.abs(o.vy) > 400;
+    b.poly([pt(-hw * 0.7, -hh), pt(hw * 0.7, -hh), pt(hw, hh * 0.55), pt(-hw, hh * 0.55)].flat()).fill(0xb5653a).stroke({ width: 3, color: danger ? colors[o.owner] : 0xe0a070 });
+    b.poly([pt(-hw * 1.05, hh * 0.55), pt(hw * 1.05, hh * 0.55), pt(hw * 1.05, hh * 0.8), pt(-hw * 1.05, hh * 0.8)].flat()).fill(0xc9784a);
+    for (const fx of [-0.45, 0, 0.45]) {
+      const [x, y] = pt(hw * fx, hh * 1.15);
+      b.circle(x, y, 7).fill(0xffa21f).circle(x, y, 3).fill(0xd2551a);
+    }
+    if (danger) this.fx.burst(cx, cy, colors[o.owner], 1, 80, { grav: 0, life: 0.25, size: 0.5 });
   }
 
   /** Black Hole Edge: an asteroid fragment, stretched toward the hole when it gets close (tidal forces). */
@@ -679,6 +786,26 @@ export class EntityLayer {
       const wob = Math.sin(this.time * 6) * 0.05;
       f.ellipse(v.x, cy, H * 0.55 * (1 + wob), H * 0.62 * (1 - wob)).fill({ color: 0x5fd7ff, alpha: 0.14 }).stroke({ width: 3, color: 0x9fe8ff, alpha: 0.8 });
       if (Math.random() < 0.4) this.fx.burst(v.x + (Math.random() - 0.5) * H * 0.6, cy - H * 0.3, 0x9fe8ff, 1, 30, { grav: -160, life: 0.8, size: 0.3 });
+    }
+    if (v.chill > 0) {
+      // Condensate Freeze: frost creeping over a body cooled toward absolute zero
+      const fade = Math.min(1, v.chill / 20);
+      f.roundRect(v.x - H * 0.26, v.y, H * 0.52, H, 18).fill({ color: ICE_C, alpha: 0.12 * fade }).stroke({ width: 2, color: ICE_C, alpha: 0.5 * fade });
+      for (let i = 0; i < 5; i++) {
+        const a = i * 1.3 + this.time * 0.5, x = v.x + Math.cos(a) * H * 0.22, y = v.y + H * (0.15 + i * 0.17);
+        f.moveTo(x - 6, y).lineTo(x + 6, y).moveTo(x - 3, y - 5).lineTo(x + 3, y + 5).moveTo(x + 3, y - 5).lineTo(x - 3, y + 5)
+          .stroke({ width: 2, color: 0xffffff, alpha: 0.8 * fade });
+      }
+      if (Math.random() < 0.2) this.fx.burst(v.x, v.y + H * Math.random(), 0xeaffff, 1, 30, { grav: 40, life: 0.6, size: 0.3 });
+    }
+    if (v.blind > 0) {
+      // dazzled by the Lightbulb Flash: spots in front of the eyes
+      const fade = Math.min(1, v.blind / 20), hy = v.y + H * 0.9;
+      for (let i = 0; i < 3; i++) {
+        const a = this.time * 4 + i * 2.1;
+        f.circle(v.x + v.facing * 18 + Math.cos(a) * 16, hy + Math.sin(a) * 8, 5 + i).fill({ color: 0xfff6c8, alpha: 0.7 * fade });
+      }
+      this.light(v.x, hy, BULB_C, 1.6, 0.3 * fade);
     }
     if (v.scramble > 0) {
       // Uncertainty Principle: left and right are swapped (crossed arrows over the head)

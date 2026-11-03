@@ -37,6 +37,9 @@ export class FighterState {
   buoyTicks = 0;
   cageTicks = 0;
   scrambleTicks = 0;
+  chillTicks = 0;
+  blindTicks = 0;
+  lastSpecial: string | null = null;
   reflectTicks = 0;
   invulnTicks = 0;
   cooldowns: [number, number] = [0, 0];
@@ -66,6 +69,9 @@ export class FighterState {
     s.buoyTicks = v.buoy;
     s.cageTicks = v.cage;
     s.scrambleTicks = v.scramble;
+    s.chillTicks = v.chill;
+    s.blindTicks = v.blind;
+    s.lastSpecial = v.last;
     s.reflectTicks = v.reflect;
     s.invulnTicks = v.invuln;
     s.cooldowns = [v.cd1, v.cd2];
@@ -88,6 +94,9 @@ export class FighterState {
     this.buoyTicks = 0;
     this.cageTicks = 0;
     this.scrambleTicks = 0;
+    this.chillTicks = 0;
+    this.blindTicks = 0;
+    this.lastSpecial = null;
     this.reflectTicks = 0;
     this.invulnTicks = 0;
     this.cooldowns[0] = 0;
@@ -157,6 +166,7 @@ export class FighterState {
       flip: this.flipTicks, reflect: this.reflectTicks, invuln: this.invulnTicks,
       cd1: this.cooldowns[0], cd2: this.cooldowns[1], timeAcc: r(this.timeAcc), objHits: this.objHitMask,
       buoy: this.buoyTicks, cage: this.cageTicks, scramble: this.scrambleTicks,
+      chill: this.chillTicks, blind: this.blindTicks, last: this.lastSpecial,
     };
   }
 }

@@ -13,9 +13,11 @@ const hex = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
  * Post-match screen content: Elo change (ranked), newly unlocked Codex entries and rewards, and
  * the Lab Note, a short explanation of the real science behind a move used in the match.
  */
-export function VictoryPanel({ title, subtitle, score, reward, labNote, actions, variant }: {
+export function VictoryPanel({ title, subtitle, score, reward, labNote, actions, variant, extra }: {
   title: string; subtitle?: string; score?: string; reward?: MatchReward | null; labNote?: LabNote | null;
   actions: React.ReactNode; variant: 'victory' | 'defeat' | 'draw' | 'p2';
+  /** Extra section under the title (e.g. a rivalry's victory line). */
+  extra?: React.ReactNode;
 }) {
   const root = useRef<HTMLDivElement>(null);
   const note = labNote ?? reward?.labNote ?? null;
@@ -35,6 +37,7 @@ export function VictoryPanel({ title, subtitle, score, reward, labNote, actions,
       <div className="vp-title result-title">{title}</div>
       {score && <div className="result-score">{score}</div>}
       {subtitle && <p className="chalk-note">{subtitle}</p>}
+      {extra}
 
       {reward?.mode === 'RANKED' && <EloChange reward={reward} />}
 

@@ -1,14 +1,14 @@
 {
   "id": "doppler",
   "name": "Christian Doppler",
-  "title": "The Sonic Bruiser",
-  "fighterClass": "BRUISER",
+  "title": "The Sonic Speedster",
+  "fighterClass": "SPEEDSTER",
   "color": "#ff4d6d",
-  "mass": 90,
-  "maxHealth": 1080,
-  "walkSpeed": 360,
-  "jumpVelocity": 1080,
-  "airAcceleration": 1800,
+  "mass": 72,
+  "maxHealth": 940,
+  "walkSpeed": 470,
+  "jumpVelocity": 1180,
+  "airAcceleration": 2150,
   "body": {
     "width": 98,
     "height": 190

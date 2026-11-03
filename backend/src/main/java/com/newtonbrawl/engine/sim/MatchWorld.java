@@ -25,4 +25,13 @@ public interface MatchWorld {
      * identical in Java and TypeScript), so quantum randomness still replays exactly.
      */
     int random(int n);
+
+    /** S.N. Bose's condensate: the victim's projectiles vanish and every prop stops dead. */
+    void condense(int victimSlot, int sourceSlot, double x, double y);
+
+    /** J.C. Bose's Living Signal: every zone of this kind the owner has becomes armed and strikes in {@code ticks}. */
+    void syncZones(int owner, String kind, int ticks);
+
+    /** Records a VFX/sound event (e.g. a copy move naming what it copied). */
+    void event(String type, int attacker, int defender, String move, double x, double y);
 }

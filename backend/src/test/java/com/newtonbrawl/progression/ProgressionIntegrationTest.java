@@ -177,7 +177,7 @@ class ProgressionIntegrationTest {
             if (p.get("id").asText().equals("newton")) newton = p;
             if (p.get("id").asText().equals("galileo")) galileo = p;
         }
-        assertThat(codex.get("totalCount").asInt()).isEqualTo(16 + 36);
+        assertThat(codex.get("totalCount").asInt()).isEqualTo(16 + 48);
         assertThat(newton.get("unlocked").asBoolean()).isTrue();
         assertThat(newton.get("bio").asText()).contains("Principia");
         assertThat(galileo.get("unlocked").asBoolean()).isFalse();

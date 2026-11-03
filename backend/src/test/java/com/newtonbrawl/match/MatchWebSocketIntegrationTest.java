@@ -121,7 +121,7 @@ class MatchWebSocketIntegrationTest {
         Client p1 = connect(newton, room);
         JsonNode welcome = p1.awaitType("welcome");
         assertThat(welcome.get("slot").asInt()).isZero();
-        assertThat(welcome.get("roster")).hasSize(12);
+        assertThat(welcome.get("roster")).hasSize(16);
         assertThat(welcome.at("/roster/0/id").asText()).isEqualTo("newton");
         Client p2 = connect(tesla, room);
         assertThat(p2.awaitType("welcome").get("slot").asInt()).isEqualTo(1);

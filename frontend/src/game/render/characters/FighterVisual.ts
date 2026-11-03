@@ -133,6 +133,6 @@ export function idleView(def: FighterDefinition, overrides: Partial<FighterView>
   return {
     x: 0, y: 0, vx: 0, vy: 0, facing: 1, health: def.maxHealth, energy: 0, action: 'IDLE', move: null,
     moveFrame: 0, grounded: true, stun: 0, connected: false, buffered: 0, bufferAge: 0, flip: 0, reflect: 0,
-    invuln: 0, cd1: 0, cd2: 0, timeAcc: 0, objHits: 0, buoy: 0, cage: 0, scramble: 0, ...overrides,
+    invuln: 0, cd1: 0, cd2: 0, timeAcc: 0, objHits: 0, buoy: 0, cage: 0, scramble: 0, chill: 0, blind: 0, last: null, ...overrides,
   };
 }

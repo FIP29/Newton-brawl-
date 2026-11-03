@@ -11,7 +11,7 @@ public final class Projectile {
      * (pinning down x leaves p uncertain). DOPPLER: damage scales with the observed frequency
      * f' = f·(c + v_o)/(c − v_s).
      */
-    public enum Effect { NONE, GRAVITY_FLIP, BUOY, MEASURE, DOPPLER }
+    public enum Effect { NONE, GRAVITY_FLIP, BUOY, MEASURE, DOPPLER, CHILL }
 
     /**
      * How the projectile moves. LINEAR integrates velocity + acceleration. PENDULUM swings from a
@@ -49,6 +49,12 @@ public final class Projectile {
     public double shrink, size0, minSize;
     /** DOPPLER: wave speed c and the source's velocity toward the target at emission, v_s. */
     public double waveSpeed, vs;
+    /** CHILL: hitstun when it lands on an already-chilled target (frozen solid). */
+    public int freezeStun;
+    /** Times it may pass through a side wall and reappear on the other side (J.C. Bose's microwaves). */
+    public int wraps;
+    /** Passed through an evasive fighter (Heisenberg) and can no longer hit them. */
+    boolean evaded;
     boolean dead;
 
     public Projectile(int id, int owner, String kind, String move) {

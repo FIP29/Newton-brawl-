@@ -27,6 +27,8 @@ public final class EngineConstants {
     public static final double FLIP_GRAVITY = -0.35;
     /** Buoyancy: a floating fighter rises gently at this fraction of gravity (pointing up). */
     public static final double BUOY_GRAVITY = -0.12;
+    /** A chilled fighter (S.N. Bose) acts on this fraction of ticks: colder atoms move more slowly. */
+    public static final double CHILL_SCALE = 0.5;
     /** World freeze while an ULTIMATE's cinematic plays. */
     public static final int CINEMATIC_TICKS = 60;
     /** Arena objects (lab beakers) respond to impulses as if they had this mass. */

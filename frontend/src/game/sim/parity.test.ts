@@ -38,10 +38,10 @@ describe('TypeScript simulation matches the Java engine', () => {
   }
 
   it('covers specials, ultimates, reflects, arcs, blocks, shatters, collapses, black holes and every arena', () => {
-    expect(new Set(matches.map((m) => m.arena.id))).toEqual(new Set(['the-lab', 'space-station', 'black-hole-edge']));
+    expect(new Set(matches.map((m) => m.arena.id))).toEqual(new Set(['the-lab', 'space-station', 'black-hole-edge', 'curzon-hall']));
     const snaps = matches.flatMap((m) => Object.values(m.checkpoints));
     const types = new Set(snaps.flatMap((s) => s.events.map((e) => e.type)));
-    for (const t of ['HIT', 'ULTIMATE', 'REFLECT', 'ARC', 'BLOCK', 'SHATTER', 'COLLAPSE', 'SWALLOW'] as const) expect(types.has(t), t).toBe(true);
+    for (const t of ['HIT', 'ULTIMATE', 'REFLECT', 'ARC', 'BLOCK', 'SHATTER', 'COLLAPSE', 'SWALLOW', 'PHASE', 'FREEZE', 'CONDENSE', 'COPY'] as const) expect(types.has(t), t).toBe(true);
     expect(snaps.some((s) => s.projectiles.length > 0)).toBe(true);
     expect(snaps.some((s) => s.zones.length > 0)).toBe(true);
     expect(Math.max(...snaps.map((s) => s.round))).toBeGreaterThanOrEqual(2);

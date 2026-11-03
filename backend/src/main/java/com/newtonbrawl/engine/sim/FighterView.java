@@ -15,9 +15,12 @@ package com.newtonbrawl.engine.sim;
  * @param buoy    ticks of helpless buoyant floating left (Archimedes)
  * @param cage    ticks of Faraday Cage left (electric immunity)
  * @param scramble ticks of swapped left/right controls left (Heisenberg)
+ * @param chill   ticks of Condensate Freeze slowing left (S.N. Bose)
+ * @param blind   ticks of Lightbulb Flash dazzle left (Edison)
+ * @param last    last special triggered (for copy moves), or null
  */
 public record FighterView(double x, double y, double vx, double vy, int facing, int health, int energy,
                           Action action, String move, int moveFrame, boolean grounded,
                           int stun, boolean connected, int buffered, int bufferAge,
                           int flip, int reflect, int invuln, int cd1, int cd2, double timeAcc, int objHits,
-                          int buoy, int cage, int scramble) {}
+                          int buoy, int cage, int scramble, int chill, int blind, String last) {}

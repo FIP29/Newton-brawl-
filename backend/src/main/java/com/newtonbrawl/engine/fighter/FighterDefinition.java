@@ -12,6 +12,8 @@ import java.util.Objects;
  * @param walkSpeed       units/s
  * @param jumpVelocity    initial upward velocity, units/s
  * @param airAcceleration horizontal control while airborne, units/s²
+ * @param projectileEvade percent chance (0–100) that a projectile passes straight through this fighter
+ *                        (rolled once per projectile); null = 0. Heisenberg: you can't pin down where he is.
  */
 public record FighterDefinition(
     String id,
@@ -25,7 +27,8 @@ public record FighterDefinition(
     double jumpVelocity,
     double airAcceleration,
     Body body,
-    Map<String, MoveDefinition> moves) {
+    Map<String, MoveDefinition> moves,
+    Integer projectileEvade) {
 
     public FighterDefinition {
         Objects.requireNonNull(id, "id");
@@ -33,6 +36,17 @@ public record FighterDefinition(
         if (mass <= 0) throw new IllegalArgumentException(id + ": mass must be positive");
         if (maxHealth <= 0) throw new IllegalArgumentException(id + ": maxHealth must be positive");
         moves = moves == null ? Map.of() : Map.copyOf(moves);
+    }
+
+    public FighterDefinition(String id, String name, String title, FighterClass fighterClass, String color, double mass,
+                             int maxHealth, double walkSpeed, double jumpVelocity, double airAcceleration, Body body,
+                             Map<String, MoveDefinition> moves) {
+        this(id, name, title, fighterClass, color, mass, maxHealth, walkSpeed, jumpVelocity, airAcceleration, body, moves, null);
+    }
+
+    /** {@link #projectileEvade()} with null as 0. */
+    public int evade() {
+        return projectileEvade == null ? 0 : projectileEvade;
     }
 
     public MoveDefinition move(String moveId) {

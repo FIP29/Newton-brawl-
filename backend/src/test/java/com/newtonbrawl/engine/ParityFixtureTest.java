@@ -48,7 +48,11 @@ class ParityFixtureTest {
         List.of("galileo", "curie", "the-lab"),
         List.of("schrodinger", "heisenberg", "black-hole-edge"), List.of("hawking", "doppler", "black-hole-edge"),
         List.of("schrodinger", "newton", "the-lab"), List.of("heisenberg", "hawking", "space-station"),
-        List.of("doppler", "schrodinger", "black-hole-edge"), List.of("hawking", "tesla", "black-hole-edge"));
+        List.of("doppler", "schrodinger", "black-hole-edge"), List.of("hawking", "tesla", "black-hole-edge"),
+        List.of("bernoulli", "edison", "curzon-hall"), List.of("sn-bose", "jc-bose", "curzon-hall"),
+        List.of("edison", "tesla", "the-lab"), List.of("sn-bose", "einstein", "curzon-hall"),
+        List.of("jc-bose", "faraday", "space-station"), List.of("curie", "heisenberg", "black-hole-edge"),
+        List.of("galileo", "sn-bose", "curzon-hall"), List.of("edison", "jc-bose", "curzon-hall"));
 
     @Test
     void fixtureMatchesCurrentEngine() throws Exception {
@@ -93,9 +97,9 @@ class ParityFixtureTest {
 
         // Sanity: the bots must actually exercise the interesting mechanics.
         assertThat(eventTypes).contains(GameEvent.HIT, GameEvent.CAST, GameEvent.ULTIMATE, GameEvent.CLANK,
-            GameEvent.COLLAPSE, GameEvent.SWALLOW);
+            GameEvent.COLLAPSE, GameEvent.SWALLOW, GameEvent.PHASE, GameEvent.FREEZE, GameEvent.CONDENSE, GameEvent.COPY);
         for (String f : List.of("newton", "tesla", "curie", "einstein", "galileo", "archimedes", "faraday", "hooke",
-                "schrodinger", "heisenberg", "hawking", "doppler")) {
+                "schrodinger", "heisenberg", "hawking", "doppler", "bernoulli", "edison", "sn-bose", "jc-bose")) {
             assertThat(movesUsed).contains(f + ".special1", f + ".special2", f + ".ultimate");
         }
 

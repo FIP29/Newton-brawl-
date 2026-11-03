@@ -42,6 +42,12 @@ public final class FighterState {
     int cageTicks;
     /** Heisenberg's Uncertainty Principle: left and right are swapped. */
     int scrambleTicks;
+    /** S.N. Bose's Condensate Freeze: cooled toward absolute zero, acting on only some ticks. */
+    int chillTicks;
+    /** Edison's Lightbulb Flash: dazzled, can't aim (no auto-facing) or use specials. */
+    int blindTicks;
+    /** The last special this fighter triggered ("special1"/"special2"), for copy moves; null if none. */
+    String lastSpecial;
     int reflectTicks;
     int invulnTicks;
     final int[] cooldowns = new int[2];
@@ -80,6 +86,9 @@ public final class FighterState {
         buoyTicks = 0;
         cageTicks = 0;
         scrambleTicks = 0;
+        chillTicks = 0;
+        blindTicks = 0;
+        lastSpecial = null;
         reflectTicks = 0;
         invulnTicks = 0;
         cooldowns[0] = 0;
@@ -154,7 +163,8 @@ public final class FighterState {
     FighterView view() {
         return new FighterView(r(x), r(y), r(vx), r(vy), facing, health, energy, action, moveId, moveFrame,
             grounded, stunTicks, moveConnected, bufferedPresses, bufferAge,
-            flipTicks, reflectTicks, invulnTicks, cooldowns[0], cooldowns[1], r(timeAcc), objHitMask, buoyTicks, cageTicks, scrambleTicks);
+            flipTicks, reflectTicks, invulnTicks, cooldowns[0], cooldowns[1], r(timeAcc), objHitMask, buoyTicks, cageTicks, scrambleTicks,
+            chillTicks, blindTicks, lastSpecial);
     }
 
     private static double r(double v) {
@@ -171,6 +181,16 @@ public final class FighterState {
     public void setCageTicks(int ticks) { cageTicks = ticks; }
     public void setScrambleTicks(int ticks) { scrambleTicks = ticks; }
     public double vx() { return vx; }
+    public Fighter fighter() { return fighter; }
+    public String lastSpecial() { return lastSpecial; }
+    /** Sets a special's cooldown (index 0 = special1, 1 = special2), never shortening it. */
+    public void lockSpecial(int index, int ticks) { cooldowns[index] = Math.max(cooldowns[index], ticks); }
+    /** Launches the fighter (Bernoulli's Lift Jump). */
+    public void launch(double newVx, double newVy) {
+        vx = newVx;
+        vy = newVy;
+        if (newVy > 0) grounded = false;
+    }
     public boolean grounded() { return grounded; }
 
     public int slot() { return slot; }

@@ -1,0 +1,123 @@
+{
+  "id": "bernoulli",
+  "name": "Daniel Bernoulli",
+  "title": "The Aerodynamic Speedster",
+  "fighterClass": "SPEEDSTER",
+  "color": "#00e5ff",
+  "mass": 66,
+  "maxHealth": 920,
+  "walkSpeed": 480,
+  "jumpVelocity": 1230,
+  "airAcceleration": 2300,
+  "body": {
+    "width": 84,
+    "height": 186
+  },
+  "moves": {
+    "light": {
+      "name": "Streamline Jab",
+      "startup": 3,
+      "active": 3,
+      "recovery": 8,
+      "damage": 34,
+      "hitstun": 13,
+      "hitstop": 4,
+      "hitbox": {
+        "x": 64,
+        "y": 122,
+        "w": 80,
+        "h": 34
+      },
+      "impulse": {
+        "x": 17000,
+        "y": 0
+      }
+    },
+    "heavy": {
+      "name": "Venturi Kick",
+      "startup": 9,
+      "active": 4,
+      "recovery": 17,
+      "damage": 98,
+      "hitstun": 24,
+      "hitstop": 9,
+      "hitbox": {
+        "x": 84,
+        "y": 70,
+        "w": 110,
+        "h": 56
+      },
+      "impulse": {
+        "x": 48000,
+        "y": 34000
+      }
+    },
+    "special1": {
+      "name": "Lift Jump",
+      "kind": "SPECIAL",
+      "equation": "P + ½ρv² = constant",
+      "startup": 6,
+      "active": 1,
+      "recovery": 22,
+      "cooldown": 70,
+      "damage": 55,
+      "hitstun": 20,
+      "hitstop": 7,
+      "impulse": {
+        "x": 12000,
+        "y": 52000
+      },
+      "params": {
+        "lift": 1650,
+        "drift": 380,
+        "w": 170
+      }
+    },
+    "special2": {
+      "name": "Pressure Jet",
+      "kind": "SPECIAL",
+      "equation": "A₁v₁ = A₂v₂",
+      "startup": 9,
+      "active": 1,
+      "recovery": 14,
+      "cooldown": 90,
+      "damage": 30,
+      "hitstun": 18,
+      "hitstop": 6,
+      "impulse": {
+        "x": 72000,
+        "y": 9000
+      },
+      "params": {
+        "speed": 1100,
+        "offset": 70,
+        "height": 110,
+        "life": 40
+      }
+    },
+    "ultimate": {
+      "name": "Hurricane",
+      "kind": "ULTIMATE",
+      "equation": "ΔP = ½ρv²",
+      "startup": 10,
+      "active": 1,
+      "recovery": 30,
+      "damage": 28,
+      "hitstun": 14,
+      "hitstop": 4,
+      "impulse": {
+        "x": 9000,
+        "y": 12000
+      },
+      "params": {
+        "w": 560,
+        "h": 600,
+        "offset": 300,
+        "pull": 260,
+        "lift": 380,
+        "interval": 16,
+        "life": 210
+      }
+    }
+  }
+}

@@ -26,7 +26,7 @@ export function CharacterPreview() {
       const world = new Container();
       world.scale.set(1, -1);
       app.stage.addChild(world);
-      const ids = location.search.includes('p7') ? ROSTER.slice(8, 12) : location.search.includes('new') ? ROSTER.slice(4, 8) : ROSTER.slice(0, 4);
+      const ids = location.search.includes('p8') ? ROSTER.slice(12, 16) : location.search.includes('p7') ? ROSTER.slice(8, 12) : location.search.includes('new') ? ROSTER.slice(4, 8) : ROSTER.slice(0, 4);
       ids.forEach((id, row) => {
         poses.forEach(([name, make], col) => {
           const def = FIGHTERS[id];

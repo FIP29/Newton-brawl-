@@ -171,7 +171,9 @@ public final class MatchSimulation implements MatchWorld {
 
     /** Inside a bubble at scale 0.4 a fighter acts on 2 ticks out of 5: Δt′ = γΔt, played as a fighting game. */
     private boolean takeTimeSlice(FighterState s) {
-        s.timeAcc += timeScaleAt(s.x, s.y + s.def.body().height() / 2, s.slot);
+        double scale = timeScaleAt(s.x, s.y + s.def.body().height() / 2, s.slot);
+        if (s.chillTicks > 0) scale = Math.min(scale, EngineConstants.CHILL_SCALE);
+        s.timeAcc += scale;
         if (s.timeAcc >= 1.0) {
             s.timeAcc -= 1.0;
             return true;
@@ -191,7 +193,7 @@ public final class MatchSimulation implements MatchWorld {
         if (s.scrambleTicks > 0) dir = -dir; // Uncertainty Principle: you can't be sure where you're going
 
         if (s.grounded) {
-            s.facing = opponent.x >= s.x ? 1 : -1; // always face the opponent on the ground
+            if (s.blindTicks == 0) s.facing = opponent.x >= s.x ? 1 : -1; // face the opponent on the ground (unless dazzled)
             if (tryAttack(s, in)) {
                 s.vx *= 0.3; // plant feet
                 return;
@@ -223,14 +225,15 @@ public final class MatchSimulation implements MatchWorld {
         boolean ultPress = in.wasPressed(InputBits.ULTIMATE)
             || (in.wasPressed(InputBits.SPECIAL) && in.isHeld(InputBits.HEAVY))
             || (in.wasPressed(InputBits.HEAVY) && in.isHeld(InputBits.SPECIAL));
-        if (ultPress && s.energy >= EngineConstants.ENERGY_MAX && s.def.move("ultimate") != null) {
+        boolean canSee = s.blindTicks == 0; // dazzled fighters can't aim specials
+        if (canSee && ultPress && s.energy >= EngineConstants.ENERGY_MAX && s.def.move("ultimate") != null) {
             s.startMove("ultimate");
             s.energy = 0;
             cinematic = EngineConstants.CINEMATIC_TICKS;
             events.add(new GameEvent(GameEvent.ULTIMATE, s.slot, -1, "ultimate", 0, r(s.x), r(s.y + s.def.body().height() / 2)));
             return true;
         }
-        if (in.wasPressed(InputBits.SPECIAL)) {
+        if (canSee && in.wasPressed(InputBits.SPECIAL)) {
             int idx = in.isHeld(InputBits.DOWN) ? 1 : 0;
             String id = idx == 0 ? "special1" : "special2";
             MoveDefinition m = s.def.move(id);
@@ -326,12 +329,17 @@ public final class MatchSimulation implements MatchWorld {
     private void applyZoneForces() {
         for (Zone z : zones) {
             if (z.dead) continue;
-            if (Zone.STORM.equals(z.kind)) {
+            if (Zone.STORM.equals(z.kind) || Zone.VORTEX.equals(z.kind)) {
                 FighterState t = f[1 - z.owner];
                 double dx = z.x - t.x;
-                if (z.contains(t.x, t.y + t.def.body().height() / 2) && Math.abs(dx) > 20 && t.invulnTicks == 0) {
+                boolean inside = z.contains(t.x, t.y + t.def.body().height() / 2) && t.invulnTicks == 0;
+                if (inside && Math.abs(dx) > 20) {
                     t.x += Math.signum(dx) * z.strength * DT;
                     clampToWalls(t);
+                }
+                if (inside && Zone.VORTEX.equals(z.kind) && t.y < z.lift) {
+                    t.vy = Math.max(t.vy, 520); // the low pressure in the eye lifts them
+                    t.grounded = false;
                 }
                 continue;
             }
@@ -550,8 +558,14 @@ public final class MatchSimulation implements MatchWorld {
 
             FighterState target = f[1 - p.owner];
             Aabb box = p.box(), hurt = target.hurtbox();
-            if (target.invulnTicks == 0 && box.intersects(hurt)) {
+            if (target.invulnTicks == 0 && !p.evaded && box.intersects(hurt)) {
                 double[] pt = box.overlapCenter(hurt);
+                if (target.def.evade() > 0 && random(100) < target.def.evade()) {
+                    // Heisenberg: his position was never well defined, and the shot passes through.
+                    p.evaded = true;
+                    events.add(new GameEvent(GameEvent.PHASE, target.slot, p.owner, p.move, 0, r(pt[0]), r(pt[1])));
+                    continue;
+                }
                 if (p.electric && target.cageTicks > 0) {
                     // Faraday cage: charge spreads over the conducting shell, none reaches inside.
                     events.add(new GameEvent(GameEvent.BLOCK, target.slot, p.owner, p.move, 0, r(pt[0]), r(pt[1])));
@@ -587,12 +601,24 @@ public final class MatchSimulation implements MatchWorld {
                         double ratio = clamp((p.waveSpeed + vo) / (p.waveSpeed - p.vs), 0.5, 2.5);
                         dmg = (int) Math.round(dmg * ratio);
                     }
-                    boolean landed = hitFighter(f[p.owner], target, dmg, ix, iy, p.hitstun, p.hitstop, p.move, pt);
+                    int stun = p.hitstun;
+                    boolean freeze = p.effect == Projectile.Effect.CHILL && target.chillTicks > 0;
+                    if (freeze) stun = p.freezeStun; // cooled again before warming up: frozen solid
+                    boolean landed = hitFighter(f[p.owner], target, dmg, ix, iy, stun, p.hitstop, p.move, pt);
+                    if (landed && p.effect == Projectile.Effect.CHILL) {
+                        target.chillTicks = freeze ? 0 : p.effectTicks;
+                        if (freeze) events.add(new GameEvent(GameEvent.FREEZE, p.owner, target.slot, p.move, 0, r(pt[0]), r(pt[1])));
+                    }
                     if (landed && p.effect == Projectile.Effect.GRAVITY_FLIP) target.flipTicks = p.effectTicks;
                     if (landed && p.effect == Projectile.Effect.BUOY) target.buoyTicks = p.effectTicks;
                     p.dead = true;
                     continue;
                 }
+            }
+            if (p.wraps > 0 && (p.x < 0 || p.x > arena.width())) {
+                // radio waves don't stop at walls: it comes back in from the other side
+                p.x = p.x < 0 ? p.x + arena.width() : p.x - arena.width();
+                p.wraps--;
             }
             boolean hitFloor = p.y - p.h / 2 <= 0 && p.vy < 0;
             boolean outside = p.x < -100 || p.x > arena.width() + 100 || p.y > arena.height() + 200;
@@ -681,8 +707,9 @@ public final class MatchSimulation implements MatchWorld {
                     if (live && (z.hitMask & (1 << t.slot)) == 0 && t.invulnTicks == 0 && z.box().intersects(hurt)) {
                         z.hitMask |= 1 << t.slot;
                         int dir = Zone.BEAM.equals(z.kind) || Zone.BOOM.equals(z.kind) ? z.dir : (t.x >= z.x ? 1 : -1);
-                        hitFighter(src, t, z.damage, dir * z.impulseX, z.impulseY, z.hitstun, z.hitstop, z.move,
+                        boolean landed = hitFighter(src, t, z.damage, dir * z.impulseX, z.impulseY, z.hitstun, z.hitstop, z.move,
                             z.box().overlapCenter(hurt));
+                        if (landed && z.blind > 0) t.blindTicks = z.blind;
                     }
                     if (z.age > z.delay + z.active) z.dead = true;
                 }
@@ -710,7 +737,7 @@ public final class MatchSimulation implements MatchWorld {
                         }
                     }
                 }
-                case Zone.STORM -> {
+                case Zone.STORM, Zone.VORTEX -> {
                     if (z.age % z.interval == 0 && t.invulnTicks == 0 && z.contains(t.x, t.y + t.def.body().height() / 2)) {
                         if (electricBlocked(z, t)) {
                             events.add(new GameEvent(GameEvent.BLOCK, t.slot, z.owner, z.move, 0, r(t.x), r(t.y + 60)));
@@ -737,11 +764,32 @@ public final class MatchSimulation implements MatchWorld {
                 case Zone.CATBOX -> {
                     if (z.age >= z.delay) openBox(z, t);
                 }
-                case Zone.CLOUD -> {
+                case Zone.CLOUD, Zone.CURRENT -> {
                     if (z.age % z.interval == 0 && t.invulnTicks == 0 && z.box().intersects(hurt)) {
-                        int dir = t.x >= z.x ? 1 : -1;
-                        hitFighter(src, t, z.damage, dir * z.impulseX, z.impulseY, z.hitstun, z.hitstop, z.move,
-                            new double[] {t.x, t.y + t.def.body().height() * 0.6});
+                        if (electricBlocked(z, t)) {
+                            events.add(new GameEvent(GameEvent.BLOCK, t.slot, z.owner, z.move, 0, r(t.x), r(t.y + 60)));
+                        } else {
+                            int dir = t.x >= z.x ? 1 : -1;
+                            hitFighter(src, t, z.damage, dir * z.impulseX, z.impulseY, z.hitstun, z.hitstop, z.move,
+                                new double[] {t.x, t.y + t.def.body().height() * 0.6});
+                        }
+                    }
+                }
+                case Zone.VINE -> {
+                    if (z.arm > 0) {
+                        z.arm--; // still growing
+                    } else {
+                        boolean inside = t.invulnTicks == 0 && z.box().intersects(hurt);
+                        boolean synced = z.delay > 0;
+                        boolean moving = Math.abs(t.vx) + Math.abs(t.vy) > 60; // the stimulus the plant reacts to
+                        if (synced ? z.age >= z.delay : inside && moving) {
+                            if (inside) {
+                                int dir = z.x >= t.x ? 1 : -1; // the vine drags them toward its root
+                                hitFighter(src, t, z.damage, dir * z.impulseX, z.impulseY, z.hitstun, z.hitstop, z.move,
+                                    z.box().overlapCenter(hurt));
+                            }
+                            z.dead = true;
+                        }
                     }
                 }
                 case Zone.UNCERTAIN -> {
@@ -818,6 +866,7 @@ public final class MatchSimulation implements MatchWorld {
                 s.moveFrame++;
                 MoveDefinition m = s.move;
                 if (m.kind() != MoveKind.NORMAL && s.moveFrame == m.startup()) {
+                    if (m.kind() == MoveKind.SPECIAL) s.lastSpecial = s.moveId;
                     s.fighter.onTrigger(this, s, opponent, s.moveId, m);
                     events.add(new GameEvent(GameEvent.CAST, s.slot, -1, s.moveId, 0, r(s.x), r(s.y + s.def.body().height() / 2)));
                 }
@@ -838,6 +887,8 @@ public final class MatchSimulation implements MatchWorld {
         if (s.buoyTicks > 0) s.buoyTicks--;
         if (s.cageTicks > 0) s.cageTicks--;
         if (s.scrambleTicks > 0) s.scrambleTicks--;
+        if (s.chillTicks > 0) s.chillTicks--;
+        if (s.blindTicks > 0) s.blindTicks--;
         if (s.reflectTicks > 0) s.reflectTicks--;
         if (s.invulnTicks > 0) s.invulnTicks--;
         if (s.cooldowns[0] > 0) s.cooldowns[0]--;
@@ -909,6 +960,31 @@ public final class MatchSimulation implements MatchWorld {
         x ^= x << 5;
         rng = x;
         return Integer.remainderUnsigned(x, n);
+    }
+
+    @Override
+    public void condense(int victimSlot, int sourceSlot, double x, double y) {
+        for (Projectile p : projectiles) if (p.owner == victimSlot) p.dead = true;
+        for (ArenaObject o : objects) {
+            o.vx = 0;
+            o.vy = 0;
+            o.owner = -1;
+        }
+        events.add(new GameEvent(GameEvent.CONDENSE, sourceSlot, victimSlot, "ultimate", 0, r(x), r(y)));
+    }
+
+    @Override
+    public void syncZones(int owner, String kind, int ticks) {
+        for (Zone z : zones) {
+            if (z.dead || z.owner != owner || !z.kind.equals(kind)) continue;
+            z.arm = 0;
+            z.delay = z.age + ticks;
+        }
+    }
+
+    @Override
+    public void event(String type, int attacker, int defender, String move, double x, double y) {
+        events.add(new GameEvent(type, attacker, defender, move, 0, r(x), r(y)));
     }
 
     /** Faraday's cage stops electric zones. */

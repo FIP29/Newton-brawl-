@@ -15,6 +15,8 @@ import { CharacterSelect } from '../components/CharacterSelect';
 import { useFightOverlays } from '../components/FightOverlays';
 import { fighterPortraits } from '../components/portraits';
 import { VictoryPanel } from '../components/VictoryPanel';
+import { RivalryIntro, RivalryOutcome } from '../components/RivalryIntro';
+import { rivalryFor } from '../game/data/rivalries';
 import { unlocksApi } from '../api/progress';
 
 type Status = 'connecting' | 'select' | 'live' | 'ended' | 'error';
@@ -253,6 +255,7 @@ export function FightScreen() {
       {(status === 'live' || status === 'ended') && <HudBar hud={hud} names={names} mySlot={slot} fighters={fighterInfo} images={images} />}
       {banner && status === 'live' && <Banner key={banner.key} text={banner.text} sub={banner.sub} />}
       {status === 'live' && overlays.element}
+      {status === 'live' && defs.length === 2 && <RivalryIntro defs={defs} />}
 
       {status === 'connecting' && (
         <div className="fight-overlay"><div className="panel overlay-card"><p className="chalk-note">Connecting to the lab…</p></div></div>
@@ -303,6 +306,7 @@ export function FightScreen() {
             score={`${end.roundWins[0]} – ${end.roundWins[1]}`}
             subtitle={reasonText(end, slot)}
             reward={end.reward}
+            extra={(() => { const rv = defs.length === 2 ? rivalryFor(defs[0].id, defs[1].id) : null; return rv && <RivalryOutcome rivalry={rv} winner={end.winner >= 0 ? defs[end.winner] : null} />; })()}
             variant={result === 'VICTORY' ? 'victory' : result === 'DEFEAT' ? 'defeat' : 'draw'}
             actions={<>
               {mode === 'PRIVATE'

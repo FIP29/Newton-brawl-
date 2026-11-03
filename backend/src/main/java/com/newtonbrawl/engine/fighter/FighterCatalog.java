@@ -13,6 +13,10 @@ import java.util.NoSuchElementException;
 import java.util.function.Function;
 
 import com.newtonbrawl.engine.fighter.roster.Archimedes;
+import com.newtonbrawl.engine.fighter.roster.Bernoulli;
+import com.newtonbrawl.engine.fighter.roster.Edison;
+import com.newtonbrawl.engine.fighter.roster.JCBose;
+import com.newtonbrawl.engine.fighter.roster.SNBose;
 import com.newtonbrawl.engine.fighter.roster.Curie;
 import com.newtonbrawl.engine.fighter.roster.Doppler;
 import com.newtonbrawl.engine.fighter.roster.Hawking;
@@ -50,6 +54,11 @@ public final class FighterCatalog {
         FACTORIES.put(Heisenberg.ID, Heisenberg::new);
         FACTORIES.put(Hawking.ID, Hawking::new);
         FACTORIES.put(Doppler.ID, Doppler::new);
+        // Phase 8
+        FACTORIES.put(Bernoulli.ID, Bernoulli::new);
+        FACTORIES.put(Edison.ID, Edison::new);
+        FACTORIES.put(SNBose.ID, SNBose::new);
+        FACTORIES.put(JCBose.ID, JCBose::new);
         // Training dummy with only light/heavy; used by tests, not selectable.
         FACTORIES.put(PrototypeFighter.ID, PrototypeFighter::new);
     }

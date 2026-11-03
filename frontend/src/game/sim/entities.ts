@@ -13,7 +13,7 @@ export class Projectile {
   halfLife = 0;
   electric = false;
   chains = 0; maxChains = 0; lastChainObject = -1;
-  effect: 'NONE' | 'GRAVITY_FLIP' | 'BUOY' | 'MEASURE' | 'DOPPLER' = 'NONE';
+  effect: 'NONE' | 'GRAVITY_FLIP' | 'BUOY' | 'MEASURE' | 'DOPPLER' | 'CHILL' = 'NONE';
   effectTicks = 0;
   reflected = false;
   /** LINEAR integrates v and a; PENDULUM swings under θ'' = −(g/L)θ; ORBIT circles the anchor under a = −ω²r. */
@@ -24,6 +24,12 @@ export class Projectile {
   shrink = 0; size0 = 0; minSize = 0;
   /** DOPPLER: wave speed c and source velocity toward the target at emission. */
   waveSpeed = 0; vs = 0;
+  /** CHILL: hitstun when it lands on an already-chilled target. */
+  freezeStun = 0;
+  /** Times it may pass through a side wall and come back on the other side. */
+  wraps = 0;
+  /** Passed through an evasive fighter. */
+  evaded = false;
   dead = false;
 
   constructor(readonly id: number, public owner: number, readonly kind: string, readonly move: string) {}
@@ -63,6 +69,8 @@ export class Zone {
   acc = 0; springK = 0; maxStretch = 0;
   /** SINGULARITY event-horizon radius; GHOST uses `arm` as post-dodge invulnerability. */
   core = 0;
+  /** VORTEX lift height; BLAST-type dazzle ticks. */
+  lift = 0; blind = 0;
   electric = false;
   /** The move that created it (CATBOX reads its outcome parameters from here). */
   source: MoveDefinition | null = null;

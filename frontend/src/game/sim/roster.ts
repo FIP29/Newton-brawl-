@@ -5,7 +5,7 @@
 import type { MoveDefinition } from '../protocol';
 import { REAL_G } from './constants';
 import { Projectile, Zone, type ZoneKind } from './entities';
-import type { FighterState } from './FighterState';
+import { r, type FighterState } from './FighterState';
 import type { MatchWorld } from './MatchSimulation';
 
 const param = (m: MoveDefinition, key: string, fallback: number) => m.params?.[key] ?? fallback;
@@ -563,8 +563,192 @@ const doppler: Trigger = (w, self, _opp, moveId, m) => {
   }
 };
 
+/** Copy moves: re-run the opponent's last special as if `self` cast it (mirrors Fighter.copySpecial). */
+function copySpecial(w: MatchWorld, self: FighterState, opp: FighterState): string | null {
+  const id = opp.lastSpecial;
+  if (id === null) return null;
+  const src = opp.def.moves[id];
+  if (!src || src.hitbox || param(src, 'copies', 0) === 1) return null;
+  TRIGGERS[opp.def.id]?.(w, self, opp, id, src);
+  w.event('COPY', self.slot, opp.slot, id, 0, r(self.x), r(self.y + self.def.body.height / 2));
+  return id;
+}
+
+/** Bernoulli: Lift Jump (P + ½ρv² = const), Pressure Jet, ULTIMATE Hurricane. */
+const bernoulli: Trigger = (w, self, _opp, moveId, m) => {
+  switch (moveId) {
+    case 'special1': {
+      const updraft = zone(w, self, 'BURST', moveId, m);
+      updraft.x = self.x;
+      updraft.y = self.def.body.height / 2;
+      updraft.w = param(m, 'w', 170);
+      updraft.h = self.def.body.height;
+      updraft.delay = 1;
+      updraft.active = 5;
+      updraft.life = 8;
+      w.spawnZone(updraft);
+      self.vx = self.facing * param(m, 'drift', 380);
+      self.vy = param(m, 'lift', 1650);
+      if (self.vy > 0) self.grounded = false;
+      break;
+    }
+    case 'special2': {
+      const jet = projectile(w, self, 'jet', moveId, m);
+      jet.x = self.x + self.facing * param(m, 'offset', 70);
+      jet.y = param(m, 'height', 110);
+      jet.w = 90;
+      jet.h = 46;
+      jet.vx = self.facing * param(m, 'speed', 1100);
+      jet.life = int(param(m, 'life', 40));
+      w.spawnProjectile(jet);
+      break;
+    }
+    case 'ultimate': {
+      const eye = zone(w, self, 'VORTEX', moveId, m);
+      const width = param(m, 'w', 560);
+      eye.x = Math.max(width / 2, Math.min(w.arena.width - width / 2, self.x + self.facing * param(m, 'offset', 300)));
+      eye.w = width;
+      eye.h = param(m, 'h', 600);
+      eye.y = eye.h / 2;
+      eye.strength = param(m, 'pull', 260);
+      eye.lift = param(m, 'lift', 380);
+      eye.interval = int(param(m, 'interval', 16));
+      eye.life = int(param(m, 'life', 210));
+      w.spawnZone(eye);
+      break;
+    }
+  }
+};
+
+/** Edison: DC Punch, Lightbulb Flash (dazzle), ULTIMATE Patent (copies and locks the opponent's last special). */
+const edison: Trigger = (w, self, opp, moveId, m) => {
+  switch (moveId) {
+    case 'special1': {
+      const current = zone(w, self, 'CURRENT', moveId, m);
+      current.x = self.x + self.facing * param(m, 'offset', 95);
+      current.y = param(m, 'height', 110);
+      current.w = param(m, 'w', 130);
+      current.h = param(m, 'h', 150);
+      current.interval = int(param(m, 'interval', 8));
+      current.life = int(param(m, 'life', 36));
+      current.electric = true;
+      w.spawnZone(current);
+      break;
+    }
+    case 'special2': {
+      const flash = zone(w, self, 'BURST', moveId, m);
+      flash.x = self.x + self.facing * param(m, 'offset', 110);
+      flash.y = param(m, 'height', 140);
+      flash.w = param(m, 'w', 220);
+      flash.h = param(m, 'h', 200);
+      flash.delay = 4;
+      flash.active = 4;
+      flash.life = 10;
+      flash.blind = int(param(m, 'blind', 150));
+      w.spawnZone(flash);
+      break;
+    }
+    case 'ultimate': {
+      const copied = copySpecial(w, self, opp);
+      if (copied !== null) {
+        const idx = copied === 'special1' ? 0 : 1;
+        opp.cooldowns[idx] = Math.max(opp.cooldowns[idx], int(param(m, 'lock', 300)));
+      } else {
+        const burst = zone(w, self, 'BURST', moveId, m);
+        burst.x = self.x + self.facing * 140;
+        burst.y = 150;
+        burst.w = 320;
+        burst.h = 300;
+        burst.delay = 2;
+        burst.active = 5;
+        burst.life = 9;
+        burst.blind = int(param(m, 'blind', 150));
+        w.spawnZone(burst);
+      }
+      break;
+    }
+  }
+};
+
+/** S.N. Bose: Condensate Freeze (chill, then freeze), Boson Copy, ULTIMATE Bose–Einstein Condensate. */
+const snBose: Trigger = (w, self, opp, moveId, m) => {
+  switch (moveId) {
+    case 'special1': {
+      const cold = projectile(w, self, 'coldwave', moveId, m);
+      cold.x = self.x + self.facing * param(m, 'offset', 70);
+      cold.y = param(m, 'height', 120);
+      cold.w = cold.h = param(m, 'size', 60);
+      cold.vx = self.facing * param(m, 'speed', 620);
+      cold.life = int(param(m, 'life', 90));
+      cold.effect = 'CHILL';
+      cold.effectTicks = int(param(m, 'chillTicks', 180));
+      cold.freezeStun = int(param(m, 'freezeStun', 75));
+      w.spawnProjectile(cold);
+      break;
+    }
+    case 'special2':
+      copySpecial(w, self, opp);
+      break;
+    case 'ultimate': {
+      const aw = w.arena.width, ah = w.arena.height;
+      w.condense(opp.slot, self.slot, aw / 2, ah / 2);
+      const freeze = zone(w, self, 'BURST', moveId, m);
+      freeze.x = aw / 2;
+      freeze.y = ah / 2;
+      freeze.w = aw;
+      freeze.h = ah;
+      freeze.delay = 2;
+      freeze.active = 2;
+      freeze.life = 6;
+      w.spawnZone(freeze);
+      break;
+    }
+  }
+};
+
+function vine(w: MatchWorld, self: FighterState, moveId: string, m: MoveDefinition, x: number, grow: number, strikeAt: number, life: number): Zone {
+  const v = zone(w, self, 'VINE', moveId, m);
+  v.w = param(m, 'w', 120);
+  v.h = param(m, 'h', 130);
+  v.x = Math.max(v.w / 2, Math.min(w.arena.width - v.w / 2, x));
+  v.y = v.h / 2;
+  v.arm = grow;
+  v.delay = strikeAt;
+  v.life = life;
+  return v;
+}
+
+/** J.C. Bose: Microwave Pulse (through the walls), Crescograph Vines, ULTIMATE Living Signal. */
+const jcBose: Trigger = (w, self, opp, moveId, m) => {
+  switch (moveId) {
+    case 'special1': {
+      const wave = projectile(w, self, 'microwave', moveId, m);
+      wave.x = self.x + self.facing * param(m, 'offset', 70);
+      wave.y = param(m, 'height', 125);
+      wave.w = 40;
+      wave.h = 90;
+      wave.vx = self.facing * param(m, 'speed', 900);
+      wave.life = int(param(m, 'life', 150));
+      wave.wraps = int(param(m, 'wraps', 1));
+      wave.electric = true;
+      w.spawnProjectile(wave);
+      break;
+    }
+    case 'special2':
+      w.spawnZone(vine(w, self, moveId, m, self.x + self.facing * param(m, 'offset', 230), int(param(m, 'grow', 30)), 0, int(param(m, 'life', 480))));
+      break;
+    case 'ultimate': {
+      const strike = int(param(m, 'strike', 24));
+      w.syncZones(self.slot, 'VINE', strike);
+      const spread = param(m, 'spread', 170);
+      for (let i = -1; i <= 1; i++) w.spawnZone(vine(w, self, moveId, m, opp.x + i * spread, 0, strike, strike + 2));
+      break;
+    }
+  }
+};
+
 const TRIGGERS: Record<string, Trigger> = { newton, tesla, curie, einstein, galileo, archimedes, faraday, hooke,
-  schrodinger, heisenberg, hawking, doppler };
+  schrodinger, heisenberg, hawking, doppler, bernoulli, edison, 'sn-bose': snBose, 'jc-bose': jcBose };
 
 export function onTrigger(w: MatchWorld, self: FighterState, opp: FighterState, moveId: string, m: MoveDefinition) {
   TRIGGERS[self.def.id]?.(w, self, opp, moveId, m);

@@ -1,0 +1,123 @@
+{
+  "id": "edison",
+  "name": "Thomas Edison",
+  "title": "The Direct-Current Bruiser",
+  "fighterClass": "BRUISER",
+  "color": "#ffe14d",
+  "mass": 96,
+  "maxHealth": 1100,
+  "walkSpeed": 340,
+  "jumpVelocity": 1060,
+  "airAcceleration": 1700,
+  "body": {
+    "width": 102,
+    "height": 188
+  },
+  "moves": {
+    "light": {
+      "name": "Filament Jab",
+      "startup": 6,
+      "active": 3,
+      "recovery": 11,
+      "damage": 52,
+      "hitstun": 16,
+      "hitstop": 6,
+      "hitbox": {
+        "x": 68,
+        "y": 124,
+        "w": 88,
+        "h": 38
+      },
+      "impulse": {
+        "x": 27000,
+        "y": 0
+      }
+    },
+    "heavy": {
+      "name": "Dynamo Haymaker",
+      "startup": 14,
+      "active": 5,
+      "recovery": 21,
+      "damage": 142,
+      "hitstun": 28,
+      "hitstop": 11,
+      "hitbox": {
+        "x": 92,
+        "y": 108,
+        "w": 120,
+        "h": 62
+      },
+      "impulse": {
+        "x": 70000,
+        "y": 40000
+      }
+    },
+    "special1": {
+      "name": "DC Punch",
+      "kind": "SPECIAL",
+      "equation": "V = IR",
+      "startup": 6,
+      "active": 1,
+      "recovery": 28,
+      "cooldown": 80,
+      "damage": 14,
+      "hitstun": 10,
+      "hitstop": 2,
+      "impulse": {
+        "x": 6000,
+        "y": 0
+      },
+      "params": {
+        "offset": 95,
+        "height": 110,
+        "w": 130,
+        "h": 150,
+        "interval": 8,
+        "life": 36
+      }
+    },
+    "special2": {
+      "name": "Lightbulb Flash",
+      "kind": "SPECIAL",
+      "equation": "P = VI",
+      "startup": 10,
+      "active": 1,
+      "recovery": 18,
+      "cooldown": 200,
+      "damage": 30,
+      "hitstun": 26,
+      "hitstop": 6,
+      "impulse": {
+        "x": 14000,
+        "y": 6000
+      },
+      "params": {
+        "offset": 110,
+        "height": 140,
+        "w": 220,
+        "h": 200,
+        "blind": 150
+      }
+    },
+    "ultimate": {
+      "name": "Patent",
+      "kind": "ULTIMATE",
+      "equation": "US Patent 223,898",
+      "startup": 10,
+      "active": 1,
+      "recovery": 26,
+      "damage": 140,
+      "hitstun": 30,
+      "hitstop": 12,
+      "impulse": {
+        "x": 40000,
+        "y": 36000
+      },
+      "params": {
+        "lock": 300,
+        "blind": 150,
+        "copies": 1
+      }
+    }
+  }
+}

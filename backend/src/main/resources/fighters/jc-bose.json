@@ -1,0 +1,123 @@
+{
+  "id": "jc-bose",
+  "name": "Jagadish Chandra Bose",
+  "title": "The Living Signal Zoner",
+  "fighterClass": "ZONER",
+  "color": "#2ecc71",
+  "mass": 74,
+  "maxHealth": 960,
+  "walkSpeed": 380,
+  "jumpVelocity": 1130,
+  "airAcceleration": 1850,
+  "body": {
+    "width": 88,
+    "height": 188
+  },
+  "moves": {
+    "light": {
+      "name": "Coherer Tap",
+      "startup": 5,
+      "active": 3,
+      "recovery": 10,
+      "damage": 40,
+      "hitstun": 14,
+      "hitstop": 5,
+      "hitbox": {
+        "x": 66,
+        "y": 124,
+        "w": 82,
+        "h": 36
+      },
+      "impulse": {
+        "x": 20000,
+        "y": 0
+      }
+    },
+    "heavy": {
+      "name": "Galena Swing",
+      "startup": 12,
+      "active": 4,
+      "recovery": 19,
+      "damage": 106,
+      "hitstun": 25,
+      "hitstop": 9,
+      "hitbox": {
+        "x": 88,
+        "y": 104,
+        "w": 112,
+        "h": 60
+      },
+      "impulse": {
+        "x": 52000,
+        "y": 34000
+      }
+    },
+    "special1": {
+      "name": "Microwave Pulse",
+      "kind": "SPECIAL",
+      "equation": "λ ≈ 5 mm, f = c / λ",
+      "startup": 10,
+      "active": 1,
+      "recovery": 16,
+      "cooldown": 80,
+      "damage": 55,
+      "hitstun": 18,
+      "hitstop": 6,
+      "impulse": {
+        "x": 26000,
+        "y": 8000
+      },
+      "params": {
+        "speed": 900,
+        "offset": 70,
+        "height": 125,
+        "life": 150,
+        "wraps": 1
+      }
+    },
+    "special2": {
+      "name": "Crescograph Vines",
+      "kind": "SPECIAL",
+      "equation": "×10 000 magnification",
+      "startup": 12,
+      "active": 1,
+      "recovery": 18,
+      "cooldown": 150,
+      "damage": 60,
+      "hitstun": 50,
+      "hitstop": 7,
+      "impulse": {
+        "x": 30000,
+        "y": 8000
+      },
+      "params": {
+        "offset": 230,
+        "grow": 30,
+        "life": 480,
+        "w": 120,
+        "h": 130
+      }
+    },
+    "ultimate": {
+      "name": "Living Signal",
+      "kind": "ULTIMATE",
+      "equation": "stimulus → response",
+      "startup": 12,
+      "active": 1,
+      "recovery": 30,
+      "damage": 70,
+      "hitstun": 40,
+      "hitstop": 9,
+      "impulse": {
+        "x": 30000,
+        "y": 30000
+      },
+      "params": {
+        "strike": 24,
+        "spread": 170,
+        "w": 120,
+        "h": 130
+      }
+    }
+  }
+}

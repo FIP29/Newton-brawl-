@@ -1,0 +1,115 @@
+{
+  "id": "sn-bose",
+  "name": "Satyendra Nath Bose",
+  "title": "The Condensate Trickster",
+  "fighterClass": "TRICKSTER",
+  "color": "#9fe8ff",
+  "mass": 72,
+  "maxHealth": 960,
+  "walkSpeed": 410,
+  "jumpVelocity": 1150,
+  "airAcceleration": 1950,
+  "body": {
+    "width": 88,
+    "height": 184
+  },
+  "moves": {
+    "light": {
+      "name": "Photon Count",
+      "startup": 5,
+      "active": 3,
+      "recovery": 10,
+      "damage": 42,
+      "hitstun": 15,
+      "hitstop": 5,
+      "hitbox": {
+        "x": 66,
+        "y": 122,
+        "w": 82,
+        "h": 36
+      },
+      "impulse": {
+        "x": 21000,
+        "y": 0
+      }
+    },
+    "heavy": {
+      "name": "Statistics Strike",
+      "startup": 12,
+      "active": 4,
+      "recovery": 19,
+      "damage": 112,
+      "hitstun": 26,
+      "hitstop": 10,
+      "hitbox": {
+        "x": 88,
+        "y": 104,
+        "w": 114,
+        "h": 60
+      },
+      "impulse": {
+        "x": 54000,
+        "y": 36000
+      }
+    },
+    "special1": {
+      "name": "Condensate Freeze",
+      "kind": "SPECIAL",
+      "equation": "T → 0 K",
+      "startup": 11,
+      "active": 1,
+      "recovery": 17,
+      "cooldown": 90,
+      "damage": 40,
+      "hitstun": 16,
+      "hitstop": 6,
+      "impulse": {
+        "x": 14000,
+        "y": 6000
+      },
+      "params": {
+        "speed": 620,
+        "offset": 70,
+        "height": 120,
+        "size": 60,
+        "life": 90,
+        "chillTicks": 180,
+        "freezeStun": 75
+      }
+    },
+    "special2": {
+      "name": "Boson Copy",
+      "kind": "SPECIAL",
+      "equation": "n = 1 / (e^(hν/kT) − 1)",
+      "startup": 10,
+      "active": 1,
+      "recovery": 18,
+      "cooldown": 220,
+      "damage": 0,
+      "hitstun": 0,
+      "hitstop": 0,
+      "impulse": {
+        "x": 0,
+        "y": 0
+      },
+      "params": {
+        "copies": 1
+      }
+    },
+    "ultimate": {
+      "name": "Bose–Einstein Condensate",
+      "kind": "ULTIMATE",
+      "equation": "T_c ∝ n^(2/3)",
+      "startup": 12,
+      "active": 1,
+      "recovery": 30,
+      "damage": 90,
+      "hitstun": 80,
+      "hitstop": 14,
+      "impulse": {
+        "x": 0,
+        "y": 0
+      }
+    }
+  }
+}

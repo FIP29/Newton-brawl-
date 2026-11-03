@@ -69,6 +69,10 @@ const SIGNATURE: Record<string, () => void> = {
   schrodinger: () => { tone(620, 620, 0.2, 'sine', 0.05); tone(931, 931, 0.2, 'sine', 0.05); tone(1240, 300, 0.25, 'triangle', 0.03, 0.12); }, // two states at once, then collapse
   heisenberg: () => { for (let i = 0; i < 4; i++) tone(500 + Math.random() * 1400, 300 + Math.random() * 1600, 0.06, 'square', 0.025, i * 0.04); }, // jittery, never the same twice
   hawking: () => { tone(90, 30, 0.6, 'sine', 0.2); hiss(0.4, 0.05, 300, 'lowpass', 0.05); },               // deep gravitational rumble
+  bernoulli: () => { hiss(0.35, 0.1, 1200, 'bandpass'); tone(300, 900, 0.3, 'sine', 0.04); },                  // rushing air
+  edison: () => { tone(120, 120, 0.25, 'square', 0.04); hiss(0.08, 0.06, 4000, 'highpass', 0.05); tone(1800, 1800, 0.05, 'sine', 0.05, 0.2); }, // DC hum, filament ping
+  'sn-bose': () => { tone(1400, 2200, 0.4, 'sine', 0.04); tone(2100, 3300, 0.4, 'sine', 0.025, 0.06); },    // crystalline, icy shimmer
+  'jc-bose': () => { tone(2400, 2400, 0.08, 'sine', 0.04); tone(2400, 2400, 0.08, 'sine', 0.04, 0.12); tone(330, 495, 0.3, 'triangle', 0.04, 0.05); }, // microwave beeps, a living chord
   doppler: () => { tone(980, 620, 0.45, 'sawtooth', 0.04); tone(990, 610, 0.45, 'triangle', 0.04); },       // a siren falling in pitch as it passes
 };
 

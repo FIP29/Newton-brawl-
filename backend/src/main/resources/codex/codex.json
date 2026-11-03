@@ -319,7 +319,24 @@
       "origin": "Switzerland",
       "phase": 8,
       "bio": "Mathematician and physicist whose Hydrodynamica (1738) laid out the principle that in a flowing fluid, faster flow comes with lower pressure. That idea helps explain lift on wings and how atomizers and carburettors work. He came from a famous family of mathematicians.",
-      "funFact": "His father Johann, a rival, published a book on hydraulics with an earlier date on it, seemingly to claim the ideas first."
+      "funFact": "His father Johann, a rival, published a book on hydraulics with an earlier date on it, seemingly to claim the ideas first.",
+      "moves": {
+        "special1": {
+          "law": "Bernoulli's principle: P + ½ρv² + ρgh = constant along a streamline",
+          "explain": "Where a fluid flows faster, its pressure is lower. Fast air above him means low pressure above and higher pressure below, and the difference pushes him up.",
+          "labNote": "Bernoulli published the idea in Hydrodynamica (1738). It's often used to explain how wings lift, but the full story also needs Newton's third law: a wing pushes air down, so the air pushes the wing up."
+        },
+        "special2": {
+          "law": "Continuity equation: A₁v₁ = A₂v₂",
+          "explain": "A liquid squeezed through a narrower opening has to speed up. That's why putting your thumb over the end of a garden hose makes the water shoot farther.",
+          "labNote": "The same rule explains why a river runs fast through a narrow gorge and slowly across a wide plain."
+        },
+        "ultimate": {
+          "law": "Dynamic pressure: q = ½ρv²",
+          "explain": "The pressure of moving air rises with the square of its speed. In a hurricane, winds spiral around an eye of very low pressure, and the pressure difference drives everything inward and upward.",
+          "labNote": "Normal air pressure at sea level is about 1013 hectopascals. In the strongest tropical cyclones the pressure in the eye has dropped below 900."
+        }
+      }
     },
     {
       "id": "edison",
@@ -328,7 +345,24 @@
       "origin": "USA",
       "phase": 8,
       "bio": "Inventor and businessman whose Menlo Park laboratory produced the phonograph (1877), a long-lasting practical incandescent light bulb (1879) and electric power distribution systems. He championed direct current (DC) in the \"war of the currents\" against Tesla and Westinghouse's AC.",
-      "funFact": "He held 1,093 US patents, one of the largest totals ever granted to a single person."
+      "funFact": "He held 1,093 US patents, one of the largest totals ever granted to a single person.",
+      "moves": {
+        "special1": {
+          "law": "Ohm's law: V = IR, and power lost in the wire: P = I²R",
+          "explain": "Edison's power stations sent direct current: it flows one way at a steady voltage. Wires have resistance, so much of the power was lost as heat, and a DC station could only serve customers within a mile or two. That's why DC Punch only works up close.",
+          "labNote": "Edison's Pearl Street Station in New York began supplying customers in 1882, one of the first central power stations."
+        },
+        "special2": {
+          "law": "Electrical power: P = VI",
+          "explain": "A light bulb turns electrical power into light and heat. Edison's team tested thousands of materials for the glowing filament; carbonised bamboo filaments eventually lasted more than a thousand hours.",
+          "labNote": "Edison didn't invent the first electric light. What he built was a practical, long-lasting bulb plus the whole system to power it: generators, wiring, fuses and meters."
+        },
+        "ultimate": {
+          "law": "US Patent 223,898: Electric-Lamp (1880)",
+          "explain": "A patent gives an inventor the sole right to use an invention for a number of years. Patent copies the opponent's last special and patents it, so they can't use it for a while.",
+          "labNote": "Edison was granted 1,093 US patents, one of the largest numbers ever held by a single person."
+        }
+      }
     },
     {
       "id": "sn-bose",
@@ -337,7 +371,24 @@
       "origin": "British India (Kolkata; worked in Dhaka)",
       "phase": 8,
       "bio": "Physicist who, while teaching at the University of Dhaka in 1924, derived Planck's radiation law using a new way of counting identical particles. Einstein extended it, creating Bose–Einstein statistics and predicting the Bose–Einstein condensate, a state in which atoms cooled near absolute zero behave as one. Particles that follow these statistics are called bosons in his honour.",
-      "funFact": "The first Bose–Einstein condensate was made in a lab in 1995, 71 years after his paper, and it earned the 2001 Nobel Prize in Physics."
+      "funFact": "The first Bose–Einstein condensate was made in a lab in 1995, 71 years after his paper, and it earned the 2001 Nobel Prize in Physics.",
+      "moves": {
+        "special1": {
+          "law": "Absolute zero: 0 K = −273.15 °C",
+          "explain": "Temperature measures how fast atoms jiggle. Cooling takes that energy away and slows them down, so a chilled opponent moves in slow motion. Chill them again before they warm up and they freeze solid.",
+          "labNote": "Physicists have cooled atoms to less than a billionth of a degree above absolute zero, far colder than anywhere in nature that we know of."
+        },
+        "special2": {
+          "law": "Bose–Einstein statistics: n = 1 / (e^(hν/kT) − 1)",
+          "explain": "In 1924 Bose found a new way to count particles of light. Particles like photons, now called bosons after him, can all share exactly the same state. Boson Copy turns that into copying the opponent's move.",
+          "labNote": "Bose sent his paper to Einstein after a journal turned it down. Einstein translated it into German himself and had it published."
+        },
+        "ultimate": {
+          "law": "Bose–Einstein condensate: below a critical temperature, atoms pile into the lowest state",
+          "explain": "Einstein extended Bose's counting from light to atoms and predicted that, cold enough, atoms would all fall into the same lowest-energy state and behave like one giant super-atom.",
+          "labNote": "The first condensate was made in 1995 by Eric Cornell and Carl Wieman, from rubidium atoms cooled to about 170 billionths of a degree above absolute zero. They shared the 2001 Nobel Prize with Wolfgang Ketterle."
+        }
+      }
     },
     {
       "id": "jc-bose",
@@ -346,7 +397,24 @@
       "origin": "Bengal (born in Mymensingh, today Bangladesh)",
       "phase": 8,
       "bio": "Physicist and biologist who in the 1890s pioneered research on millimetre-wavelength radio (microwaves) and built early detectors. He later invented the crescograph to measure the tiny growth and responses of plants to stimuli, and founded the Bose Institute in Kolkata.",
-      "funFact": "He chose not to profit from patents on much of his radio research, and he wrote one of the earliest works of Bengali science fiction."
+      "funFact": "He chose not to profit from patents on much of his radio research, and he wrote one of the earliest works of Bengali science fiction.",
+      "moves": {
+        "special1": {
+          "law": "Electromagnetic waves: c = fλ",
+          "explain": "Bose experimented with radio waves only millimetres long, what we now call microwaves. They pass through walls and wood, but metal reflects them, so a Faraday cage stops Microwave Pulse. A microwave oven's metal mesh door works the same way.",
+          "labNote": "In a public demonstration in Kolkata in 1895, Bose is reported to have sent microwaves through walls to ring a bell and set off a small charge of gunpowder."
+        },
+        "special2": {
+          "law": "Plants respond to stimuli with electrical signals",
+          "explain": "Bose built the crescograph, which magnified a plant's growth about ten thousand times. With it he showed that plants react to touch, heat, chemicals and electricity, and that you can measure the response.",
+          "labNote": "Some plants react fast enough to watch: the touch-me-not, Mimosa pudica, folds up its leaves within seconds of being touched."
+        },
+        "ultimate": {
+          "law": "Stimulus → electrical response, in plants as in animals",
+          "explain": "Bose recorded electrical responses in plant tissue that looked like the responses of animal nerve and muscle, and argued that all living things share a common physiology.",
+          "labNote": "The Bose Institute he founded in Kolkata in 1917 still does research today, and a crater on the far side of the Moon is named after him."
+        }
+      }
     }
   ]
 }
