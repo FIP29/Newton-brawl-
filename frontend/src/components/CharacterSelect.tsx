@@ -14,6 +14,10 @@ const RATINGS: Record<string, { power: number; speed: number; range: number }> =
   tesla: { power: 3, speed: 4, range: 5 },
   curie: { power: 4, speed: 3, range: 4 },
   einstein: { power: 3, speed: 5, range: 3 },
+  galileo: { power: 2, speed: 5, range: 4 },
+  archimedes: { power: 5, speed: 1, range: 3 },
+  faraday: { power: 3, speed: 3, range: 4 },
+  hooke: { power: 3, speed: 4, range: 4 },
 };
 
 export interface SelectPlayer {

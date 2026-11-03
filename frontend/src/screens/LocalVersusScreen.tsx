@@ -4,8 +4,8 @@ import { FightRenderer } from '../game/render/FightRenderer';
 import { InputController, KEYS_LOCAL_P1, KEYS_LOCAL_P2 } from '../game/input/InputController';
 import { lerpFighter } from '../game/net/SnapshotBuffer';
 import { MatchSimulation } from '../game/sim/MatchSimulation';
-import { STANDARD_RULES, THE_LAB } from '../game/sim/constants';
-import { FIGHTERS, PLAYABLE } from '../game/data/fighters';
+import { ARENAS, STANDARD_RULES } from '../game/sim/constants';
+import { FIGHTERS, ROSTER as ROSTER_IDS } from '../game/data/fighters';
 import { TICK_MS, type FighterDefinition, type GameEvent, type Snapshot } from '../game/protocol';
 import { lookFor } from '../game/render/characters/looks';
 import { sfx } from '../audio/sfx';
@@ -14,10 +14,11 @@ import { CharacterSelect } from '../components/CharacterSelect';
 import { useFightOverlays } from '../components/FightOverlays';
 import { fighterPortraits } from '../components/portraits';
 import { VictoryPanel } from '../components/VictoryPanel';
-import { codexApi, type LabNote } from '../api/progress';
+import { codexApi, unlocksApi, type LabNote } from '../api/progress';
 
 const NAMES = ['Player 1', 'Player 2'];
-const ROSTER = PLAYABLE.map((id) => FIGHTERS[id]);
+const ROSTER = ROSTER_IDS.map((id) => FIGHTERS[id]);
+type ArenaChoice = 'the-lab' | 'space-station' | 'random';
 const hex = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
 
 /**
@@ -27,24 +28,40 @@ const hex = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
  */
 export function LocalVersusScreen() {
   const [picks, setPicks] = useState<[string, string] | null>(null);
+  const [arena, setArena] = useState<string>('the-lab');
   return picks
-    ? <LocalFight picks={picks} onChangeFighters={() => setPicks(null)} />
-    : <LocalSelect onDone={setPicks} />;
+    ? <LocalFight picks={picks} arenaId={arena} onChangeFighters={() => setPicks(null)} />
+    : <LocalSelect onDone={(p, a) => { setArena(a); setPicks(p); }} />;
 }
 
 // ----------------------------------------------------------------------------- select
 
-function LocalSelect({ onDone }: { onDone: (picks: [string, string]) => void }) {
+function LocalSelect({ onDone }: { onDone: (picks: [string, string], arena: string) => void }) {
   const [cursor, setCursor] = useState<[number, number]>([0, 1]);
   const [locked, setLocked] = useState<[boolean, boolean]>([false, false]);
-  const state = useRef({ cursor, locked });
-  state.current = { cursor, locked };
+  const [usable, setUsable] = useState<Record<string, string[]> | undefined>(undefined);
+  const [arena, setArena] = useState<ArenaChoice>('random');
+  const state = useRef({ cursor, locked, usable });
+  state.current = { cursor, locked, usable };
+
+  // Unlocks belong to the logged-in account and apply to both local players.
+  useEffect(() => {
+    if (import.meta.env.DEV && location.search.includes('unlockAll')) return; // dev tooling: everything selectable
+    unlocksApi.usable().then(setUsable).catch(() => setUsable({ newton: ['classic'], tesla: ['classic'], curie: ['classic'], einstein: ['classic'] }));
+  }, []);
+  const isUsable = (i: number) => !state.current.usable || !!state.current.usable[ROSTER[i].id];
 
   useEffect(() => {
     const move = (p: 0 | 1, d: number) => {
       if (state.current.locked[p]) return;
       sfx.hover();
-      setCursor((c) => { const n = [...c] as [number, number]; n[p] = (n[p] + d + ROSTER.length) % ROSTER.length; return n; });
+      setCursor((c) => {
+        const n = [...c] as [number, number];
+        let i = n[p];
+        for (let k = 0; k < ROSTER.length; k++) { i = (i + d + ROSTER.length) % ROSTER.length; if (isUsable(i)) break; } // skip locked
+        n[p] = i;
+        return n;
+      });
     };
     const lock = (p: 0 | 1, v: boolean) => {
       if (v) sfx.success(); else sfx.click();
@@ -60,6 +77,7 @@ function LocalSelect({ onDone }: { onDone: (picks: [string, string]) => void }) 
         case 'ArrowRight': e.preventDefault(); move(1, 1); break;
         case 'Numpad1': case 'Comma': lock(1, true); break;
         case 'Numpad2': case 'Period': lock(1, false); break;
+        case 'KeyQ': sfx.click(); setArena((a) => (a === 'random' ? 'the-lab' : a === 'the-lab' ? 'space-station' : 'random')); break;
       }
     };
     window.addEventListener('keydown', onKey);
@@ -68,9 +86,10 @@ function LocalSelect({ onDone }: { onDone: (picks: [string, string]) => void }) 
 
   useEffect(() => {
     if (!locked[0] || !locked[1]) return;
-    const t = window.setTimeout(() => onDone([ROSTER[cursor[0]].id, ROSTER[cursor[1]].id]), 700);
+    const chosen = arena === 'random' ? ARENAS[Math.floor(Math.random() * ARENAS.length)].id : arena;
+    const t = window.setTimeout(() => onDone([ROSTER[cursor[0]].id, ROSTER[cursor[1]].id], chosen), 700);
     return () => window.clearTimeout(t);
-  }, [locked, cursor, onDone]);
+  }, [locked, cursor, onDone, arena]);
 
   const click = (id: string) => {
     const idx = ROSTER.findIndex((d) => d.id === id);
@@ -85,6 +104,7 @@ function LocalSelect({ onDone }: { onDone: (picks: [string, string]) => void }) 
     <div className="screen select-screen">
       <CharacterSelect
         roster={ROSTER}
+        usable={usable}
         onCardClick={click}
         players={[
           { label: 'P1', color: 'var(--newton)', cursor: ROSTER[cursor[0]].id, locked: locked[0] },
@@ -92,6 +112,12 @@ function LocalSelect({ onDone }: { onDone: (picks: [string, string]) => void }) 
         ]}
         footer={
           <div className="cs-footer">
+            <span className="arena-pick">Arena:
+              {(['random', 'the-lab', 'space-station'] as const).map((a) => (
+                <button key={a} className={`cs-skin ${arena === a ? 'on' : ''}`} style={{ '--accent': 'var(--tesla)' } as React.CSSProperties}
+                        onClick={() => { sfx.click(); setArena(a); }}>{a === 'random' ? 'Random' : ARENAS.find((x) => x.id === a)!.name}</button>
+              ))}
+              <kbd>Q</kbd></span>
             <span><b>P1</b> <kbd>A</kbd><kbd>D</kbd> choose · <kbd>J</kbd> lock · <kbd>K</kbd> back</span>
             <span><b>P2</b> <kbd>←</kbd><kbd>→</kbd> choose · <kbd>1</kbd>/<kbd>,</kbd> lock · <kbd>2</kbd>/<kbd>.</kbd> back</span>
             <Link className="btn-ghost" to="/">← Menu</Link>
@@ -104,7 +130,8 @@ function LocalSelect({ onDone }: { onDone: (picks: [string, string]) => void }) 
 
 // ------------------------------------------------------------------------------ fight
 
-function LocalFight({ picks, onChangeFighters }: { picks: [string, string]; onChangeFighters: () => void }) {
+function LocalFight({ picks, arenaId, onChangeFighters }: { picks: [string, string]; arenaId: string; onChangeFighters: () => void }) {
+  const arena = ARENAS.find((a) => a.id === arenaId) ?? ARENAS[0];
   const [host, setHost] = useState<HTMLDivElement | null>(null);
   const [paused, setPaused] = useState(false);
   const [result, setResult] = useState<{ winner: number; roundWins: number[] } | null>(null);
@@ -129,7 +156,7 @@ function LocalFight({ picks, onChangeFighters }: { picks: [string, string]; onCh
     setLabNote(null);
     setPaused(false);
 
-    const sim = new MatchSimulation(THE_LAB, defs, STANDARD_RULES);
+    const sim = new MatchSimulation(arena, defs, STANDARD_RULES);
     if (import.meta.env.DEV) (window as unknown as { __nbLocalSim: MatchSimulation }).__nbLocalSim = sim; // dev tooling hook
     const p1 = new InputController(KEYS_LOCAL_P1, 0).attach();
     const p2 = new InputController(KEYS_LOCAL_P2, 1).attach();
@@ -204,7 +231,7 @@ function LocalFight({ picks, onChangeFighters }: { picks: [string, string]; onCh
       if (disposed) { renderer.destroy(); return; }
       ready = true;
       if (import.meta.env.DEV) (window as unknown as { __nbRenderer: FightRenderer }).__nbRenderer = renderer;
-      renderer.setup(THE_LAB, defs);
+      renderer.setup(arena, defs);
       renderer.app.ticker.add(frame);
     });
 

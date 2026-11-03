@@ -62,6 +62,10 @@ const SIGNATURE: Record<string, () => void> = {
   tesla: () => { hiss(0.22, 0.12, 5000, 'highpass'); tone(1800, 600, 0.18, 'sawtooth', 0.04); },    // crackling zap
   curie: () => { for (let i = 0; i < 6; i++) hiss(0.02, 0.12, 3000, 'bandpass', i * 0.035 + Math.random() * 0.02); tone(520, 780, 0.3, 'sine', 0.05); }, // Geiger clicks + glow
   einstein: () => { tone(400, 1600, 0.25, 'triangle', 0.07); tone(1200, 2400, 0.4, 'sine', 0.03, 0.05); }, // relativistic whoosh-chime
+  galileo: () => { tone(660, 660, 0.12, 'sine', 0.07); tone(990, 990, 0.18, 'sine', 0.05, 0.12); },        // pendulum clock tick-tock
+  archimedes: () => { tone(220, 110, 0.3, 'triangle', 0.1); hiss(0.25, 0.06, 600, 'lowpass', 0.05); },      // creaking wood, splash
+  faraday: () => { tone(300, 900, 0.35, 'sawtooth', 0.035); tone(320, 960, 0.35, 'sawtooth', 0.03); },      // dynamo spin-up hum
+  hooke: () => { tone(180, 900, 0.18, 'square', 0.04); tone(900, 140, 0.2, 'square', 0.04, 0.16); },        // boing
 };
 
 export const sfx = {

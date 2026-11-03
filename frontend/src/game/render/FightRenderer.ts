@@ -6,6 +6,8 @@ import { THE_LAB } from '../sim/constants';
 import { createFighterVisual, type FighterVisual } from './characters/FighterVisual';
 import { lookFor } from './characters/looks';
 import { TheLab } from './arena/TheLab';
+import { SpaceStation } from './arena/SpaceStation';
+import type { ArenaBackdrop } from './arena/types';
 import { EntityLayer } from './fx/EntityLayer';
 import { FxSystem, makeTextures, type FxTextures } from './fx/primitives';
 
@@ -49,7 +51,7 @@ export class FightRenderer {
 
   private tex!: FxTextures;
   private fx!: FxSystem;
-  private lab: TheLab | null = null;
+  private lab: ArenaBackdrop | null = null;
   private entities: EntityLayer | null = null;
   private visuals: FighterVisual[] = [];
   private trails: Trail[] = [];
@@ -93,7 +95,9 @@ export class FightRenderer {
       c.removeChildren().forEach((ch) => ch.destroy({ children: true }));
     }
     this.fx.clear();
-    this.lab = new TheLab(arena.width, arena.height, this.tex, this.fx, this.quality === 'high');
+    this.lab = arena.id === 'space-station'
+      ? new SpaceStation(arena.width, arena.height, this.tex, this.fx, this.quality === 'high')
+      : new TheLab(arena.width, arena.height, this.tex, this.fx, this.quality === 'high');
     this.arenaBack.addChild(this.lab.back);
     this.arenaFront.addChild(this.lab.front);
     this.lightLayer.addChild(this.lab.lights);
@@ -154,6 +158,29 @@ export class FightRenderer {
       case 'ARC':
         this.fx.burst(e.x, e.y, NEON.tesla, 18, 600, { streak: true, life: 0.3 });
         this.fx.ring(e.x, e.y, NEON.tesla, 80, 6, 0.2);
+        break;
+      case 'BLOCK':
+        // an electric attack fizzling on Faraday's cage
+        this.fx.burst(e.x, e.y, 0xe8834a, 22, 500, { streak: true, life: 0.3 });
+        this.fx.ring(e.x, e.y, 0xe8834a, 70, 6, 0.25);
+        break;
+      case 'SHATTER':
+        // Breaking Point: cracks race outward and everything flies
+        this.cam.shake = 40;
+        this.shockwave(e.x, e.y, 1.6);
+        for (let i = 0; i < 12; i++) {
+          const a = (i / 12) * Math.PI * 2 + Math.random() * 0.3;
+          const len = 400 + Math.random() * 500;
+          const pts = [e.x, e.y];
+          let x = e.x, y = e.y;
+          for (let k = 0; k < 5; k++) { x += Math.cos(a + (Math.random() - 0.5) * 0.6) * len / 5; y += Math.sin(a + (Math.random() - 0.5) * 0.6) * len / 5; pts.push(x, y); }
+          this.fx.transient(0.7, (g, k) => {
+            g.clear().moveTo(pts[0], pts[1]);
+            for (let j = 2; j < pts.length; j += 2) g.lineTo(pts[j], pts[j + 1]);
+            g.stroke({ width: 4 * (1 - k), color: 0xe9f2ff, alpha: 1 - k });
+          });
+        }
+        this.fx.burst(e.x, e.y, 0xc8d2dc, 60, 1200, { streak: true, life: 0.6 });
         break;
       case 'CLANK':
         this.fx.burst(e.x, e.y, 0xd7dde3, 14, 700, { streak: true, life: 0.25 });

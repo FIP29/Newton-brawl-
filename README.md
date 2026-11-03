@@ -17,8 +17,8 @@ The art direction is called Neon Chalkboard. Netcode is server-authoritative, an
 | 3 | Prediction/interpolation, health, energy, rounds, timer, local 2-player | ✅ done |
 | 4 | Newton, Tesla, Curie, Einstein + The Lab with full VFX | ✅ done |
 | 5 | Matchmaking, ranked Elo, leaderboard, Codex, Lab Notes, unlocks | ✅ done |
-| 6 | Galileo, Archimedes, Faraday, Hooke + Space Station | next |
-| 7 | Schrödinger, Heisenberg, Hawking, Doppler + Black Hole Edge | |
+| 6 | Galileo, Archimedes, Faraday, Hooke + Space Station | ✅ done |
+| 7 | Schrödinger, Heisenberg, Hawking, Doppler + Black Hole Edge | next |
 | 8 | Bernoulli, Edison, S.N. Bose, J.C. Bose + Curzon Hall + rivalries | |
 | 9 | Polish: shaders, cinematic ultimates, sound, balancing | |
 
@@ -35,6 +35,10 @@ The art direction is called Neon Chalkboard. Netcode is server-authoritative, an
 | ![Victory screen with Elo change and Lab Note](docs/screenshots/victory-lab-note.jpg) | ![Science Codex](docs/screenshots/codex.jpg) |
 | **Ranked ladder** | **Profile** |
 | ![Leaderboard](docs/screenshots/leaderboard.jpg) | ![Profile](docs/screenshots/profile.jpg) |
+
+| Unlockable roster (Phase 6) | Space Station |
+|---|---|
+| ![Galileo, Archimedes, Faraday and Hooke in six poses](docs/screenshots/characters-phase6.jpg) | ![Galileo's pendulum in the Space Station](docs/screenshots/space-station.jpg) ![Faraday's cage and induction coil](docs/screenshots/faraday-cage.jpg) |
 
 ## Progression
 
@@ -62,6 +66,26 @@ Every special is based on the real law printed next to it. When it lands, that e
 | **Nikola Tesla** (blue) | Zoner | **Chain Lightning**: arcs through metal beakers toward the opponent, +25% per jump (Coulomb) | **Magnetic Pull**: drags the opponent and the beakers toward him (F = q(v × B)) | **Tesla Coil**: an arena-wide electric field; the lab's coils strike every ⅓ s (f = 1/2π√(LC)) |
 | **Marie Curie** (green) | Zoner | **Radioactive Orb**: damage halves every half-life, so it hits hardest up close (N = N₀·½^(t/t½)) | **Glow Trap**: a radium trap that stuns whoever steps on it (²²⁶Ra → ²²²Rn + α) | **Chain Reaction**: fission blasts spreading outward in both directions (n + ²³⁵U → …) |
 | **Albert Einstein** (violet) | Trickster | **Light Dash**: a 320-unit blink with invulnerability that can pass through the opponent | **Time Dilation Bubble**: everything inside except him runs at 0.4× (Δt′ = Δt/√(1−v²/c²)) | **E = mc²**: his energy becomes a beam across the whole arena |
+
+### Unlockable roster
+
+| Scientist | Class | Special 1 (`L`) | Special 2 (`S`+`L`) | ULTIMATE | Unlock |
+|---|---|---|---|---|---|
+| **Galileo Galilei** (amber) | Speedster | **Pendulum Swing**: a bob that swings under θ'' = −(g/L)θ, so it strikes on the pendulum's own rhythm, T = 2π√(L/g) | **Tower Drop**: a cannonball and a musket ball fall side by side and land on the same tick | **Starry Messenger**: Io, Europa, Ganymede and Callisto orbit him under a central force, with ω chosen so that T² ∝ r³ (Kepler's third law) | 3 matches |
+| **Archimedes** (bronze) | Bruiser, heaviest | **Lever Launch**: a small push multiplied ×4 by a lever (F₁d₁ = F₂d₂) | **Buoyancy Bubble**: the target floats up, unable to act (F_b = ρVg) | **Burning Mirrors**: sunbeams focus where the opponent stood, so moving dodges it (1/f = 1/dₒ + 1/dᵢ) | 8 matches |
+| **Michael Faraday** (copper) | Zoner | **Faraday Cage**: every electric attack fizzles on it (a hard counter to Tesla) | **Induction Coil**: hurts opponents only while they move through it (ε = −dΦ/dt) | **Dynamo**: a spinning magnetic storm that pulls in and shocks (ε = NBAω) | 6 Codex entries |
+| **Robert Hooke** (steel) | Trickster | **Spring Trap**: snaps harder the farther he walks from it (F = −kx) | **Elastic Whip**: long reach that yanks the target in (E = ½kx²) | **Breaking Point**: a huge blast that also destroys the opponent's projectiles and traps and flings every prop (σ > σ_yield) | 5 wins |
+
+No authentic portrait of Hooke survives, so his design follows contemporaries' descriptions: thin, stooped, with long unpowdered hair. All four have Codex pages, move entries and Lab Notes.
+
+### Arenas
+
+| Arena | Physics |
+|---|---|
+| **The Lab** | gravity 2600; metal beakers on the floor (punch them into the opponent, magnetise them, chain lightning through them) |
+| **Space Station** | gravity 1100 (jumps hang in the air); four pieces of zero-g debris drift and bounce off every surface, and a punch turns them into projectiles |
+
+Online matches pick an arena at random. In Local Versus you choose it (`Q` cycles The Lab / Space Station / Random). Arenas are data (`Arena.java` / `constants.ts`): gravity, prop gravity, restitution and props.
 
 **Shared:** the energy meter fills from dealing and taking damage, and a full meter unlocks the ULTIMATE. Specials have cooldowns. The metal beakers in The Lab can be hit or kicked into the opponent, magnetised by Tesla, and used as lightning conductors.
 
@@ -212,7 +236,7 @@ com.newtonbrawl
 ├── leaderboard/ ranked ladder
 └── engine/      Spring-free simulation
     ├── input/     InputBits, InputFrame, InputQueue
-    ├── fighter/   FighterDefinition (JSON), Fighter base class, FighterCatalog, roster/ (Newton, Tesla, Curie, Einstein)
+    ├── fighter/   FighterDefinition (JSON), Fighter base class, FighterCatalog, roster/ (8 scientists)
     ├── sim/       MatchSimulation, MatchRules, FighterState, Projectile, Zone, ArenaObject, Arena, snapshots/events
     └── runtime/   MatchRunner (60 Hz thread), MatchListener
 ```
@@ -234,7 +258,7 @@ src/
 │   ├── input/               keymaps (online / local P1 / local P2) + gamepads → button bitmask
 │   ├── net/                 MatchConnection (60 Hz input pump, ping), SnapshotBuffer (interpolation), Predictor
 │   └── render/              FightRenderer (camera, filters), characters/ (rig, looks, draw, FighterVisual),
-│                            arena/TheLab, fx/ (particles, lightning, EntityLayer for projectiles/zones/objects)
+│                            arena/ (TheLab, SpaceStation), fx/ (particles, lightning, EntityLayer for projectiles/zones/objects)
 ├── fx/         PixiJS ChalkboardBackground (parallax stars, glowing equations, chalk dust), palette
 ├── audio/      Web Audio placeholder SFX (replaced by Howler assets later)
 └── styles/     Neon Chalkboard theme

@@ -3,6 +3,7 @@ import { GodrayFilter, GlowFilter } from 'pixi-filters';
 import { NEON } from '../../../fx/palette';
 import type { FxSystem, FxTextures } from '../fx/primitives';
 import { drawBolt, lightningPoints } from '../fx/primitives';
+import type { ArenaBackdrop } from './types';
 
 interface Layer { c: Container; factor: number }
 
@@ -16,7 +17,7 @@ interface Layer { c: Container; factor: number }
  *   1.0   polished floor with reflections, hanging lamp with flickering light pool
  *   1.3   blurred foreground lab benches
  */
-export class TheLab {
+export class TheLab implements ArenaBackdrop {
   readonly back = new Container();   // behind fighters
   readonly front = new Container();  // in front of fighters (foreground silhouettes)
   readonly lights = new Container(); // additive light sprites

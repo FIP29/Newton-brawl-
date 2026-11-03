@@ -1,5 +1,5 @@
 import { Application, Container, Rectangle } from 'pixi.js';
-import { FIGHTERS, PLAYABLE } from '../game/data/fighters';
+import { FIGHTERS, ROSTER } from '../game/data/fighters';
 import { ProceduralFighterVisual, idleView } from '../game/render/characters/FighterVisual';
 
 /**
@@ -27,7 +27,7 @@ function renderAll(w: number, h: number, place: (holder: Container, H: number) =
     const app = await offscreenApp();
     app.renderer.resize(w, h);
     const out: Record<string, string> = {};
-    for (const id of PLAYABLE) {
+    for (const id of ROSTER) {
       const def = FIGHTERS[id];
       const v = new ProceduralFighterVisual(def);
       v.update(idleView(def), 0.016);

@@ -3,6 +3,10 @@ import type { FighterDefinition, FighterView, ObjectView, ProjectileView, ZoneVi
 import { NEON } from '../../../fx/palette';
 import { drawBolt, lightningPoints, type FxSystem, type FxTextures } from './primitives';
 
+const AMBER_C = 0xffa630, BRONZE_C = 0xcd7f32, COPPER_C = 0xe8834a, STEEL_C = 0xc8d2dc;
+/** The Galilean moons in their real colours (sulphur-yellow Io, icy Europa, grey-brown Ganymede, dark Callisto). */
+const MOON_COLORS: Record<string, number> = { io: 0xf2d16b, europa: 0xe8e2cf, ganymede: 0xb9a58d, callisto: 0x7d7264 };
+
 
 /**
  * Draws everything that isn't a fighter: projectiles, zones, arena objects and status auras,
@@ -129,6 +133,49 @@ export class EntityLayer {
         this.light(p.x, p.y, NEON.curie, 2.6 * strength + 0.6, 0.5 * strength);
         break;
       }
+      case 'pendulum': {
+        // Galileo's pendulum: rope from the pivot, a brass bob, and a faint arc of its swing
+        f.moveTo(p.px - 14, p.py).lineTo(p.px + 14, p.py).stroke({ width: 6, color: 0x6b4a1a });
+        f.moveTo(p.px, p.py).lineTo(p.x, p.y).stroke({ width: 3, color: 0xe8d9b0 });
+        for (let i = 0; i < trail.length - 1; i++) f.circle(trail[i][0], trail[i][1], p.w / 2 * (i / trail.length)).fill({ color: AMBER_C, alpha: 0.06 * i });
+        f.circle(p.x, p.y, p.w / 2).fill(0xb8892e).stroke({ width: 3, color: AMBER_C });
+        f.circle(p.x - p.w * 0.15, p.y + p.w * 0.15, p.w * 0.15).fill({ color: 0xffffff, alpha: 0.4 });
+        this.light(p.x, p.y, AMBER_C, 1.8, 0.4);
+        break;
+      }
+      case 'cannonball':
+      case 'musketball': {
+        // Tower Drop: two masses, one falling speed — matching floor shadows show they land together
+        const heavy = p.kind === 'cannonball';
+        const k = Math.max(0, Math.min(1, 1 - p.y / 800));
+        b.ellipse(p.x, 3, (heavy ? 22 : 12) + 18 * k, 5 + 3 * k).fill({ color: 0x000000, alpha: 0.25 + 0.35 * k });
+        f.circle(p.x, p.y, p.w / 2).fill(heavy ? 0x2b2e33 : 0x8c9196).stroke({ width: 3, color: AMBER_C });
+        f.circle(p.x - p.w * 0.15, p.y + p.w * 0.15, p.w * 0.12).fill({ color: 0xffffff, alpha: 0.35 });
+        this.light(p.x, p.y, AMBER_C, heavy ? 1.2 : 0.7, 0.25);
+        break;
+      }
+      case 'io':
+      case 'europa':
+      case 'ganymede':
+      case 'callisto': {
+        // The Galilean moons, each with its real colouring
+        const tint = MOON_COLORS[p.kind];
+        for (let i = 0; i < trail.length - 1; i++) f.circle(trail[i][0], trail[i][1], p.w / 2 * (i / trail.length)).fill({ color: tint, alpha: 0.05 * i });
+        f.circle(p.x, p.y, p.w / 2).fill(tint).stroke({ width: 2, color: AMBER_C });
+        if (p.kind === 'europa') f.moveTo(p.x - 8, p.y - 4).lineTo(p.x + 6, p.y + 6).stroke({ width: 1.5, color: 0x8a6a4a });
+        if (p.kind === 'io') f.circle(p.x + 4, p.y + 3, 3).fill(0xd2691e);
+        this.light(p.x, p.y, tint, 1.1, 0.3);
+        break;
+      }
+      case 'bubble': {
+        // Archimedes' water bubble, wobbling as it drifts
+        const wob = Math.sin(this.time * 9 + p.id) * 0.08;
+        f.ellipse(p.x, p.y, p.w / 2 * (1 + wob), p.h / 2 * (1 - wob)).fill({ color: 0x5fd7ff, alpha: 0.18 }).stroke({ width: 3, color: 0x9fe8ff, alpha: 0.9 });
+        f.ellipse(p.x - p.w * 0.16, p.y + p.h * 0.16, p.w * 0.12, p.h * 0.07).fill({ color: 0xffffff, alpha: 0.7 });
+        if (Math.random() < 0.3) this.fx.burst(p.x, p.y - p.h / 2, 0x9fe8ff, 1, 40, { grav: -120, life: 0.6, size: 0.25 });
+        this.light(p.x, p.y, 0x5fd7ff, 1.6, 0.25);
+        break;
+      }
       default:
         f.circle(p.x, p.y, p.w / 2).fill({ color, alpha: 0.8 });
     }
@@ -231,6 +278,83 @@ export class EntityLayer {
         this.light(target.x, target.y + th * 0.5, NEON.tesla, 4, 0.3 + 0.2 * pulse);
         break;
       }
+      case 'LEVER': {
+        // a plank on a triangular fulcrum: the near end drops, the far end catapults up
+        const t = z.age - z.delay;
+        const tilt = t <= 0 ? 0.25 * (z.age / Math.max(1, z.delay)) : 0.25 - Math.min(1, t / 3) * 0.6;
+        const cx = z.x - z.w * 0.15, cy = 18;
+        b.poly([cx - 16, 0, cx + 16, 0, cx, cy]).fill(0x5a3a1c).stroke({ width: 3, color: BRONZE_C });
+        const half = z.w * 0.65, c = Math.cos(tilt), sn = Math.sin(tilt);
+        b.moveTo(cx - half * c, cy - half * sn).lineTo(cx + half * c, cy + half * sn).stroke({ width: 10, color: 0x8a5a2b })
+          .moveTo(cx - half * c, cy - half * sn).lineTo(cx + half * c, cy + half * sn).stroke({ width: 3, color: BRONZE_C });
+        if (t === 1) this.fx.burst(z.x, 40, BRONZE_C, 20, 600, { life: 0.4, streak: true });
+        break;
+      }
+      case 'FOCUS': {
+        // Burning Mirrors: sunbeams converge on a target, then a blazing column
+        const t = z.age - z.delay;
+        if (t <= 0) {
+          const k = z.age / Math.max(1, z.delay);
+          for (const sx of [-0.2, 0.15, 0.55, 0.85, 1.2]) {
+            f.moveTo(sx * this.arenaW, this.arenaH).lineTo(z.x, 0).stroke({ width: 2 + k * 3, color: 0xffe08a, alpha: 0.15 + 0.45 * k });
+          }
+          b.ellipse(z.x, 4, z.w * (1.2 - k * 0.7), 10).stroke({ width: 3, color: 0xffcc33, alpha: 0.4 + 0.6 * k });
+          this.light(z.x, 10, 0xffcc33, 2 + 3 * k, 0.2 + 0.4 * k);
+        } else if (t <= z.active) {
+          const flick = 0.85 + Math.random() * 0.15;
+          f.rect(z.x - z.w, 0, z.w * 2, this.arenaH).fill({ color: 0xffcc33, alpha: 0.2 * flick });
+          f.rect(z.x - z.w / 2, 0, z.w, this.arenaH).fill({ color: 0xffe9a8, alpha: 0.7 * flick });
+          f.rect(z.x - z.w / 6, 0, z.w / 3, this.arenaH).fill({ color: 0xffffff, alpha: 0.9 });
+          if (Math.random() < 0.6) this.fx.burst(z.x, 10, 0xff8a3c, 2, 500, { life: 0.4 });
+          for (let y = 100; y < this.arenaH; y += 200) this.light(z.x, y, 0xffcc33, 4, 0.6);
+        }
+        break;
+      }
+      case 'INDUCTION': {
+        // a copper coil on the floor with looping field lines; it glows as induced charge builds
+        const charge = 0.5 + 0.5 * Math.sin(this.time * 6);
+        const base = 6;
+        for (let i = 0; i < 5; i++) b.ellipse(z.x, base + i * 7, z.w * 0.2, 6).stroke({ width: 3, color: COPPER_C, alpha: 0.9 });
+        for (let i = 0; i < 3; i++) {
+          const ph = (this.time * 0.8 + i / 3) % 1;
+          b.ellipse(z.x, z.y, z.w / 2 * (0.4 + ph * 0.6), z.h / 2 * (0.4 + ph * 0.6)).stroke({ width: 2, color: COPPER_C, alpha: 0.35 * (1 - ph) });
+        }
+        this.light(z.x, 30, COPPER_C, 2.2, 0.25 + 0.4 * charge);
+        break;
+      }
+      case 'STORM': {
+        // Dynamo: a spinning magnetic vortex
+        const k = Math.min(1, z.age / 10) * Math.min(1, z.life / 15);
+        for (let i = 0; i < 6; i++) {
+          const rr = (i + 1) / 6;
+          const a0 = this.time * (4 - i * 0.4) + i;
+          const pts: number[] = [];
+          for (let j = 0; j <= 16; j++) { const a = a0 + j * 0.25; pts.push(z.x + Math.cos(a) * z.w / 2 * rr, z.y + Math.sin(a) * z.h / 2 * rr); }
+          f.moveTo(pts[0], pts[1]);
+          for (let j = 2; j < pts.length; j += 2) f.lineTo(pts[j], pts[j + 1]);
+          f.stroke({ width: 3, color: i % 2 ? COPPER_C : 0xffd8b0, alpha: 0.55 * k });
+        }
+        const target = fighters[1 - z.owner];
+        if (Math.random() < 0.35) this.fx.lightning(z.x, z.y, target.x, target.y + defs[1 - z.owner].body.height * 0.5, COPPER_C, 3, 0.1);
+        this.light(z.x, z.y, COPPER_C, 6, 0.3 * k);
+        break;
+      }
+      case 'SPRING': {
+        // Spring Trap: a coil on the floor tied to Hooke by an elastic line; brighter = more stretched
+        const stretch = Math.min(500, Math.abs(owner.x - z.x)) / 500;
+        const a = z.armed ? 1 : 0.4;
+        const coils = 7, w = z.w * 0.5;
+        const pts: number[] = [z.x - w / 2, 4];
+        for (let i = 1; i <= coils; i++) pts.push(z.x - w / 2 + (w * i) / coils, i % 2 ? 26 + stretch * 10 : 4);
+        b.moveTo(pts[0], pts[1]);
+        for (let i = 2; i < pts.length; i += 2) b.lineTo(pts[i], pts[i + 1]);
+        b.stroke({ width: 4, color: STEEL_C, alpha: a });
+        const oh = defs[z.owner].body.height;
+        b.moveTo(z.x, 14).quadraticCurveTo((z.x + owner.x) / 2, 14 - 30 * (1 - stretch), owner.x, owner.y + oh * 0.45)
+          .stroke({ width: 1.5 + stretch * 4, color: STEEL_C, alpha: 0.25 + 0.6 * stretch });
+        this.light(z.x, 12, STEEL_C, 1.5 + stretch * 2, 0.15 + 0.35 * stretch * a);
+        break;
+      }
     }
     void colors;
   }
@@ -238,15 +362,38 @@ export class EntityLayer {
   // ---------------------------------------------------------------------- objects
 
   private drawObject(b: Graphics, o: ObjectView, colors: number[], dt: number) {
-    const spin = (this.objSpin.get(o.id) ?? 0) + (o.y > 0 ? o.vx * dt * 0.02 : 0);
+    const floating = o.kind !== 'beaker';
+    const spin = (this.objSpin.get(o.id) ?? 0) + (floating ? (o.vx + o.vy) * dt * 0.006 : o.y > 0 ? o.vx * dt * 0.02 : 0);
     this.objSpin.set(o.id, spin);
     const cx = o.x, cy = o.y + o.h / 2;
     const c = Math.cos(spin), s = Math.sin(spin);
     const pt = (x: number, y: number) => [cx + x * c - y * s, cy + x * s + y * c];
     const hw = o.w / 2, hh = o.h / 2;
+    const danger = o.owner >= 0 && Math.abs(o.vx) + Math.abs(o.vy) > 400;
+    if (floating) {
+      // Space Station debris drifting in zero-g
+      const rim = danger ? colors[o.owner] : 0x7fd7ff;
+      if (o.kind === 'crate') {
+        b.poly([pt(-hw, -hh), pt(hw, -hh), pt(hw, hh), pt(-hw, hh)].flat()).fill(0x3a4656).stroke({ width: 3, color: rim });
+        b.poly([pt(-hw, -hh * 0.2), pt(hw, -hh * 0.2), pt(hw, hh * 0.2), pt(-hw, hh * 0.2)].flat()).fill({ color: 0xffcc33, alpha: 0.6 });
+        b.poly([pt(-hw * 0.8, -hh * 0.8), pt(hw * 0.8, hh * 0.8)].flat()).stroke({ width: 2, color: 0x5d6b7c });
+      } else if (o.kind === 'panel') {
+        b.poly([pt(-hw, -hh), pt(hw, -hh), pt(hw, hh), pt(-hw, hh)].flat()).fill(0x52627a).stroke({ width: 3, color: rim });
+        for (const fx of [-0.75, 0.75]) for (const fy of [-0.5, 0.5]) { const [x, y] = pt(hw * fx, hh * fy); b.circle(x, y, 3).fill(0xb9c6d6); }
+      } else {
+        // wrench
+        b.poly([pt(-hw * 0.7, -hh * 0.25), pt(hw * 0.6, -hh * 0.25), pt(hw * 0.6, hh * 0.25), pt(-hw * 0.7, hh * 0.25)].flat()).fill(0x9aa6b5).stroke({ width: 2, color: rim });
+        const [hx, hy] = pt(hw * 0.78, 0);
+        b.circle(hx, hy, hh * 0.9).fill(0x9aa6b5).stroke({ width: 2, color: rim });
+        const [mx, my] = pt(hw * 0.95, 0);
+        b.circle(mx, my, hh * 0.45).fill(0x0b0e11);
+      }
+      if (danger) { this.fx.burst(cx, cy, colors[o.owner], 1, 80, { grav: 0, life: 0.25, size: 0.5 }); this.light(cx, cy, colors[o.owner], 1.5, 0.4); }
+      else this.light(cx, cy, 0x7fd7ff, 0.9, 0.1);
+      return;
+    }
     // conductive metal flask: steel body, glass neck, glowing liquid
     const body = [pt(-hw, -hh), pt(hw, -hh), pt(hw * 0.95, hh * 0.1), pt(hw * 0.35, hh * 0.45), pt(hw * 0.35, hh), pt(-hw * 0.35, hh), pt(-hw * 0.35, hh * 0.45), pt(-hw * 0.95, hh * 0.1)].flat();
-    const danger = o.owner >= 0 && Math.abs(o.vx) + Math.abs(o.vy) > 400;
     const rim = danger ? colors[o.owner] : 0x9fb3c8;
     b.poly(body).fill(0x56616d).stroke({ width: 3, color: rim });
     b.poly([pt(-hw * 0.85, -hh * 0.85), pt(hw * 0.85, -hh * 0.85), pt(hw * 0.85, -hh * 0.2), pt(-hw * 0.85, -hh * 0.2)].flat()).fill({ color: NEON.tesla, alpha: 0.55 });
@@ -287,6 +434,22 @@ export class EntityLayer {
         const a = this.time * 6 + i * 2.1;
         f.circle(v.x + Math.cos(a) * 34, v.y + H + 14 + Math.sin(a) * 8, 5).fill({ color: NEON.curie, alpha: 0.9 });
       }
+    }
+    if (v.cage > 0) {
+      // Faraday Cage: a copper wire-mesh dome
+      const fade = Math.min(1, v.cage / 20), rx = H * 0.45, ry = H * 0.62;
+      for (let i = -3; i <= 3; i++) {
+        const k = i / 3.5;
+        f.moveTo(v.x + rx * k, v.y).quadraticCurveTo(v.x + rx * k * 1.15, cy + ry * 0.9, v.x, v.y + H + 20).stroke({ width: 2, color: COPPER_C, alpha: 0.75 * fade });
+      }
+      for (let j = 1; j <= 4; j++) f.ellipse(v.x, v.y + (H + 20) * j / 5, rx * Math.sqrt(1 - (j / 5) ** 2) * 1.05, 6).stroke({ width: 2, color: COPPER_C, alpha: 0.6 * fade });
+      this.light(v.x, cy, COPPER_C, 3, 0.2 * fade);
+    }
+    if (v.buoy > 0) {
+      // caught in Archimedes' bubble: a big water sphere floating upward
+      const wob = Math.sin(this.time * 6) * 0.05;
+      f.ellipse(v.x, cy, H * 0.55 * (1 + wob), H * 0.62 * (1 - wob)).fill({ color: 0x5fd7ff, alpha: 0.14 }).stroke({ width: 3, color: 0x9fe8ff, alpha: 0.8 });
+      if (Math.random() < 0.4) this.fx.burst(v.x + (Math.random() - 0.5) * H * 0.6, cy - H * 0.3, 0x9fe8ff, 1, 30, { grav: -160, life: 0.8, size: 0.3 });
     }
     if (v.action === 'ATTACK' && v.move === 'ultimate') this.light(v.x, cy, color, 5, 0.35);
   }
