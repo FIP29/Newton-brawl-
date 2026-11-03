@@ -1,0 +1,33 @@
+/**
+ * "Neon Chalkboard" palette. Each fighter's signature color is defined once here and reused
+ * by UI (CSS variables are mirrored in global.css) and by the PixiJS renderer.
+ */
+export const NEON = {
+  newton: 0xffcc33,     // gold
+  tesla: 0x33bbff,      // electric blue
+  curie: 0x7cff6b,      // toxic green
+  einstein: 0xb57bff,   // violet
+  galileo: 0xffa630,    // amber
+  hooke: 0xc8d2dc,      // steel grey
+  schrodinger: 0x2ee6c9,// teal
+  bose: 0x9fe8ff,       // ice blue
+  jcbose: 0x2ecc71,     // emerald
+  doppler: 0xff4d6d,    // red-shift
+  chalk: 0xe9ece4,
+} as const;
+
+/** Equations that drift across the menu backdrop, each glowing in its fighter's color. */
+export const BACKDROP_EQUATIONS: Array<{ text: string; color: number }> = [
+  { text: 'F = ma', color: NEON.newton },
+  { text: 'F = G·m₁m₂ / r²', color: NEON.newton },
+  { text: 'E = mc²', color: NEON.einstein },
+  { text: 'Δt′ = Δt / √(1 − v²/c²)', color: NEON.einstein },
+  { text: 'F = −kx', color: NEON.hooke },
+  { text: 'N(t) = N₀·(½)^(t/t½)', color: NEON.curie },
+  { text: 'F = q(E + v × B)', color: NEON.tesla },
+  { text: 'Δx·Δp ≥ ħ/2', color: NEON.schrodinger },
+  { text: 'T = 2π√(L/g)', color: NEON.galileo },
+  { text: 'f′ = f·(c + v)/(c − v)', color: NEON.doppler },
+  { text: 'n = 1 / (e^(hν/kT) − 1)', color: NEON.bose },
+  { text: 'c = fλ', color: NEON.jcbose },
+];
