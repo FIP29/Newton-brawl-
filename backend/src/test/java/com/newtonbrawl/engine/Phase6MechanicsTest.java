@@ -35,6 +35,7 @@ class Phase6MechanicsTest {
     static InputFrame press(int bits) { return new InputFrame(bits, bits); }
     static InputFrame special2() { return new InputFrame(InputBits.DOWN | InputBits.SPECIAL, InputBits.SPECIAL); }
     static FighterView v(MatchSimulation s, int slot) { return s.snapshot().fighters().get(slot); }
+    static int hp(String f) { return CATALOG.definition(f).maxHealth(); }
     static MoveDefinition move(String f, String id) { return CATALOG.definition(f).move(id); }
 
     static List<GameEvent> run(MatchSimulation s, int ticks, InputFrame p2, String type) {
@@ -101,7 +102,7 @@ class Phase6MechanicsTest {
         }
         var hits = run(s, 120, GameEvent.HIT);
         assertThat(hits).hasSize(2);
-        assertThat(s.snapshot().fighters().get(1).health()).isEqualTo(1100 - 2 * move("galileo", "special2").damage());
+        assertThat(s.snapshot().fighters().get(1).health()).isEqualTo(hp("newton") - 2 * move("galileo", "special2").damage());
     }
 
     @Test
@@ -192,13 +193,13 @@ class Phase6MechanicsTest {
         s.step(NONE, press(InputBits.SPECIAL)); // Tesla's Chain Lightning
         var blocks = run(s, 60, GameEvent.BLOCK);
         assertThat(blocks).hasSize(1);
-        assertThat(v(s, 0).health()).isEqualTo(980);
+        assertThat(v(s, 0).health()).isEqualTo(hp("faraday"));
 
         // Tesla Coil does nothing while the cage holds.
         s.setEnergy(1, EngineConstants.ENERGY_MAX);
         s.step(NONE, press(InputBits.ULTIMATE));
         run(s, 100, GameEvent.HIT);
-        assertThat(v(s, 0).health()).isEqualTo(980);
+        assertThat(v(s, 0).health()).isEqualTo(hp("faraday"));
     }
 
     @Test

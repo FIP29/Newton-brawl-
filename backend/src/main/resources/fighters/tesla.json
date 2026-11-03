@@ -5,7 +5,7 @@
   "fighterClass": "ZONER",
   "color": "#33bbff",
   "mass": 70,
-  "maxHealth": 950,
+  "maxHealth": 900,
   "walkSpeed": 400,
   "jumpVelocity": 1180,
   "airAcceleration": 1900,
@@ -38,7 +38,7 @@
       "startup": 11,
       "active": 4,
       "recovery": 18,
-      "damage": 110,
+      "damage": 100,
       "hitstun": 25,
       "hitstop": 9,
       "hitbox": {
@@ -59,8 +59,8 @@
       "startup": 10,
       "active": 1,
       "recovery": 16,
-      "cooldown": 60,
-      "damage": 55,
+      "cooldown": 85,
+      "damage": 46,
       "hitstun": 18,
       "hitstop": 6,
       "impulse": {

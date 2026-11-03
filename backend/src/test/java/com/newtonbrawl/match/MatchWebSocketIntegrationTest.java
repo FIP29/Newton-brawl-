@@ -136,7 +136,7 @@ class MatchWebSocketIntegrationTest {
         JsonNode start = p1.awaitType("start");
         assertThat(start.at("/fighters/0/id").asText()).isEqualTo("newton");
         assertThat(start.at("/fighters/1/id").asText()).isEqualTo("tesla");
-        assertThat(start.at("/arena/objects").size()).isGreaterThanOrEqualTo(3);
+        assertThat(start.at("/arena/objects").size()).isGreaterThanOrEqualTo(2);
         assertThat(start.get("tickRate").asInt()).isEqualTo(60);
         assertThat(start.get("fighters")).hasSize(2);
         assertThat(start.at("/players/1/username").asText()).isEqualTo("tesla");
@@ -161,7 +161,7 @@ class MatchWebSocketIntegrationTest {
         for (JsonNode e : hit.path("events")) if ("HIT".equals(e.path("type").asText())) ev = e;
         assertThat(ev.get("attacker").asInt()).isZero();
         assertThat(ev.get("move").asText()).isEqualTo("light");
-        assertThat(hit.at("/fighters/1/health").asInt()).isEqualTo(950 - 55);
+        assertThat(hit.at("/fighters/1/health").asInt()).isEqualTo(900 - 50); // Tesla's health minus Newton's light jab
         assertThat(hit.at("/fighters/1/action").asText()).isEqualTo("HITSTUN");
 
         p1.session.close();

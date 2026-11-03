@@ -5,7 +5,7 @@
   "fighterClass": "BRUISER",
   "color": "#ffcc33",
   "mass": 100,
-  "maxHealth": 1100,
+  "maxHealth": 1050,
   "walkSpeed": 340,
   "jumpVelocity": 1080,
   "airAcceleration": 1500,
@@ -19,7 +19,7 @@
       "startup": 6,
       "active": 3,
       "recovery": 10,
-      "damage": 55,
+      "damage": 50,
       "hitstun": 16,
       "hitstop": 6,
       "hitbox": {
@@ -38,7 +38,7 @@
       "startup": 13,
       "active": 5,
       "recovery": 20,
-      "damage": 140,
+      "damage": 122,
       "hitstun": 28,
       "hitstop": 11,
       "hitbox": {
@@ -59,8 +59,8 @@
       "startup": 14,
       "active": 1,
       "recovery": 20,
-      "cooldown": 90,
-      "damage": 85,
+      "cooldown": 130,
+      "damage": 64,
       "hitstun": 24,
       "hitstop": 7,
       "impulse": {
@@ -92,7 +92,7 @@
       "params": {
         "speed": 900,
         "life": 32,
-        "flipTicks": 180,
+        "flipTicks": 120,
         "offset": 80,
         "height": 110,
         "w": 60,
@@ -111,7 +111,7 @@
       "hitstun": 0,
       "hitstop": 0,
       "params": {
-        "reflectTicks": 300
+        "reflectTicks": 240
       }
     }
   }

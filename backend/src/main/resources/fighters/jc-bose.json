@@ -60,7 +60,7 @@
       "active": 1,
       "recovery": 16,
       "cooldown": 80,
-      "damage": 55,
+      "damage": 62,
       "hitstun": 18,
       "hitstop": 6,
       "impulse": {
@@ -82,7 +82,7 @@
       "startup": 12,
       "active": 1,
       "recovery": 18,
-      "cooldown": 150,
+      "cooldown": 120,
       "damage": 60,
       "hitstun": 50,
       "hitstop": 7,

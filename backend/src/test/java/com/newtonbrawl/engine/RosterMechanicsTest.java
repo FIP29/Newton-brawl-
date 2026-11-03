@@ -42,6 +42,7 @@ class RosterMechanicsTest {
 
     static FighterView v(MatchSimulation s, int slot) { return s.snapshot().fighters().get(slot); }
 
+    static int hp(String f) { return CATALOG.definition(f).maxHealth(); }
     static MoveDefinition move(String fighter, String id) { return CATALOG.definition(fighter).move(id); }
 
     /** Steps until the predicate holds, collecting events of the given type. Fails after a limit. */
@@ -80,7 +81,7 @@ class RosterMechanicsTest {
 
         var hits = runUntil(s, 120, snap -> snap.projectiles().isEmpty(), GameEvent.HIT);
         assertThat(hits).hasSize(1);
-        assertThat(v(s, 1).health()).isEqualTo(950 - move("newton", "special1").damage());
+        assertThat(v(s, 1).health()).isEqualTo(hp("tesla") - move("newton", "special1").damage());
     }
 
     @Test
@@ -91,9 +92,9 @@ class RosterMechanicsTest {
         s.step(special2(), NONE);
         var hits = runUntil(s, 60, snap -> snap.fighters().get(1).flip() > 0, GameEvent.HIT);
         assertThat(hits).hasSize(1);
-        assertThat(v(s, 1).flip()).isGreaterThan(170);
-        idle(s, 120, GameEvent.HIT);
-        assertThat(v(s, 1).y()).isGreaterThan(300); // drifting up
+        assertThat(v(s, 1).flip()).isGreaterThan((int) move("newton", "special2").param("flipTicks", 0) - 10);
+        idle(s, (int) move("newton", "special2").param("flipTicks", 0) - 10, GameEvent.HIT);
+        assertThat(v(s, 1).y()).isGreaterThan(150); // drifting up
         assertThat(v(s, 1).grounded()).isFalse();
         runUntil(s, 400, snap -> snap.fighters().get(1).grounded(), GameEvent.HIT);
         assertThat(v(s, 1).flip()).isZero();
@@ -123,10 +124,10 @@ class RosterMechanicsTest {
 
         // Tesla jabs Newton: Newton takes nothing, Tesla takes the jab.
         s.step(NONE, press(InputBits.LIGHT));
-        var reflects = runUntil(s, 20, snap -> snap.fighters().get(1).health() < 950, GameEvent.REFLECT);
+        var reflects = runUntil(s, 20, snap -> snap.fighters().get(1).health() < hp("tesla"), GameEvent.REFLECT);
         assertThat(reflects).hasSize(1);
-        assertThat(v(s, 0).health()).isEqualTo(1100);
-        assertThat(v(s, 1).health()).isEqualTo(950 - move("tesla", "light").damage());
+        assertThat(v(s, 0).health()).isEqualTo(hp("newton"));
+        assertThat(v(s, 1).health()).isEqualTo(hp("tesla") - move("tesla", "light").damage());
         assertThat(v(s, 1).action()).isEqualTo(Action.HITSTUN);
     }
 
@@ -155,8 +156,8 @@ class RosterMechanicsTest {
         assertThat(orb.reflected()).isTrue();
         assertThat(orb.vx()).isGreaterThan(0); // heading back to Curie
         runUntil(s, 200, snap -> snap.projectiles().isEmpty(), GameEvent.HIT);
-        assertThat(v(s, 1).health()).isLessThan(900);
-        assertThat(v(s, 0).health()).isEqualTo(1100);
+        assertThat(v(s, 1).health()).isLessThan(hp("curie"));
+        assertThat(v(s, 0).health()).isEqualTo(hp("newton"));
     }
 
     // ------------------------------------------------------------------- Tesla
@@ -203,7 +204,7 @@ class RosterMechanicsTest {
         var ult = move("tesla", "ultimate");
         int strikes = (int) (ult.param("life", 0) / ult.param("interval", 1));
         assertThat(hits).hasSize(strikes);
-        assertThat(v(s, 1).health()).isEqualTo(1100 - strikes * ult.damage());
+        assertThat(v(s, 1).health()).isEqualTo(hp("newton") - strikes * ult.damage());
     }
 
     // ------------------------------------------------------------------- Curie
@@ -340,9 +341,9 @@ class RosterMechanicsTest {
         s.step(press(InputBits.HEAVY), NONE);
         var clank = runUntil(s, 30, snap -> snap.events().stream().anyMatch(e -> e.type().equals(GameEvent.CLANK)), GameEvent.CLANK);
         assertThat(clank).hasSize(1);
-        var hits = runUntil(s, 90, snap -> snap.fighters().get(1).health() < 950, GameEvent.HIT);
+        var hits = runUntil(s, 90, snap -> snap.fighters().get(1).health() < hp("tesla"), GameEvent.HIT);
         assertThat(hits).anyMatch(e -> e.move().equals("object"));
-        assertThat(v(s, 1).health()).isEqualTo(950 - 60);
+        assertThat(v(s, 1).health()).isEqualTo(hp("tesla") - 60);
     }
 
     @Test

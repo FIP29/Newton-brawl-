@@ -5,8 +5,8 @@
   "fighterClass": "BRUISER",
   "color": "#ffe14d",
   "mass": 96,
-  "maxHealth": 1100,
-  "walkSpeed": 340,
+  "maxHealth": 1150,
+  "walkSpeed": 370,
   "jumpVelocity": 1060,
   "airAcceleration": 1700,
   "body": {
@@ -19,7 +19,7 @@
       "startup": 6,
       "active": 3,
       "recovery": 11,
-      "damage": 52,
+      "damage": 56,
       "hitstun": 16,
       "hitstop": 6,
       "hitbox": {
@@ -35,7 +35,7 @@
     },
     "heavy": {
       "name": "Dynamo Haymaker",
-      "startup": 14,
+      "startup": 12,
       "active": 5,
       "recovery": 21,
       "damage": 142,
@@ -58,9 +58,9 @@
       "equation": "V = IR",
       "startup": 6,
       "active": 1,
-      "recovery": 28,
-      "cooldown": 80,
-      "damage": 14,
+      "recovery": 16,
+      "cooldown": 60,
+      "damage": 24,
       "hitstun": 10,
       "hitstop": 2,
       "impulse": {
@@ -68,12 +68,12 @@
         "y": 0
       },
       "params": {
-        "offset": 95,
+        "offset": 110,
         "height": 110,
-        "w": 130,
+        "w": 170,
         "h": 150,
-        "interval": 8,
-        "life": 36
+        "interval": 6,
+        "life": 30
       }
     },
     "special2": {
@@ -83,7 +83,7 @@
       "startup": 10,
       "active": 1,
       "recovery": 18,
-      "cooldown": 200,
+      "cooldown": 150,
       "damage": 30,
       "hitstun": 26,
       "hitstop": 6,

@@ -40,6 +40,7 @@ class Phase7MechanicsTest {
     static InputFrame hold(int bits) { return new InputFrame(bits, 0); }
     static InputFrame special2() { return new InputFrame(InputBits.DOWN | InputBits.SPECIAL, InputBits.SPECIAL); }
     static FighterView v(MatchSimulation s, int slot) { return s.snapshot().fighters().get(slot); }
+    static int hp(String f) { return CATALOG.definition(f).maxHealth(); }
     static MoveDefinition move(String f, String id) { return CATALOG.definition(f).move(id); }
 
     /** Steps with fixed inputs, collecting events of one type. */
@@ -276,9 +277,9 @@ class Phase7MechanicsTest {
         }
         // T ∝ 1/M: damage × size stays constant (= base damage × starting size).
         for (int i = 0; i < sizes.size(); i++) {
-            assertThat(damage.get(i) * sizes.get(i)).isCloseTo(26 * 60, within(sizes.get(i) * 0.5 + 1)); // ± rounding
+            assertThat(damage.get(i) * sizes.get(i)).isCloseTo(move("hawking", "special1").damage() * 60.0, within(sizes.get(i) * 0.5 + 1)); // ± rounding
         }
-        assertThat(damage.get(damage.size() - 1)).isGreaterThan(3 * 26);
+        assertThat(damage.get(damage.size() - 1)).isGreaterThan(3 * move("hawking", "special1").damage());
     }
 
     @Test
@@ -304,7 +305,7 @@ class Phase7MechanicsTest {
         }
         assertThat(swallowed).hasSize(1);
         assertThat(hits).isEmpty();
-        assertThat(v(s, 0).health()).isEqualTo(1000);
+        assertThat(v(s, 0).health()).isEqualTo(hp("hawking"));
 
         // Standing inside the outer region, Tesla slides toward the centre.
         s.place(1, 860, 0);

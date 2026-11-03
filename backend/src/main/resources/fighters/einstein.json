@@ -5,7 +5,7 @@
   "fighterClass": "TRICKSTER",
   "color": "#b57bff",
   "mass": 75,
-  "maxHealth": 1000,
+  "maxHealth": 1080,
   "walkSpeed": 410,
   "jumpVelocity": 1150,
   "airAcceleration": 1900,
@@ -19,7 +19,7 @@
       "startup": 5,
       "active": 3,
       "recovery": 10,
-      "damage": 45,
+      "damage": 48,
       "hitstun": 15,
       "hitstop": 5,
       "hitbox": {
@@ -38,7 +38,7 @@
       "startup": 12,
       "active": 4,
       "recovery": 19,
-      "damage": 115,
+      "damage": 122,
       "hitstun": 26,
       "hitstop": 10,
       "hitbox": {

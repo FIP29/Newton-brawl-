@@ -36,6 +36,7 @@ class Phase8MechanicsTest {
     static InputFrame hold(int bits) { return new InputFrame(bits, 0); }
     static InputFrame special2() { return new InputFrame(InputBits.DOWN | InputBits.SPECIAL, InputBits.SPECIAL); }
     static FighterView v(MatchSimulation s, int slot) { return s.snapshot().fighters().get(slot); }
+    static int hp(String f) { return CATALOG.definition(f).maxHealth(); }
     static MoveDefinition move(String f, String id) { return CATALOG.definition(f).move(id); }
 
     static List<GameEvent> run(MatchSimulation s, int ticks, InputFrame p1, InputFrame p2, String type) {
@@ -341,7 +342,7 @@ class Phase8MechanicsTest {
             }
         }
         assertThat(phased + hit).isEqualTo(80);
-        assertThat(phased).isBetween(14, 34); // 30% of 80 = 24
+        assertThat(phased).isBetween(5, 20); // 15% of 80 = 12
     }
 
     @Test

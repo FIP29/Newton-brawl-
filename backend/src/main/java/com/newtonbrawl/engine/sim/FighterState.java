@@ -194,6 +194,8 @@ public final class FighterState {
     public boolean grounded() { return grounded; }
 
     public int slot() { return slot; }
+    /** Remaining cooldown of special1 (index 0) or special2 (index 1). */
+    public int cooldown(int index) { return cooldowns[index]; }
     public int health() { return health; }
     public int energy() { return energy; }
     public double x() { return x; }

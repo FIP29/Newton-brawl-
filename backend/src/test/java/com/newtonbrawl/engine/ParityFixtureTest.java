@@ -52,7 +52,10 @@ class ParityFixtureTest {
         List.of("bernoulli", "edison", "curzon-hall"), List.of("sn-bose", "jc-bose", "curzon-hall"),
         List.of("edison", "tesla", "the-lab"), List.of("sn-bose", "einstein", "curzon-hall"),
         List.of("jc-bose", "faraday", "space-station"), List.of("curie", "heisenberg", "black-hole-edge"),
-        List.of("galileo", "sn-bose", "curzon-hall"), List.of("edison", "jc-bose", "curzon-hall"));
+        List.of("galileo", "sn-bose", "curzon-hall"), List.of("edison", "jc-bose", "curzon-hall"),
+        List.of("tesla", "heisenberg", "the-lab"), List.of("jc-bose", "heisenberg", "curzon-hall"),
+        // scripted: Curie throws an orb every 80 ticks at a Heisenberg who stands still (covers projectile evasion)
+        List.of("curie", "heisenberg", "space-station", "scripted"));
 
     @Test
     void fixtureMatchesCurrentEngine() throws Exception {
@@ -71,7 +74,9 @@ class ParityFixtureTest {
             Map<String, MatchSnapshot> checkpoints = new LinkedHashMap<>();
             for (int t = 1; t <= TICKS; t++) {
                 MatchSnapshot before = sim.snapshot();
-                InputFrame a = bots[0].next(before, 0), b = bots[1].next(before, 1);
+                boolean scripted = pair.size() > 3;
+                InputFrame a = scripted ? (t % 80 == 1 ? new InputFrame(InputBits.SPECIAL, InputBits.SPECIAL) : InputFrame.NONE) : bots[0].next(before, 0);
+                InputFrame b = scripted ? InputFrame.NONE : bots[1].next(before, 1);
                 inputs.add(a.held() | a.pressed() << 8 | b.held() << 16 | b.pressed() << 24);
                 sim.step(a, b);
                 MatchSnapshot s = sim.snapshot();

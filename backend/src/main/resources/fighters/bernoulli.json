@@ -5,7 +5,7 @@
   "fighterClass": "SPEEDSTER",
   "color": "#00e5ff",
   "mass": 66,
-  "maxHealth": 920,
+  "maxHealth": 1000,
   "walkSpeed": 480,
   "jumpVelocity": 1230,
   "airAcceleration": 2300,
@@ -19,7 +19,7 @@
       "startup": 3,
       "active": 3,
       "recovery": 8,
-      "damage": 34,
+      "damage": 38,
       "hitstun": 13,
       "hitstop": 4,
       "hitbox": {
@@ -38,7 +38,7 @@
       "startup": 9,
       "active": 4,
       "recovery": 17,
-      "damage": 98,
+      "damage": 108,
       "hitstun": 24,
       "hitstop": 9,
       "hitbox": {
@@ -58,9 +58,9 @@
       "equation": "P + ½ρv² = constant",
       "startup": 6,
       "active": 1,
-      "recovery": 22,
+      "recovery": 16,
       "cooldown": 70,
-      "damage": 55,
+      "damage": 65,
       "hitstun": 20,
       "hitstop": 7,
       "impulse": {
@@ -81,7 +81,7 @@
       "active": 1,
       "recovery": 14,
       "cooldown": 90,
-      "damage": 30,
+      "damage": 44,
       "hitstun": 18,
       "hitstop": 6,
       "impulse": {
@@ -102,7 +102,7 @@
       "startup": 10,
       "active": 1,
       "recovery": 30,
-      "damage": 28,
+      "damage": 32,
       "hitstun": 14,
       "hitstop": 4,
       "impulse": {

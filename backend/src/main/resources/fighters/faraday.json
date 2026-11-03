@@ -5,8 +5,8 @@
   "fighterClass": "ZONER",
   "color": "#e8834a",
   "mass": 72,
-  "maxHealth": 980,
-  "walkSpeed": 400,
+  "maxHealth": 1060,
+  "walkSpeed": 420,
   "jumpVelocity": 1170,
   "airAcceleration": 1900,
   "body": {
@@ -19,7 +19,7 @@
       "startup": 4,
       "active": 3,
       "recovery": 9,
-      "damage": 40,
+      "damage": 46,
       "hitstun": 14,
       "hitstop": 5,
       "hitbox": {
@@ -38,7 +38,7 @@
       "startup": 12,
       "active": 4,
       "recovery": 18,
-      "damage": 110,
+      "damage": 128,
       "hitstun": 25,
       "hitstop": 9,
       "hitbox": {
@@ -59,12 +59,12 @@
       "startup": 6,
       "active": 1,
       "recovery": 14,
-      "cooldown": 300,
+      "cooldown": 200,
       "damage": 0,
       "hitstun": 0,
       "hitstop": 0,
       "params": {
-        "cageTicks": 210
+        "cageTicks": 240
       }
     },
     "special2": {
@@ -74,8 +74,8 @@
       "startup": 10,
       "active": 1,
       "recovery": 18,
-      "cooldown": 240,
-      "damage": 18,
+      "cooldown": 180,
+      "damage": 26,
       "hitstun": 8,
       "hitstop": 2,
       "impulse": {
@@ -87,7 +87,7 @@
         "w": 240,
         "h": 220,
         "life": 300,
-        "strength": 0.09
+        "strength": 0.12
       }
     },
     "ultimate": {
@@ -98,7 +98,7 @@
       "active": 1,
       "recovery": 30,
       "cooldown": 0,
-      "damage": 26,
+      "damage": 32,
       "hitstun": 14,
       "hitstop": 3,
       "impulse": {
@@ -110,7 +110,7 @@
         "h": 420,
         "life": 210,
         "interval": 18,
-        "pull": 240
+        "pull": 280
       }
     }
   }

@@ -5,8 +5,8 @@
   "fighterClass": "SPEEDSTER",
   "color": "#ff3df2",
   "mass": 64,
-  "maxHealth": 900,
-  "walkSpeed": 470,
+  "maxHealth": 840,
+  "walkSpeed": 450,
   "jumpVelocity": 1200,
   "airAcceleration": 2200,
   "body": {
@@ -60,7 +60,7 @@
       "active": 1,
       "recovery": 12,
       "cooldown": 60,
-      "damage": 45,
+      "damage": 38,
       "hitstun": 16,
       "hitstop": 6,
       "impulse": {
@@ -82,8 +82,8 @@
       "startup": 9,
       "active": 1,
       "recovery": 14,
-      "cooldown": 95,
-      "damage": 50,
+      "cooldown": 110,
+      "damage": 42,
       "hitstun": 22,
       "hitstop": 8,
       "impulse": {
@@ -118,5 +118,5 @@
       }
     }
   },
-  "projectileEvade": 30
+  "projectileEvade": 15
 }
