@@ -9,6 +9,8 @@ import { FIGHTERS, ROSTER as ROSTER_IDS } from '../game/data/fighters';
 import { TICK_MS, type FighterDefinition, type GameEvent, type Snapshot } from '../game/protocol';
 import { lookFor } from '../game/render/characters/looks';
 import { sfx } from '../audio/sfx';
+import { arenaTrack, music } from '../audio/music';
+import { SoundSettings } from '../components/SoundSettings';
 import { Banner, HudBar, useMatchPresentation } from '../components/FightHud';
 import { CharacterSelect } from '../components/CharacterSelect';
 import { useFightOverlays } from '../components/FightOverlays';
@@ -41,6 +43,7 @@ export function LocalVersusScreen() {
 
 function LocalSelect({ onDone }: { onDone: (picks: [string, string], arena: string) => void }) {
   const [cursor, setCursor] = useState<[number, number]>([0, 1]);
+  useEffect(() => { music.play('menu'); }, []);
   const [locked, setLocked] = useState<[boolean, boolean]>([false, false]);
   const [usable, setUsable] = useState<Record<string, string[]> | undefined>(undefined);
   const [arena, setArena] = useState<ArenaChoice>('random');
@@ -235,6 +238,7 @@ function LocalFight({ picks, arenaId, onChangeFighters }: { picks: [string, stri
       ready = true;
       if (import.meta.env.DEV) (window as unknown as { __nbRenderer: FightRenderer }).__nbRenderer = renderer;
       renderer.setup(arena, defs);
+      music.play(arenaTrack(arena.id));
       renderer.app.ticker.add(frame);
     });
 
@@ -269,6 +273,7 @@ function LocalFight({ picks, arenaId, onChangeFighters }: { picks: [string, stri
               <button className="btn-ghost" onClick={onChangeFighters}>Change fighters</button>
               <Link className="btn-ghost" to="/">Quit to menu</Link>
             </div>
+            <SoundSettings />
           </div>
         </div>
       )}

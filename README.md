@@ -20,7 +20,7 @@ The art direction is called Neon Chalkboard. Netcode is server-authoritative, an
 | 6 | Galileo, Archimedes, Faraday, Hooke + Space Station | ✅ done |
 | 7 | Schrödinger, Heisenberg, Hawking, Doppler + Black Hole Edge | ✅ done |
 | 8 | Bernoulli, Edison, S.N. Bose, J.C. Bose + Curzon Hall + rivalries | ✅ done |
-| 9 | Polish: shaders, cinematic ultimates, sound, balancing | next |
+| 9 | Polish: shaders, cinematic ultimates, sound, balancing | ✅ done |
 
 ![The four starter scientists in idle, walk, heavy, special, ultimate and hit poses](docs/screenshots/characters.jpg)
 
@@ -47,6 +47,10 @@ The art direction is called Neon Chalkboard. Netcode is server-authoritative, an
 | Phase 8 roster | Curzon Hall, Dhaka |
 |---|---|
 | ![Bernoulli, Edison, S.N. Bose and J.C. Bose in six poses](docs/screenshots/characters-phase8.jpg) | ![Curzon Hall at night](docs/screenshots/curzon-hall.jpg) ![Rivalry intro: Tesla vs Edison](docs/screenshots/rivalry-intro.jpg) |
+
+| Gravitational lensing shader | ULTIMATE cinematic |
+|---|---|
+| ![Black holes bending the scene into Einstein rings](docs/screenshots/gravitational-lensing.jpg) | ![Letterbox, rays and the equation writing itself](docs/screenshots/ultimate-cinematic-v2.jpg) |
 
 ## Progression
 
@@ -139,7 +143,29 @@ They're procedural vector art on a two-bone-IK rig (`frontend/src/game/render/ch
 - Motion: afterimage trails, particle sparks and rings.
 - Camera and feel: hit-stop, screen shake, camera zoom that grows with combos, slow-motion on the deciding KO (simulated on the server, so both players see it).
 - Arena: multi-layer parallax with chalk dust, a flickering lamp, twinkling stars and sparking Tesla coils.
-- Performance: quality drops automatically (bloom, shockwaves and god rays turn off) if the frame rate can't keep up.
+- Shaders (`render/fx/shaders.ts`, GLSL):
+  - **Gravitational lensing.** Each black hole on screen (the Black Hole Edge's well and Hawking's singularities) is a thin point-mass lens. A pixel at angle θ from the lens shows the light from β = θ − θ_E²/θ, so the scene bends into arcs and an Einstein ring. Up to four lenses.
+  - **Chalkboard grade.** Animated grain and drifting chalk-dust blotches, a vignette, and chromatic fringing toward the edges that grows during an ULTIMATE.
+- ULTIMATE cinematics play within the server's 1-second freeze: letterbox bars, rotating rays in the fighter's colour, a giant "ULTIMATE" slam, the portrait sliding in, the equation writing itself in chalk, a jolt when it finishes, then a white release flash.
+- Performance: quality drops automatically (bloom, shockwaves, god rays, lensing and the grade turn off) if the frame rate can't keep up.
+
+**Audio** (`frontend/src/audio`, all synthesised with the Web Audio API, no files needed):
+- **Music:** a step sequencer scheduled ahead on the audio clock, so timing stays tight. There's a calm menu theme and one fight theme per arena:
+  - The Lab: driving four-on-the-floor in A minor.
+  - Space Station: airy D dorian with echoing arpeggios.
+  - Black Hole Edge: heavy half-time C♯ phrygian with a sub drone.
+  - Curzon Hall: a tanpura-like drone, tabla-like strokes and a sitar-like melody in a Bhairav-like scale, over an electronic beat.
+
+  Extra layers come in for the final round or when someone is close to a KO. The music is muffled during ULTIMATE cinematics and the slow-motion KO.
+- **SFX:** hits, every UI action, a sound signature per scientist, and stings for ROUND / FIGHT! / K.O. / victory / defeat, the last-five-seconds tick, copies, freezes and black holes.
+- **Settings:** separate music and effects volumes plus mute, saved per browser (♪ button on menus, the pause menu, or `M` anywhere).
+- **Real audio files:** register a file in `AUDIO_ASSETS` (`audio/assets.ts`) under a sound name, a fighter id or `music:<track>`, and it plays through Howler.js instead of the synthesised version.
+
+**Balance** (`backend/src/test/java/com/newtonbrawl/engine/balance`):
+- `BalanceLeague` plays a bot league with every pair, on both sides, in every arena. The bots play each class's game plan.
+- The tuning pass brought every fighter's win rate from a 10–79% spread into **43–59%**; the full numbers are in [docs/balance-report.md](docs/balance-report.md). The league also confirms the designed counters: Faraday beats Tesla, and Hawking's black holes beat the projectile zoners.
+- `BalanceLeagueTest` guards against regressions: no fighter may leave 30–70%. `mvn test -Dtest=BalanceLeagueTest -Dbalance.full=true` runs the bigger league and rewrites the report.
+- Bots aren't people: the numbers flag outliers, they don't settle a matchup.
 
 ## Running locally
 

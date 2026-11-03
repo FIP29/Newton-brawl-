@@ -1,30 +1,14 @@
 /**
  * Placeholder SFX synthesised with the Web Audio API (no asset files needed). Every scientist has
- * a sound signature for their specials; real recorded SFX will later be loaded through Howler.js
- * behind this same interface.
+ * a sound signature for their specials. Register a recorded file in `AUDIO_ASSETS` (assets.ts) and
+ * it plays through Howler.js instead, with no other code changes.
  */
-let ctx: AudioContext | null = null;
-let noise: AudioBuffer | null = null;
-let master: GainNode | null = null;
-
-function audio(): AudioContext | null {
-  if (!ctx) {
-    try {
-      ctx = new AudioContext();
-      master = ctx.createGain();
-      master.gain.value = 0.8;
-      master.connect(ctx.destination);
-      noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
-      const d = noise.getChannelData(0);
-      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-    } catch { return null; }
-  }
-  if (ctx.state === 'suspended') void ctx.resume();
-  return ctx;
-}
+import { audio, buses, noise as noiseBuffer } from './engine';
+import { playAsset } from './assets';
 
 function tone(freq: number, endFreq: number, duration: number, type: OscillatorType, volume: number, delay = 0) {
   const ac = audio();
+  const master = buses().sfx;
   if (!ac || !master) return;
   const t = ac.currentTime + delay;
   const osc = ac.createOscillator();
@@ -41,6 +25,7 @@ function tone(freq: number, endFreq: number, duration: number, type: OscillatorT
 
 function hiss(duration: number, volume: number, filterFreq: number, type: BiquadFilterType = 'bandpass', delay = 0) {
   const ac = audio();
+  const master = buses().sfx, noise = noiseBuffer();
   if (!ac || !noise || !master) return;
   const t = ac.currentTime + delay;
   const src = ac.createBufferSource();
@@ -76,7 +61,15 @@ const SIGNATURE: Record<string, () => void> = {
   doppler: () => { tone(980, 620, 0.45, 'sawtooth', 0.04); tone(990, 610, 0.45, 'triangle', 0.04); },       // a siren falling in pitch as it passes
 };
 
-export const sfx = {
+/** Plays the recorded asset for `name` if there is one, otherwise the synthesised version. */
+const voiced = <A extends unknown[]>(name: string, synth: (...a: A) => void) => (...a: A) => { if (!playAsset(name)) synth(...a); };
+
+/** A chord of short notes (stings). */
+function chord(freqs: number[], duration: number, type: OscillatorType, volume: number, delay = 0, stagger = 0) {
+  freqs.forEach((f, i) => tone(f, f, duration, type, volume, delay + i * stagger));
+}
+
+const RAW = {
   hover: () => tone(880, 1320, 0.06, 'sine', 0.03),
   click: () => tone(440, 1760, 0.12, 'triangle', 0.08),
   error: () => tone(220, 110, 0.25, 'sawtooth', 0.05),
@@ -86,7 +79,7 @@ export const sfx = {
     tone(heavy ? 140 : 260, heavy ? 45 : 120, heavy ? 0.25 : 0.1, 'square', heavy ? 0.1 : 0.05);
     if (heavy && fighterId) SIGNATURE[fighterId]?.();
   },
-  special: (fighterId: string) => SIGNATURE[fighterId]?.(),
+  special: (fighterId: string) => { if (!playAsset(fighterId)) SIGNATURE[fighterId]?.(); },
   ultimate: () => {
     tone(60, 30, 1.0, 'sawtooth', 0.12);
     tone(200, 1600, 0.9, 'sine', 0.06);
@@ -95,4 +88,25 @@ export const sfx = {
   },
   zap: () => { hiss(0.12, 0.14, 6000, 'highpass'); },
   clank: () => { tone(900, 700, 0.18, 'triangle', 0.08); tone(1400, 1300, 0.25, 'sine', 0.04); },
+  /** "ROUND 1": a rising whoosh. */
+  round: () => { hiss(0.6, 0.08, 1500, 'bandpass'); tone(110, 220, 0.6, 'sawtooth', 0.05); tone(220, 440, 0.5, 'triangle', 0.05, 0.1); },
+  /** "FIGHT!": a punchy impact with a bright stab. */
+  fight: () => { tone(90, 35, 0.4, 'sine', 0.3); hiss(0.25, 0.2, 2500, 'lowpass'); chord([523, 659, 784, 1047], 0.3, 'square', 0.03); },
+  /** "K.O.": a huge low boom and a ringing tail. */
+  ko: () => { tone(70, 25, 1.2, 'sine', 0.35); hiss(0.9, 0.22, 700, 'lowpass'); tone(880, 440, 1.4, 'triangle', 0.04, 0.1); },
+  /** Victory: a bright major arpeggio. */
+  victory: () => { chord([523, 659, 784, 1047, 1319], 0.5, 'triangle', 0.06, 0, 0.09); chord([262, 392], 1.0, 'sawtooth', 0.025, 0.45); },
+  /** Defeat: a slow minor fall. */
+  defeat: () => { chord([440, 349, 294, 220], 0.6, 'triangle', 0.05, 0, 0.18); },
+  /** The last seconds on the round clock. */
+  tick: () => tone(1500, 1500, 0.05, 'square', 0.03),
+  /** A copy move (Boson Copy, Patent). */
+  copy: () => { tone(600, 1200, 0.15, 'sine', 0.05); tone(1200, 600, 0.15, 'sine', 0.05, 0.12); },
+  /** Frozen solid. */
+  freeze: () => { hiss(0.4, 0.12, 7000, 'highpass'); chord([2093, 2637, 3136], 0.5, 'sine', 0.025, 0, 0.04); },
+  /** Something crosses an event horizon. */
+  swallow: () => { tone(400, 40, 0.5, 'sine', 0.1); },
 };
+
+/** Every sound effect; each one can be replaced by a recorded file (see assets.ts). */
+export const sfx = Object.fromEntries(Object.entries(RAW).map(([k, fn]) => [k, voiced(k, fn as (...a: unknown[]) => void)])) as unknown as typeof RAW;

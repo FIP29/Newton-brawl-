@@ -4,6 +4,7 @@ import type { FighterDefinition, GameEvent } from '../game/protocol';
 import { lookFor } from '../game/render/characters/looks';
 import { ChalkEquation } from './ChalkEquation';
 import { sfx } from '../audio/sfx';
+import { muffleMusic } from '../audio/engine';
 
 const hex = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
 
@@ -32,12 +33,16 @@ export function useFightOverlays() {
     if (e.type === 'ULTIMATE') {
       setCine({ key: performance.now(), slot: e.attacker, def });
       sfx.ultimate();
+      muffleMusic(1.0, 500);
       return;
     }
     if (e.type === 'HIT' || e.type === 'REFLECT') sfx.hit(e.damage >= 100, def.id);
     if (e.type === 'CAST' && move) sfx.special(def.id);
     if (e.type === 'ARC') sfx.zap();
     if (e.type === 'CLANK') sfx.clank();
+    if (e.type === 'COPY') sfx.copy();
+    if (e.type === 'FREEZE' || e.type === 'CONDENSE') sfx.freeze();
+    if (e.type === 'SWALLOW') sfx.swallow();
 
     if (e.type === 'HIT' && comboCount >= 2) setCombo({ key: performance.now(), count: comboCount, side: e.attacker, color });
 
@@ -111,15 +116,31 @@ function UltimateCinematic({ def, slot, onDone }: { def: FighterDefinition; slot
   const ult = def.moves.ultimate;
   useLayoutEffect(() => {
     void import('./portraits').then((m) => m.fighterPortraits()).then((imgs) => setImg(imgs[def.id] ?? null));
+    const root = ref.current!;
+    const q = (sel: string) => root.querySelector(sel);
     const from = slot === 0 ? -110 : 110;
+    // The whole sequence fits the server's 1-second freeze: bars → slam → portrait + equation → flash.
     const tl = gsap.timeline({ onComplete: onDone });
-    tl.fromTo(ref.current!.querySelector('.cine-band'), { xPercent: from }, { xPercent: 0, duration: 0.28, ease: 'power4.out' })
-      .fromTo(ref.current!.querySelector('.cine-name'), { opacity: 0, x: from * 0.5 }, { opacity: 1, x: 0, duration: 0.25 }, '-=0.1')
-      .to(ref.current, { opacity: 0, duration: 0.18, delay: 0.55 });
+    tl.fromTo(root.querySelectorAll('.cine-bar'), { scaleY: 0 }, { scaleY: 1, duration: 0.14, ease: 'power3.out' })
+      .fromTo(q('.cine-rays'), { opacity: 0, scale: 0.4 }, { opacity: 1, scale: 1, duration: 0.3, ease: 'expo.out' }, 0)
+      .fromTo(q('.cine-slam'), { opacity: 0, scale: 2.6 }, { opacity: 0.16, scale: 1, duration: 0.22, ease: 'expo.out' }, 0.04)
+      .fromTo(q('.cine-band'), { xPercent: from }, { xPercent: 0, duration: 0.28, ease: 'power4.out' }, 0.06)
+      .fromTo(q('.cine-name'), { opacity: 0, x: from * 0.5 }, { opacity: 1, x: 0, duration: 0.25 }, '-=0.1')
+      .fromTo(q('.cine-portrait'), { scale: 1.15 }, { scale: 1, duration: 0.6, ease: 'power2.out' }, 0.1)
+      .to(q('.cine-band'), { x: slot === 0 ? 12 : -12, duration: 0.05, yoyo: true, repeat: 3 }, 0.72) // the equation completes: a jolt
+      .fromTo(q('.cine-flash'), { opacity: 0 }, { opacity: 0.85, duration: 0.05 }, 0.84)
+      .to(q('.cine-flash'), { opacity: 0, duration: 0.2 }, 0.89)
+      .to(root.querySelectorAll('.cine-band, .cine-rays, .cine-slam'), { opacity: 0, duration: 0.15 }, 0.86)
+      .to(root.querySelectorAll('.cine-bar'), { scaleY: 0, duration: 0.15 }, 0.9);
+    if (import.meta.env.DEV && location.search.includes('holdCine')) tl.seek(0.62).pause(); // dev: freeze mid-cinematic for screenshots
     return () => { tl.kill(); };
   }, [def.id, slot, onDone]);
   return (
     <div ref={ref} className={`cinematic side-${slot}`} style={{ '--accent': color } as React.CSSProperties} aria-live="assertive">
+      <div className="cine-rays" />
+      <div className="cine-slam">ULTIMATE</div>
+      <div className="cine-bar top" />
+      <div className="cine-bar bottom" />
       <div className="cine-band">
         <div className="cine-portrait" style={img ? { backgroundImage: `url(${img})` } : undefined} />
         <div className="cine-text">
@@ -128,6 +149,7 @@ function UltimateCinematic({ def, slot, onDone }: { def: FighterDefinition; slot
           <ChalkEquation text={ult?.equation ?? ''} color={color} size={84} duration={0.55} />
         </div>
       </div>
+      <div className="cine-flash" />
     </div>
   );
 }

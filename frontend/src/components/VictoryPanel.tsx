@@ -6,6 +6,7 @@ import { TierBadge, tierColor } from './TierBadge';
 import { ChalkEquation } from './ChalkEquation';
 import { lookFor } from '../game/render/characters/looks';
 import { sfx } from '../audio/sfx';
+import { music } from '../audio/music';
 
 const hex = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
 
@@ -28,7 +29,8 @@ export function VictoryPanel({ title, subtitle, score, reward, labNote, actions,
       tl.from('.vp-title', { scale: 2, opacity: 0, duration: 0.45, ease: 'expo.out' })
         .from('.vp-section', { y: 30, opacity: 0, stagger: 0.15, duration: 0.45, ease: 'power3.out' }, '-=0.1');
     }, root);
-    if (variant === 'victory') sfx.success();
+    if (variant === 'defeat') sfx.defeat(); else sfx.victory();
+    music.play('menu');
     return () => ctx.revert();
   }, [variant]);
 

@@ -350,7 +350,7 @@ kbd { display: inline-block; min-width: 1.5em; padding: 1px 5px; margin: 0 1px; 
 .combo.side-1 { right: 6%; }
 .combo-n { font-size: 3.4rem; color: var(--accent); margin-right: 6px; }
 .cinematic { position: absolute; inset: 0; pointer-events: none; display: grid; align-items: center; overflow: hidden; }
-.cine-band {
+.cine-band { position: relative;
   display: flex; align-items: center; gap: clamp(12px, 3vw, 40px); padding: 18px clamp(16px, 5vw, 80px);
   background: linear-gradient(90deg, transparent, rgba(5,7,9,0.92) 15%, rgba(5,7,9,0.92) 85%, transparent);
   border-top: 2px solid var(--accent); border-bottom: 2px solid var(--accent);
@@ -538,3 +538,28 @@ a.btn-neon { text-decoration: none; display: inline-block; text-align: center; }
 .rivalry-outcome blockquote b { font-family: inherit; color: var(--chalk); }
 .rivalry-outcome p { margin: 0; font-size: 0.85rem; color: var(--chalk-dim); }
 @media (max-width: 700px) { .rivalry-intro { grid-template-columns: 1fr; padding-top: 100px; } .rv-line.right { justify-self: stretch; } }
+
+/* ----- Sound settings ------------------------------------------------------- */
+.sound-floating { position: fixed; top: 14px; right: 14px; z-index: 50; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.sound-button { width: 40px; height: 40px; border-radius: 50%; border: 1px solid rgba(233,236,228,0.25); background: rgba(10,12,15,0.75);
+  color: var(--chalk); font-size: 1.1rem; cursor: pointer; }
+.sound-button:hover { border-color: var(--tesla); box-shadow: 0 0 14px -2px var(--tesla); }
+.sound-panel { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 10px 14px; border-radius: 12px;
+  background: rgba(10,12,15,0.85); border: 1px solid rgba(233,236,228,0.15); font-size: 0.8rem; color: var(--chalk-dim); }
+.sound-panel label { display: flex; align-items: center; gap: 8px; }
+.sound-panel input[type=range] { width: 110px; accent-color: var(--tesla); }
+
+/* ----- ULTIMATE cinematic extras: letterbox, rays, slam, release flash -------- */
+.cine-bar { position: absolute; left: 0; right: 0; height: 11vh; background: #000; transform-origin: top; z-index: 2; }
+.cine-bar.bottom { bottom: 0; transform-origin: bottom; }
+.cine-bar.top { top: 0; }
+.cine-rays { position: absolute; inset: -30%; z-index: 0;
+  background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--accent) 28%, transparent) 0deg 6deg, transparent 6deg 18deg);
+  mask-image: radial-gradient(circle at 50% 50%, #000 0%, transparent 65%); -webkit-mask-image: radial-gradient(circle at 50% 50%, #000 0%, transparent 65%);
+  animation: cine-spin 3s linear infinite; }
+.cinematic.side-0 .cine-rays { background-position: 30% 50%; }
+@keyframes cine-spin { to { rotate: 360deg; } }
+.cine-slam { position: absolute; inset: 0; display: grid; place-items: center; z-index: 1; font-family: var(--font-display); font-weight: 900;
+  font-size: clamp(4rem, 16vw, 13rem); letter-spacing: 0.08em; color: var(--accent); }
+.cine-band { z-index: 3; }
+.cine-flash { position: absolute; inset: 0; background: #fff; opacity: 0; z-index: 4; }

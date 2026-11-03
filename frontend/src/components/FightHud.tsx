@@ -1,3 +1,6 @@
+import { music } from '../audio/music';
+import { muffleMusic } from '../audio/engine';
+import { sfx } from '../audio/sfx';
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import type { MatchRules, Snapshot } from '../game/protocol';
@@ -40,14 +43,26 @@ export function useMatchPresentation() {
 
     const p = prev.current;
     prev.current = s;
+    if (s.phase === 'FIGHTING') {
+      // Music builds when someone is close to a KO; the clock ticks in the last five seconds.
+      const low = Math.min(...s.fighters.map((f, i) => f.health / maxHealth[i]));
+      const final = s.roundWins.every((w) => w === rules.roundsToWin - 1);
+      music.setIntensity(final ? 1 : low < 0.3 ? 0.75 : 0);
+      if (p && seconds <= 5 && seconds > 0 && Math.ceil(p.timer / TICK_RATE) !== seconds) sfx.tick();
+    }
     const show = (text: string, sub?: string) => setBanner({ text, sub, key: performance.now() });
     if (s.phase === 'ROUND_START' && (p === null || p.phase !== 'ROUND_START' || p.round !== s.round)) {
       const final = s.roundWins.every((w) => w === rules.roundsToWin - 1) && s.round > 1;
       show(final ? 'FINAL ROUND' : `ROUND ${s.round}`);
+      sfx.round();
+      music.setIntensity(final ? 1 : 0);
     } else if (s.phase === 'FIGHTING' && (p === null || p.phase === 'ROUND_START')) {
       show('FIGHT!');
+      sfx.fight();
     } else if (s.phase === 'ROUND_END' && p && p.phase === 'FIGHTING' && s.lastRound) {
       const r = s.lastRound;
+      if (r.reason !== 'TIME') sfx.ko();
+      muffleMusic(1.5, 400); // the slow-motion KO
       const text = r.reason === 'KO' ? 'K.O.' : r.reason === 'DOUBLE_KO' ? 'DOUBLE K.O.' : 'TIME';
       show(text, r.winner < 0 ? 'Draw round' : `${names[r.winner]} wins the round`);
     }

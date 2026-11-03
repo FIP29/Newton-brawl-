@@ -10,6 +10,10 @@ import { CodexScreen } from './screens/CodexScreen';
 import { LeaderboardScreen } from './screens/LeaderboardScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
 import { CharacterPreview } from './dev/CharacterPreview';
+import { useEffect } from 'react';
+import { music } from './audio/music';
+import { unlockOnGesture } from './audio/engine';
+import { SoundSettings, installMuteKey } from './components/SoundSettings';
 
 /**
  * Screen flow: Login → Main menu → Play Online (queues / room code) → Fight → Victory + Lab Note;
@@ -20,9 +24,17 @@ import { CharacterPreview } from './dev/CharacterPreview';
 export function App() {
   const path = useLocation().pathname;
   const inFight = path.startsWith('/fight') || path === '/local' || path.startsWith('/dev');
+  useEffect(installMuteKey, []);
+  // The calm menu theme outside fights (fight screens start their arena's theme themselves).
+  useEffect(() => {
+    if (inFight) return;
+    music.play('menu');
+    unlockOnGesture(() => { if (!music.playing || music.playing === 'menu') { music.stop(0.01); music.play('menu'); } });
+  }, [inFight]);
   return (
     <>
       {!inFight && <ChalkboardBackground />}
+      {!inFight && path !== '/login' && <SoundSettings floating />}
       <Routes>
         <Route path="/login" element={<LoginScreen />} />
         <Route path="/" element={<RequireAuth><MainMenuScreen /></RequireAuth>} />

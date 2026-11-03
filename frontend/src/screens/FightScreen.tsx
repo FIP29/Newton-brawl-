@@ -1,3 +1,4 @@
+import { arenaTrack, music } from '../audio/music';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { FightRenderer } from '../game/render/FightRenderer';
@@ -107,6 +108,7 @@ export function FightScreen() {
       setDefs(msg.fighters);
       if (mySlot >= 0) predictor = new Predictor(msg.arena, msg.fighters, mySlot);
       if (ready) renderer.setup(msg.arena, msg.fighters, skinsOf(msg));
+      music.play(arenaTrack(msg.arena.id));
     };
     const skinsOf = (msg: StartMessage) => [0, 1].map((s) => msg.players.find((p) => p.slot === s)?.skin ?? null);
 

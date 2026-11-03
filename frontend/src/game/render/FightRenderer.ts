@@ -12,6 +12,7 @@ import { CurzonHall } from './arena/CurzonHall';
 import type { ArenaBackdrop } from './arena/types';
 import { EntityLayer } from './fx/EntityLayer';
 import { FxSystem, makeTextures, type FxTextures } from './fx/primitives';
+import { ChalkGradeFilter, LensingFilter, type Lens } from './fx/shaders';
 
 const FLOOR_SCREEN_FRACTION = 0.86; // floor line sits at 86% of the screen height
 const MIN_VIEW_WIDTH = 1050;        // closest normal zoom, in world units across the screen
@@ -65,6 +66,10 @@ export class FightRenderer {
   private bloom: AdvancedBloomFilter | null = null;
   private shock: ShockwaveFilter | null = null;
   private rgb: RGBSplitFilter | null = null;
+  private lensing: LensingFilter | null = null;
+  private grade: ChalkGradeFilter | null = null;
+  private lastZones: ZoneView[] = [];
+  private filterTime = 0;
   private quality: Quality = 'high';
   private slowFrames = 0;
 
@@ -77,7 +82,7 @@ export class FightRenderer {
   showHitboxes = false;
 
   async init(host: HTMLElement) {
-    await this.app.init({ resizeTo: host, background: 0x0b0e11, antialias: true,
+    await this.app.init({ preference: 'webgl', resizeTo: host, background: 0x0b0e11, antialias: true,
                           resolution: Math.min(window.devicePixelRatio, 2), autoDensity: true });
     host.appendChild(this.app.canvas);
     this.tex = makeTextures(this.app.renderer);
@@ -130,6 +135,7 @@ export class FightRenderer {
     const dt = Math.min(dtMs, 50) / 1000;
     const realDt = Math.min(dtMs, 250) / 1000; // timers that must track wall-clock time (camera, cinematic)
     this.updateCamera(frame.fighters, realDt, frame.hitstop > 0 || frame.cinematic > 0);
+    this.lastZones = frame.zones;
     this.lab.update(dt, this.cam.x);
     if (frame.zones.some((z) => z.kind === 'FIELD')) this.lab.surge = 1;
     this.entities.update(dt, frame.projectiles, frame.zones, frame.objects, frame.fighters, this.defs, this.colors);
@@ -361,8 +367,41 @@ export class FightRenderer {
       this.rgb.blue = { x: o, y: 0 };
       filters.push(this.rgb);
     }
+    const lenses = this.quality === 'high' ? this.lenses() : [];
+    if (lenses.length) {
+      this.lensing ??= new LensingFilter();
+      this.lensing.lenses = lenses;
+      filters.unshift(this.lensing); // bend the scene first, then distort/bloom the result
+    }
     if (this.bloom) filters.push(this.bloom);
+    if (this.quality === 'high') {
+      this.grade ??= new ChalkGradeFilter();
+      this.filterTime += dt;
+      this.grade.time = this.filterTime;
+      this.grade.fringe = 0.6 + cinK * 3;
+      filters.push(this.grade);
+    }
     this.scene.filters = filters.length ? filters : null;
+  }
+
+  /**
+   * Black holes on screen, as gravitational lenses: the Black Hole Edge's well, and Hawking's
+   * singularities. Einstein radii are in world units scaled to screen pixels.
+   */
+  private lenses(): Lens[] {
+    const out: Lens[] = [];
+    const scale = Math.abs(this.world.scale.x);
+    const at = (x: number, y: number, einstein: number, shadow: number) => {
+      const p = this.world.toGlobal({ x, y });
+      out.push({ x: p.x, y: p.y, einstein: einstein * scale, shadow: shadow * scale });
+    };
+    if (this.arena.well) at(this.arena.well.x, this.arena.well.y, 96, 66); // shadow matches the drawn one
+    for (const z of this.lastZones) {
+      if (z.kind !== 'SINGULARITY' || out.length >= 4) continue;
+      const k = Math.min(1, z.age / 12) * Math.min(1, z.life / 15);
+      at(z.x, z.y, z.w * 0.1 * k, Math.max(26, z.w * 0.12) * k); // gentler, so a fighter caught inside stays readable
+    }
+    return out;
   }
 
   private applyQuality() {
