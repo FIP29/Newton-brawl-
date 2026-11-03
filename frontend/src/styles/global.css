@@ -523,12 +523,12 @@ a.btn-neon { text-decoration: none; display: inline-block; text-align: center; }
 .arena-pick .cs-skin { font: inherit; font-size: 0.75rem; background: transparent; }
 
 /* ----- Rivalries ------------------------------------------------------------ */
-.rivalry-intro { position: absolute; inset: 0; pointer-events: none; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto 1fr;
-  align-content: start; gap: 18px 40px; padding: 120px 6vw 0; }
+.rivalry-intro { position: absolute; inset: 0 0 auto 0; pointer-events: none; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto auto;
+  align-content: start; align-items: start; gap: 18px 40px; padding: 120px 6vw 0; }
 .rv-title { grid-column: 1 / -1; justify-self: center; text-align: center; font-family: var(--font-display); font-weight: 900; letter-spacing: 0.3em;
   font-size: clamp(1.1rem, 2.6vw, 1.8rem); color: #fff; text-shadow: 0 0 14px #ff4d6d, 0 0 40px #ff4d6d; }
 .rv-title small { display: block; margin-top: 4px; font-size: 0.55em; letter-spacing: 0.18em; color: var(--chalk); text-shadow: none; }
-.rv-line { margin: 0; max-width: 460px; padding: 12px 16px; border-radius: 12px; background: rgba(8,10,14,0.78);
+.rv-line { margin: 0; align-self: start; max-width: 460px; padding: 12px 16px; border-radius: 12px; background: rgba(8,10,14,0.78);
   border: 1px solid color-mix(in srgb, var(--accent) 60%, transparent); box-shadow: 0 0 30px -8px var(--accent); }
 .rv-line.right { justify-self: end; text-align: right; }
 .rv-line b { display: block; font-family: var(--font-display); font-size: 0.8rem; letter-spacing: 0.08em; color: var(--accent); margin-bottom: 4px; }

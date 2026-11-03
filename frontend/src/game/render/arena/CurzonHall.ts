@@ -101,7 +101,12 @@ export class CurzonHall implements ArenaBackdrop {
     far.addChild(treeline);
 
     // ---- Curzon Hall -------------------------------------------------------------
-    const hall = this.layer(0.45);
+    // The hall sits back across the lawn: drawn at full size, then scaled down around the centre.
+    const hall = new Container();
+    const HALL_SCALE = 0.68;
+    hall.scale.set(HALL_SCALE);
+    hall.position.set(W / 2 * (1 - HALL_SCALE), 40);
+    this.layer(0.45).addChild(hall);
     const g = new Graphics();
     const x0 = -420, x1 = W + 420, base = 30, wallTop = 520;
     // wings

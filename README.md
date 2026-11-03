@@ -19,8 +19,8 @@ The art direction is called Neon Chalkboard. Netcode is server-authoritative, an
 | 5 | Matchmaking, ranked Elo, leaderboard, Codex, Lab Notes, unlocks | ✅ done |
 | 6 | Galileo, Archimedes, Faraday, Hooke + Space Station | ✅ done |
 | 7 | Schrödinger, Heisenberg, Hawking, Doppler + Black Hole Edge | ✅ done |
-| 8 | Bernoulli, Edison, S.N. Bose, J.C. Bose + Curzon Hall + rivalries | next |
-| 9 | Polish: shaders, cinematic ultimates, sound, balancing | |
+| 8 | Bernoulli, Edison, S.N. Bose, J.C. Bose + Curzon Hall + rivalries | ✅ done |
+| 9 | Polish: shaders, cinematic ultimates, sound, balancing | next |
 
 ![The four starter scientists in idle, walk, heavy, special, ultimate and hit poses](docs/screenshots/characters.jpg)
 
@@ -44,14 +44,18 @@ The art direction is called Neon Chalkboard. Netcode is server-authoritative, an
 |---|---|
 | ![Schrödinger, Heisenberg, Hawking and Doppler in six poses](docs/screenshots/characters-phase7.jpg) | ![Black Hole Edge: rocks orbiting the black hole](docs/screenshots/black-hole-edge.jpg) ![Particle in a Box: standing waves at the antinodes](docs/screenshots/particle-in-a-box.jpg) |
 
+| Phase 8 roster | Curzon Hall, Dhaka |
+|---|---|
+| ![Bernoulli, Edison, S.N. Bose and J.C. Bose in six poses](docs/screenshots/characters-phase8.jpg) | ![Curzon Hall at night](docs/screenshots/curzon-hall.jpg) ![Rivalry intro: Tesla vs Edison](docs/screenshots/rivalry-intro.jpg) |
+
 ## Progression
 
 - **Matchmaking:** *Casual* pairs the two longest-waiting players. *Ranked* only pairs players inside an Elo window: ±100 to start, widening by 25 per second waited, up to ±600. Clients poll their ticket once a second and then join a **reserved room** that only those two players can enter. A ticket is dropped if its owner stops polling, and a reserved room is cancelled if the opponent doesn't arrive within 60 s. **Private rooms** (share a code) still work.
 - **Elo** (ranked only): E = 1 / (1 + 10^((Rb − Ra)/400)), then R′ = R + K·(S − E). K is 40 for your first 10 ranked games and 24 after that. Ratings never drop below 100. Tiers: **Atom** < 1100 ≤ **Molecule** < 1300 ≤ **Star** < 1500 ≤ **Supernova** < 1700 ≤ **Black Hole**. Peak Elo is tracked.
 - **Match history:** every match is stored (mode, fighters, rounds, Elo before and after, reason). Wins and losses count in every mode.
-- **Science Codex** (`backend/src/main/resources/codex/codex.json`): 16 scientist pages, each with a bio and a fun fact, plus the law, an explanation and a Lab Note for every special and ultimate of the 12 playable scientists (36 move entries). A page unlocks when you play as or against that scientist. A move entry unlocks when you **land it or get hit by it**. The server withholds the text of locked entries.
+- **Science Codex** (`backend/src/main/resources/codex/codex.json`): 16 scientist pages, each with a bio and a fun fact, plus the law, an explanation and a Lab Note for every special and ultimate of all 16 scientists (48 move entries). A page unlocks when you play as or against that scientist. A move entry unlocks when you **land it or get hit by it**. The server withholds the text of locked entries.
 - **Lab Note:** after each match, every player gets a short note on the science behind the move they used most (or the one that hit them most). Local matches show one too.
-- **Unlocks** (`codex/unlocks.json`): the 12 non-starter fighters unlock by matches played, wins or Codex entries. The four Phase 8 fighters are flagged "arrives in a later update" until they ship. Each starter also has a historical skin earned by winning 3 matches with them:
+- **Unlocks** (`codex/unlocks.json`): the 12 non-starter fighters unlock by matches played, wins or Codex entries. Each starter also has a historical skin earned by winning 3 matches with them:
   - Newton: *Royal Society President*
   - Tesla: *Colorado Springs 1899*
   - Curie: *Radium Institute Lab Coat*
@@ -83,11 +87,29 @@ Every special is based on the real law printed next to it. When it lands, that e
 | **Erwin Schrödinger** (teal) | Trickster | **Superposition**: a second copy of him appears. The first hit "measures" which one was real: 50% he was the ghost (he appears there and the hit passes through), 50% the ghost vanishes and the hit lands | **Schrödinger's Cat**: a sealed box opens after a moment. Alive (½): the cat pounces. Dead (½): the poison flask broke and a vapour cloud spreads | **Particle in a Box**: the arena becomes an infinite square well. Standing waves ψ₃ then ψ₂ flare at their antinodes; only the nodes are safe, so you must move from L/3 to L/2 in time (ψₙ ∝ sin(nπx/L)) | 10 Codex entries |
 | **Werner Heisenberg** (magenta) | Speedster | **Uncertain Position**: a blink of 170, 270 or 370 units, chosen at random; arriving on the opponent hits | **Measurement**: a photon pins down the opponent's position, so their momentum kick has a random direction and strength (Δx·Δp ≥ ħ/2) | **Uncertainty Principle**: the opponent's left and right swap for 5 s, and a field may strike them every ⅓ s (50% each time) | 15 matches |
 | **Stephen Hawking** (indigo) | Zoner, hover chair | **Hawking Radiation**: a mini black hole that shrinks as it flies and hits harder as it does, since T ∝ 1/M | **Event Horizon**: a black hole that pulls the opponent in, bends their projectiles and swallows any that cross the horizon; its core hurts (r_s = 2GM/c²) | **Supermassive Black Hole**: a huge, strong one that evaporates in a final burst (F = GMm/r²) | 12 wins |
-| **Christian Doppler** (red) | Bruiser | **Doppler Shift**: a sound wave whose damage is the observed frequency, f' = f·(c + v_o)/(c − v_s). It hits harder if he fires it during a jump-in or the opponent walks into it, softer if they back away | **Sonic Boom**: breaks the sound barrier with a dash; the shock cone hits after he has passed (sin θ = c/v) | **Blueshift Barrage**: six wavefronts squeezed together, λ' = λ(1 − v/c), that hit one after another | 25 matches |
+| **Christian Doppler** (red) | Speedster | **Doppler Shift**: a sound wave whose damage is the observed frequency, f' = f·(c + v_o)/(c − v_s). It hits harder if he fires it during a jump-in or the opponent walks into it, softer if they back away | **Sonic Boom**: breaks the sound barrier with a dash; the shock cone hits after he has passed (sin θ = c/v) | **Blueshift Barrage**: six wavefronts squeezed together, λ' = λ(1 − v/c), that hit one after another | 25 matches |
 
-No authentic portrait of Hooke survives, so his design follows contemporaries' descriptions: thin, stooped, with long unpowdered hair. Hawking is shown as he was best known, using a powered chair and a speech computer; here the chair hovers and his screen is mounted at its side. When he's KO'd the chair settles to the ground. All eight unlockable scientists have Codex pages, move entries and Lab Notes.
+| **Daniel Bernoulli** (sky cyan) | Speedster | **Lift Jump**: fast air above means low pressure above (P + ½ρv² = const), so he rises far higher than a jump; the updraft launches anyone beside him | **Pressure Jet**: a narrow, fast jet (A₁v₁ = A₂v₂): little damage, a huge shove | **Hurricane**: a vortex whose low-pressure eye drags the opponent in and lifts them | 14 Codex entries |
+| **Thomas Edison** (filament yellow) | Bruiser | **DC Punch**: a steady direct current that keeps hurting, but only up close (DC lost power over distance). A Faraday cage stops it | **Lightbulb Flash**: dazzles; a dazzled opponent can't use specials or turn to face him | **Patent**: copies the opponent's last special, then patents it so they can't use it for 5 s | 20 wins |
+| **Satyendra Nath Bose** (ice blue) | Trickster | **Condensate Freeze**: the first hit chills (the target acts on half the ticks); a second hit while chilled freezes them solid | **Boson Copy**: bosons share states, so he casts the opponent's last special himself | **Bose–Einstein Condensate**: the arena freezes into one super-atom. The opponent's projectiles vanish, props stop dead and the opponent is frozen | 16 Codex entries |
+| **Jagadish Chandra Bose** (emerald) | Zoner | **Microwave Pulse**: millimetre waves that leave through one wall and come back through the other. A Faraday cage stops them, just as a microwave oven's door does | **Crescograph Vines**: a plant grows where he points and grabs the opponent only when they move near it (plants respond to stimuli) | **Living Signal**: all his plants, plus new shoots around the opponent, strike at the same instant | 35 matches |
 
-**Quantum randomness is deterministic.** Superposition, the cat, Heisenberg's blink and the uncertainty field all draw from the match's own xorshift32 generator. The Java and TypeScript copies are identical, so local play, replays and the parity test all reproduce the same "random" outcomes.
+**Counters:** Faraday's cage blocks every electric attack (Tesla, Edison's DC Punch, J.C. Bose's microwaves). Hawking's black holes swallow projectiles. Heisenberg dodges zoners: every projectile has a 30% chance to pass straight through him, because you can't pin down where he is.
+
+### Rivalries
+
+Four famous pairings get their own pre-fight exchange over the round-1 countdown, a winner's line and the real history on the result screen (`codex/rivalries.json`):
+
+| Pairing | Title | The history |
+|---|---|---|
+| Tesla vs Edison | The War of the Currents | AC against DC in the 1880s and 1890s; AC won because transformers let it travel long distances |
+| Newton vs Hooke | The Inverse-Square Feud | Hooke said he had suggested the inverse-square law; Newton cut mentions of Hooke from the Principia |
+| Schrödinger vs Heisenberg | Waves versus Matrices | rival formulations of quantum mechanics that turned out to be equivalent |
+| S.N. Bose and Einstein | Legendary duo | Bose's 1924 letter from Dhaka, which Einstein translated and extended into the Bose–Einstein condensate |
+
+No authentic portrait of Hooke survives, so his design follows contemporaries' descriptions: thin, stooped, with long unpowdered hair. Hawking is shown as he was best known, using a powered chair and a speech computer; here the chair hovers and his screen is mounted at its side. When he's KO'd the chair settles to the ground. S.N. Bose wears a kurta and a woollen shawl, as he often did. All twelve unlockable scientists have Codex pages, move entries and Lab Notes.
+
+**Quantum randomness is deterministic.** Superposition, the cat, Heisenberg's blink, his projectile dodging and the uncertainty field all draw from the match's own xorshift32 generator. The Java and TypeScript copies are identical, so local play, replays and the parity test all reproduce the same "random" outcomes.
 
 ### Arenas
 
@@ -95,9 +117,10 @@ No authentic portrait of Hooke survives, so his design follows contemporaries' d
 |---|---|
 | **The Lab** | gravity 2600; metal beakers on the floor (punch them into the opponent, magnetise them, chain lightning through them) |
 | **Space Station** | gravity 1100 (jumps hang in the air); four pieces of zero-g debris drift and bounce off every surface, and a punch turns them into projectiles |
+| **Curzon Hall** | gravity 2400, on the lawn of the University of Dhaka's red-brick hall at night, where S.N. Bose taught. Pointed arcades, rooftop chhatris, flame trees in bloom, fireflies and Bose's formulas glowing on the walls. Two terracotta pots to kick around (clay doesn't conduct, so lightning won't chain through them) |
 | **Black Hole Edge** | gravity 2200, on a platform beneath a black hole. Rocks orbit it under a softened inverse-square law, a = GM/(r² + s²), and a punch knocks them out of orbit. Rocks that fall inside the horizon are swallowed and reappear. Straight-flying projectiles curve toward it (gravitational lensing, which also curves Tesla's bolts and Doppler's waves), and fighters drift slowly toward the middle |
 
-Online matches pick an arena at random. In Local Versus you choose it (`Q` cycles Random / The Lab / Space Station / Black Hole Edge). Arenas are data (`Arena.java` / `constants.ts`): gravity, prop gravity, restitution and props.
+Online matches pick an arena at random. In Local Versus you choose it (`Q` cycles Random / The Lab / Space Station / Black Hole Edge / Curzon Hall). Arenas are data (`Arena.java` / `constants.ts`): gravity, prop gravity, restitution and props.
 
 **Shared:** the energy meter fills from dealing and taking damage, and a full meter unlocks the ULTIMATE. Specials have cooldowns. The metal beakers in The Lab can be hit or kicked into the opponent, magnetised by Tesla, and used as lightning conductors.
 
@@ -107,7 +130,7 @@ Online matches pick an arena at random. In Local Versus you choose it (`Q` cycle
 - Curie: hair in a bun, a high-collared Victorian dress and a glowing vial.
 - Einstein: wild white hair, moustache and a baggy cardigan.
 
-They're procedural vector art on a two-bone-IK rig (`frontend/src/game/render/characters`), with idle, walk, crouch, jump, attack, cast, hit and KO poses. Open `/dev/characters` in dev mode to see the gallery (`?new` for the Phase 6 four, `?p7` for the Phase 7 four). In dev mode, `/local?unlockAll` makes every fighter selectable in Local Versus without earning the unlocks.
+They're procedural vector art on a two-bone-IK rig (`frontend/src/game/render/characters`), with idle, walk, crouch, jump, attack, cast, hit and KO poses. Open `/dev/characters` in dev mode to see the gallery (`?new`, `?p7` and `?p8` for the Phase 6, 7 and 8 fighters). In dev mode, `/local?unlockAll` makes every fighter selectable in Local Versus without earning the unlocks.
 
 **Swapping in real art:** add a spritesheet at `public/fighters/<id>/sheet.json` with animations named after the actions (`IDLE`, `WALK`, `light`, `special1`…) and register it in `ART_MANIFESTS` (`FighterVisual.ts`). The renderer only talks to the `FighterVisual` interface, so no gameplay or netcode changes are needed.
 
