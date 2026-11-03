@@ -1,13 +1,14 @@
-import { useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import gsap from 'gsap';
 import { useAuth } from '../auth/AuthContext';
 import { sfx } from '../audio/sfx';
 
-interface MenuItem { label: string; hint: string; color: string; phase: number }
+interface MenuItem { label: string; hint: string; color: string; phase: number; to?: string }
 
 /** Menu entries light up as later phases ship; for now they show which phase delivers them. */
 const MENU: MenuItem[] = [
-  { label: 'Play Online', hint: 'Casual · Ranked · Room code', color: 'var(--newton)', phase: 2 },
+  { label: 'Play Online', hint: 'Private room code · queues in Phase 5', color: 'var(--newton)', phase: 2, to: '/play' },
   { label: 'Local Versus', hint: 'Two players, one keyboard', color: 'var(--tesla)', phase: 3 },
   { label: 'Science Codex', hint: 'The real laws behind every move', color: 'var(--curie)', phase: 5 },
   { label: 'Leaderboard', hint: 'Atom → Black Hole', color: 'var(--einstein)', phase: 5 },
@@ -19,8 +20,12 @@ const TIER_COLOR: Record<string, string> = {
 };
 
 export function MainMenuScreen() {
-  const { player, logout } = useAuth();
+  const { player, logout, refresh } = useAuth();
+  const navigate = useNavigate();
   const root = useRef<HTMLDivElement>(null);
+
+  // Record/Elo may have changed in a match since the profile was loaded.
+  useEffect(() => { void refresh(); }, [refresh]);
 
   useLayoutEffect(() => {
     const ctx = gsap.context(() => {
@@ -43,10 +48,11 @@ export function MainMenuScreen() {
         <nav className="menu-list">
           {MENU.map((m) => (
             <button key={m.label} className="menu-item" style={{ '--accent': m.color } as React.CSSProperties}
-                    onMouseEnter={sfx.hover} onClick={sfx.click} aria-disabled="true">
+                    onMouseEnter={sfx.hover} aria-disabled={!m.to}
+                    onClick={() => { sfx.click(); if (m.to) navigate(m.to); }}>
               <span className="menu-label">{m.label}</span>
               <span className="menu-hint">{m.hint}</span>
-              <span className="menu-badge">Phase {m.phase}</span>
+              <span className="menu-badge">{m.to ? 'Ready' : `Phase ${m.phase}`}</span>
             </button>
           ))}
         </nav>

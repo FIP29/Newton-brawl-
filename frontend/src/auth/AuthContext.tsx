@@ -11,6 +11,8 @@ interface AuthState {
   login: (login: string, password: string) => Promise<void>;
   register: (username: string, email: string, password: string) => Promise<void>;
   logout: () => void;
+  /** Re-fetch the profile (e.g. after a match changed the win/loss record). */
+  refresh: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -43,13 +45,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus('authenticated');
   }, []);
 
+  // Stable identity so effects can depend on it without re-running on every profile change.
+  const refresh = useCallback(async () => {
+    try { setPlayer(await authApi.me()); } catch { /* 401 is handled globally */ }
+  }, []);
+
   const value = useMemo<AuthState>(() => ({
     status,
     player,
     logout,
     login: async (l, p) => accept(await authApi.login(l, p)),
     register: async (u, e, p) => accept(await authApi.register(u, e, p)),
-  }), [status, player, logout, accept]);
+    refresh,
+  }), [status, player, logout, accept, refresh]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

@@ -26,6 +26,10 @@ newton-brawl:
     expiration-minutes: ${JWT_EXPIRATION_MINUTES:1440}
   cors:
     allowed-origins: ${CORS_ORIGINS:http://localhost:5173}
+  match:
+    countdown-ticks: 120   # "ROUND 1 — FIGHT!" intro (2 s)
+    reconnect-grace: 8s    # time to reconnect before forfeiting
+    room-ttl: 15m          # unused rooms expire
 
 management:
   endpoints:

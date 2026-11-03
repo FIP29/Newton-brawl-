@@ -63,6 +63,14 @@ public class Player {
         return RankTier.forElo(elo);
     }
 
+    public void recordWin() {
+        wins++;
+    }
+
+    public void recordLoss() {
+        losses++;
+    }
+
     public void markLoggedIn() {
         this.lastLoginAt = Instant.now();
     }
