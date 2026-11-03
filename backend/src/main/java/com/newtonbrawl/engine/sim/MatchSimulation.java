@@ -15,6 +15,8 @@ import static com.newtonbrawl.engine.EngineConstants.DT;
  * Deterministic 1v1 fighting simulation. Pure logic: no threads, clocks or I/O, so the same inputs
  * always produce the same states (a requirement for client-side prediction and for tests).
  *
+ * <p>Format: best of 3 rounds ({@link MatchRules}), 99 s round clock, KO or time-out decides a round.
+ *
  * <p>Order of operations per tick:
  * <ol>
  *   <li>hit-stop: if the world is frozen from a recent impact, count down and stop</li>
@@ -27,29 +29,35 @@ import static com.newtonbrawl.engine.EngineConstants.DT;
  */
 public final class MatchSimulation {
 
-    public static final int DEFAULT_COUNTDOWN_TICKS = 90;
-    public static final int KO_TICKS = 150;
-
     private final Arena arena;
+    private final MatchRules rules;
     private final FighterState[] f = new FighterState[2];
     private final List<HitEvent> events = new ArrayList<>();
+    private final int[] roundWins = new int[2];
 
     private long tick;
-    private MatchPhase phase = MatchPhase.COUNTDOWN;
+    private MatchPhase phase;
     private int phaseTicks;
     private int hitstop;
+    private int round = 1;
+    private int timer;
+    private RoundResult lastRound;
     private MatchResult result;
 
-    public MatchSimulation(Arena arena, Fighter p1, Fighter p2, int countdownTicks) {
+    public MatchSimulation(Arena arena, Fighter p1, Fighter p2, MatchRules rules) {
         this.arena = arena;
-        f[0] = new FighterState(0, p1, arena.width() * 0.35, +1);
-        f[1] = new FighterState(1, p2, arena.width() * 0.65, -1);
-        this.phaseTicks = Math.max(0, countdownTicks);
-        if (phaseTicks == 0) phase = MatchPhase.FIGHTING;
+        this.rules = rules;
+        f[0] = new FighterState(0, p1, startX(0), +1);
+        f[1] = new FighterState(1, p2, startX(1), -1);
+        beginRound();
     }
 
     public MatchSimulation(Arena arena, Fighter p1, Fighter p2) {
-        this(arena, p1, p2, DEFAULT_COUNTDOWN_TICKS);
+        this(arena, p1, p2, MatchRules.STANDARD);
+    }
+
+    private double startX(int slot) {
+        return arena.width() * (slot == 0 ? 0.35 : 0.65);
     }
 
     /** Advances the world by exactly one tick. */
@@ -57,20 +65,37 @@ public final class MatchSimulation {
         tick++;
         events.clear();
         switch (phase) {
-            case COUNTDOWN -> {
+            case ROUND_START -> {
                 physics(InputFrame.NONE, InputFrame.NONE);
                 if (--phaseTicks <= 0) phase = MatchPhase.FIGHTING;
             }
             case FIGHTING -> {
+                boolean frozen = hitstop > 0;
                 physics(in0, in1);
-                checkKo();
+                if (!frozen) timer--;
+                checkRoundOver();
             }
-            case KO -> {
+            case ROUND_END -> {
                 physics(InputFrame.NONE, InputFrame.NONE);
-                if (--phaseTicks <= 0) phase = MatchPhase.FINISHED;
+                if (--phaseTicks <= 0) {
+                    if (result != null) phase = MatchPhase.FINISHED;
+                    else {
+                        round++;
+                        beginRound();
+                    }
+                }
             }
             case FINISHED -> { /* frozen */ }
         }
+    }
+
+    private void beginRound() {
+        f[0].resetForRound(startX(0), +1);
+        f[1].resetForRound(startX(1), -1);
+        hitstop = 0;
+        timer = rules.roundTimeTicks();
+        phaseTicks = rules.countdownTicks();
+        phase = phaseTicks > 0 ? MatchPhase.ROUND_START : MatchPhase.FIGHTING;
     }
 
     private void physics(InputFrame in0, InputFrame in1) {
@@ -210,6 +235,8 @@ public final class MatchSimulation {
         atk.moveConnected = true;
 
         def.health = Math.max(0, def.health - m.damage());
+        atk.addEnergy(m.damage() * EngineConstants.ENERGY_PER_DAMAGE_DEALT);
+        def.addEnergy(m.damage() * EngineConstants.ENERGY_PER_DAMAGE_TAKEN);
         def.clearMove();
         def.action = Action.HITSTUN;
         def.stunTicks = m.hitstun();
@@ -239,31 +266,54 @@ public final class MatchSimulation {
         }
     }
 
-    private void checkKo() {
+    private void checkRoundOver() {
         boolean ko0 = f[0].health <= 0, ko1 = f[1].health <= 0;
-        if (!ko0 && !ko1) return;
-        if (ko0) { f[0].action = Action.KO; f[0].clearMove(); }
-        if (ko1) { f[1].action = Action.KO; f[1].clearMove(); }
-        phase = MatchPhase.KO;
-        phaseTicks = KO_TICKS;
-        result = (ko0 && ko1)
-            ? new MatchResult(-1, MatchResult.Reason.DOUBLE_KO, tick)
-            : new MatchResult(ko0 ? 1 : 0, MatchResult.Reason.KO, tick);
+        if (ko0 || ko1) {
+            if (ko0) { f[0].action = Action.KO; f[0].clearMove(); }
+            if (ko1) { f[1].action = Action.KO; f[1].clearMove(); }
+            endRound(ko0 && ko1 ? -1 : ko0 ? 1 : 0, ko0 && ko1 ? RoundResult.Reason.DOUBLE_KO : RoundResult.Reason.KO);
+        } else if (timer <= 0) {
+            // Time out: the higher remaining health fraction takes the round.
+            double h0 = (double) f[0].health / f[0].def.maxHealth();
+            double h1 = (double) f[1].health / f[1].def.maxHealth();
+            endRound(h0 > h1 ? 0 : h1 > h0 ? 1 : -1, RoundResult.Reason.TIME);
+        }
+    }
+
+    private void endRound(int winner, RoundResult.Reason reason) {
+        if (winner >= 0) roundWins[winner]++;
+        lastRound = new RoundResult(round, winner, reason);
+        phase = MatchPhase.ROUND_END;
+        phaseTicks = rules.roundEndTicks();
+
+        boolean decided = roundWins[0] >= rules.roundsToWin() || roundWins[1] >= rules.roundsToWin();
+        if (decided || round >= rules.maxRounds()) {
+            int matchWinner = roundWins[0] > roundWins[1] ? 0 : roundWins[1] > roundWins[0] ? 1 : -1;
+            result = new MatchResult(matchWinner, MatchResult.Reason.DECISION, tick, roundWinsList());
+        }
     }
 
     // ---------------------------------------------------------------- queries
 
     public MatchSnapshot snapshot() {
-        int timed = (phase == MatchPhase.COUNTDOWN || phase == MatchPhase.KO) ? phaseTicks : 0;
-        return new MatchSnapshot(tick, phase, timed, hitstop,
+        int timed = (phase == MatchPhase.ROUND_START || phase == MatchPhase.ROUND_END) ? phaseTicks : 0;
+        return new MatchSnapshot(tick, phase, timed, hitstop, round, roundWinsList(), timer, lastRound,
             List.of(f[0].view(), f[1].view()), List.copyOf(events));
+    }
+
+    public List<Integer> roundWinsList() {
+        return List.of(roundWins[0], roundWins[1]);
     }
 
     public MatchPhase phase() { return phase; }
     public long tick() { return tick; }
+    public int round() { return round; }
+    public int timer() { return timer; }
     public Arena arena() { return arena; }
-    /** Non-null once someone has been KO'd. */
+    public MatchRules rules() { return rules; }
+    /** Non-null once the match is decided (the final ROUND_END may still be playing). */
     public MatchResult result() { return result; }
+    public RoundResult lastRound() { return lastRound; }
     public FighterState fighter(int slot) { return f[slot]; }
 
     /** Test/tooling hook: teleport a fighter (e.g. to set up a scenario). */

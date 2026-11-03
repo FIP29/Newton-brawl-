@@ -20,6 +20,7 @@ public final class FighterState {
     double x, y, vx, vy;
     int facing;
     int health;
+    int energy;
     boolean grounded = true;
 
     Action action = Action.IDLE;
@@ -43,6 +44,26 @@ public final class FighterState {
         this.x = x;
         this.facing = facing;
         this.health = def.maxHealth();
+    }
+
+    /** Back to the starting line for a new round. Energy carries over between rounds. */
+    void resetForRound(double startX, int startFacing) {
+        x = startX;
+        y = 0;
+        vx = 0;
+        vy = 0;
+        facing = startFacing;
+        health = def.maxHealth();
+        grounded = true;
+        action = Action.IDLE;
+        clearMove();
+        stunTicks = 0;
+        bufferedPresses = 0;
+        bufferAge = 0;
+    }
+
+    void addEnergy(double amount) {
+        energy = (int) Math.min(com.newtonbrawl.engine.EngineConstants.ENERGY_MAX, energy + Math.round(amount));
     }
 
     double halfWidth() {
@@ -102,7 +123,8 @@ public final class FighterState {
     }
 
     FighterView view() {
-        return new FighterView(r(x), r(y), r(vx), r(vy), facing, health, action, moveId, moveFrame, grounded);
+        return new FighterView(r(x), r(y), r(vx), r(vy), facing, health, energy, action, moveId, moveFrame,
+            grounded, stunTicks, moveConnected, bufferedPresses, bufferAge);
     }
 
     private static double r(double v) {
@@ -111,6 +133,7 @@ public final class FighterState {
 
     public int slot() { return slot; }
     public int health() { return health; }
+    public int energy() { return energy; }
     public double x() { return x; }
     public double y() { return y; }
     public Action action() { return action; }

@@ -1,6 +1,6 @@
 import { Application, Container, Graphics, Sprite, Text, type Texture } from 'pixi.js';
 import { GlowFilter } from 'pixi-filters';
-import type { FighterDefinition, FighterView, HitEvent, StartMessage } from '../protocol';
+import type { ArenaInfo, FighterDefinition, FighterView, HitEvent } from '../protocol';
 import { NEON } from '../../fx/palette';
 
 /** Placeholder slot colours until real fighters (with their own signature colours) arrive in Phase 4. */
@@ -46,9 +46,9 @@ export class FightRenderer {
   }
 
   /** Builds the arena and fighters once the match configuration is known. */
-  setup(start: StartMessage) {
-    this.arenaWidth = start.arena.width;
-    this.defs = start.fighters;
+  setup(arena: ArenaInfo, fighters: FighterDefinition[]) {
+    this.arenaWidth = arena.width;
+    this.defs = fighters;
     this.cam.x = this.arenaWidth / 2;
     this.buildBackdrop();
     this.fighterLayer.removeChildren().forEach((c) => c.destroy({ children: true }));

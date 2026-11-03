@@ -9,7 +9,7 @@ interface MenuItem { label: string; hint: string; color: string; phase: number; 
 /** Menu entries light up as later phases ship; for now they show which phase delivers them. */
 const MENU: MenuItem[] = [
   { label: 'Play Online', hint: 'Private room code · queues in Phase 5', color: 'var(--newton)', phase: 2, to: '/play' },
-  { label: 'Local Versus', hint: 'Two players, one keyboard', color: 'var(--tesla)', phase: 3 },
+  { label: 'Local Versus', hint: 'Two players, one keyboard', color: 'var(--tesla)', phase: 3, to: '/local' },
   { label: 'Science Codex', hint: 'The real laws behind every move', color: 'var(--curie)', phase: 5 },
   { label: 'Leaderboard', hint: 'Atom → Black Hole', color: 'var(--einstein)', phase: 5 },
 ];

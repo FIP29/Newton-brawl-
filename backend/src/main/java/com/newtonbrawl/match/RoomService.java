@@ -10,6 +10,7 @@ import com.newtonbrawl.engine.runtime.MatchListener;
 import com.newtonbrawl.engine.runtime.MatchRunner;
 import com.newtonbrawl.engine.sim.Arena;
 import com.newtonbrawl.engine.sim.MatchResult;
+import com.newtonbrawl.engine.sim.MatchRules;
 import com.newtonbrawl.engine.sim.MatchSimulation;
 import com.newtonbrawl.engine.sim.MatchSnapshot;
 import com.newtonbrawl.match.dto.RoomDto;
@@ -213,7 +214,7 @@ public class RoomService {
     private void startMatch(Room room) {
         Fighter p1 = catalog.create(PrototypeFighter.ID);
         Fighter p2 = catalog.create(PrototypeFighter.ID);
-        MatchSimulation sim = new MatchSimulation(Arena.THE_LAB, p1, p2, props.countdownTicks());
+        MatchSimulation sim = new MatchSimulation(Arena.THE_LAB, p1, p2, rules());
         room.fighterIds = List.of(p1.id(), p2.id());
         room.runner = new MatchRunner(room.code, sim, new RoomMatchListener(room));
         room.status = RoomStatus.IN_PROGRESS;
@@ -222,9 +223,16 @@ public class RoomService {
         log.info("Room {}: match started", room.code);
     }
 
+    private MatchRules rules() {
+        return MatchRules.STANDARD.withCountdown(props.countdownTicks())
+            .withRoundTime(props.roundSeconds() * EngineConstants.TICK_RATE);
+    }
+
     private ServerMessages.Start startMessage(Room room) {
         Arena a = Arena.THE_LAB;
-        return new ServerMessages.Start(room.code, EngineConstants.TICK_RATE, props.countdownTicks(),
+        MatchRules r = rules();
+        return new ServerMessages.Start(room.code, EngineConstants.TICK_RATE,
+            new ServerMessages.RulesInfo(r.countdownTicks(), r.roundTimeTicks(), r.roundsToWin(), r.maxRounds(), r.roundEndTicks()),
             new ServerMessages.ArenaInfo(a.id(), a.width(), a.gravity()), room.players(),
             room.fighterIds.stream().map(catalog::definition).toList());
     }
@@ -240,8 +248,7 @@ public class RoomService {
         @Override
         public void onTick(MatchSnapshot s, long[] ack) {
             room.lastTick = s.tick();
-            TextMessage msg = messenger.encode(new ServerMessages.State(
-                s.tick(), s.phase(), s.phaseTicks(), s.hitstop(), s.fighters(), s.events(), ack));
+            TextMessage msg = messenger.encode(new ServerMessages.State(s, ack));
             for (WebSocketSession session : sessions(room)) messenger.send(session, msg);
         }
 

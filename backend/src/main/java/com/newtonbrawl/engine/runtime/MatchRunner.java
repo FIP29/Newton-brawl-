@@ -67,12 +67,12 @@ public final class MatchRunner {
 
     /** The given slot leaves: the other slot wins. */
     public void forfeit(int slot) {
-        runOnMatchThread(() -> end(new MatchResult(1 - slot, MatchResult.Reason.FORFEIT, sim.tick())));
+        runOnMatchThread(() -> end(new MatchResult(1 - slot, MatchResult.Reason.FORFEIT, sim.tick(), sim.roundWinsList())));
     }
 
     /** Stop without a winner (e.g. server shutdown). */
     public void abort() {
-        runOnMatchThread(() -> end(new MatchResult(-1, MatchResult.Reason.ABORTED, sim.tick())));
+        runOnMatchThread(() -> end(new MatchResult(-1, MatchResult.Reason.ABORTED, sim.tick(), sim.roundWinsList())));
     }
 
     public boolean isEnded() {
@@ -99,7 +99,7 @@ public final class MatchRunner {
         } catch (Throwable t) {
             // An exception would silently cancel the fixed-rate task; end the match visibly instead.
             log.error("Match {} crashed on tick {}", matchId, sim.tick(), t);
-            end(new MatchResult(-1, MatchResult.Reason.ABORTED, sim.tick()));
+            end(new MatchResult(-1, MatchResult.Reason.ABORTED, sim.tick(), sim.roundWinsList()));
         }
     }
 

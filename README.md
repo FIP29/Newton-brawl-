@@ -14,8 +14,8 @@ The art direction is called Neon Chalkboard. Netcode is server-authoritative, an
 |------:|-------|--------|
 | 1 | Spring Boot + MySQL + JWT auth; frontend skeleton with login | ✅ done |
 | 2 | Java match engine + WebSocket, two players moving/hitting online (placeholder shapes) | ✅ done |
-| 3 | Prediction/interpolation, health, energy, rounds, timer, local 2-player | next |
-| 4 | Newton, Tesla, Curie, Einstein + The Lab with full VFX | |
+| 3 | Prediction/interpolation, health, energy, rounds, timer, local 2-player | ✅ done |
+| 4 | Newton, Tesla, Curie, Einstein + The Lab with full VFX | next |
 | 5 | Matchmaking, ranked Elo, leaderboard, Codex, Lab Notes, unlocks | |
 | 6 | Galileo, Archimedes, Faraday, Hooke + Space Station | |
 | 7 | Schrödinger, Heisenberg, Hawking, Doppler + Black Hole Edge | |
@@ -56,6 +56,7 @@ Tests: `cd backend && mvn test`. They run against H2 using the same Flyway migra
 cd frontend
 npm install
 npm run dev                    # http://localhost:5173 — proxies /api and /ws to :8080
+npm test                       # Java↔TS simulation parity + prediction tests
 ```
 
 ### Trying an online match locally
@@ -63,7 +64,9 @@ npm run dev                    # http://localhost:5173 — proxies /api and /ws 
 1. Start the backend (`dev` profile) and the frontend as described above.
 2. Open http://localhost:5173 in two browser windows that don't share storage, for example a normal window and a private/incognito one. Register a different player in each.
 3. Player 1: **Play Online → Create room**. Player 2: **Play Online → Join with code**.
-4. Controls: `A`/`D` move, `W` jump, `S` crouch, `J` light, `K` heavy (`L` special comes in Phase 4). Gamepads work too. `H` toggles the hitbox overlay and `/` toggles the controls help.
+4. Controls: `A`/`D` move, `W` jump, `S` crouch, `J` light, `K` heavy (`L` special comes in Phase 4). Gamepads work too. `H` toggles the hitbox overlay, `P` toggles client-side prediction (to feel the difference) and `/` toggles the controls help.
+
+**Local Versus** (main menu) needs no second account or server round trip. P1 uses WASD + `J`/`K`/`L`. P2 uses the arrow keys + numpad `1`/`2`/`3`, or `,` `.` `/` on keyboards without a numpad. Gamepad 1 is P1 and gamepad 2 is P2. `Esc` pauses.
 
 ## API
 
@@ -93,17 +96,21 @@ The engine (`com.newtonbrawl.engine`) has no Spring dependencies and is determin
 - **Fixed 60 Hz tick** on a dedicated thread per match (`MatchRunner`). An exception ends the match cleanly instead of silently stopping the loop.
 - **Physics:** gravity, semi-implicit Euler integration, floor and walls, body separation. 100 world units ≈ 1 m, y is up.
 - **Combat:** frame data (startup / active / recovery) loaded from `fighters/<id>.json`, AABB hitboxes against hurtboxes, simultaneous hits trade, hit-stop, hitstun, KO.
+- **Match format** (`MatchRules`): best of 3 rounds with a 99 s clock that pauses during hit-stop. At time-out the higher health percentage wins the round. Draw rounds are capped at 5 rounds in total.
+- **Energy:** fills by dealing damage (×1.0) and taking it (×0.6), up to 1000, and carries over between rounds. A full meter will power ULTIMATEs in Phase 4.
 - **Knockback is momentum:** a move delivers an impulse *J*, and the defender's velocity becomes *J / m*. Heavier fighters fly less.
 - **Input buffer:** attack presses made up to 6 ticks before a fighter can act (including during hit-stop) still come out.
 - **Inputs, not state, go up the wire.** The client sends `{"t":"in","s":seq,"b":buttons}` 60 times a second. The server consumes one input per tick from a bounded queue (`InputQueue`) and acknowledges the last applied `seq` in every snapshot. Phase 3's prediction and reconciliation build on that acknowledgement.
-- **Snapshots go down every tick:** `state` messages carry the fighters, hit events and acks. The client renders about 3 ticks in the past and interpolates between snapshots (`SnapshotBuffer`).
+- **Snapshots go down every tick:** `state` messages carry the fighters (including their hidden timers), round and timer, hit events and acks. The opponent is rendered about 3 ticks in the past, interpolated between snapshots (`SnapshotBuffer`).
+- **Client-side prediction** (`Predictor`): your own fighter is simulated locally the moment you press a button. On each snapshot the client rewinds to the server's state at the acknowledged input, replays the inputs the server hasn't processed yet, and blends any correction away over about 100 ms. Damage is never predicted; it only comes from the server. In tests, prediction error stays under 0.5 units with 100 ms of latency each way.
+- **One simulation, two languages:** `frontend/src/game/sim` is a line-for-line TypeScript port of the Java engine. It powers Local Versus and prediction. `ParityFixtureTest` (Java) records a 2,400-tick bot match with KOs, a time-out and several rounds. `parity.test.ts` replays it and must reproduce every snapshot exactly. If the engine changes, the Java test regenerates the fixture and fails once, as a reminder to port the change.
 - **Disconnects:** a player who drops mid-match has 8 s (`newton-brawl.match.reconnect-grace`) to reconnect before forfeiting. Reconnecting, or opening the match in another tab, takes over the seat. Wins and losses are recorded when a match ends.
 
 Server → client message types: `welcome`, `lobby`, `start`, `state`, `end`, `pong`, `error` (see `ServerMessages.java` / `protocol.ts`).
 
 ### Adding a fighter
 
-1. `backend/src/main/resources/fighters/<id>.json`: stats, body size and moves with frame data, hitboxes and impulses.
+1. `backend/src/main/resources/fighters/<id>.json`: stats, body size and moves with frame data, hitboxes and impulses. The frontend imports this same file (`game/data/fighters.ts`).
 2. A `Fighter` subclass in `engine/fighter/` for behaviour that can't be expressed as data.
 3. One line in `FighterCatalog.FACTORIES`.
 
@@ -120,7 +127,7 @@ com.newtonbrawl
 └── engine/      Spring-free simulation
     ├── input/     InputBits, InputFrame, InputQueue
     ├── fighter/   FighterDefinition (JSON), Fighter base class, FighterCatalog
-    ├── sim/       MatchSimulation, FighterState, Aabb, Arena, snapshots/events
+    ├── sim/       MatchSimulation, MatchRules, FighterState, Aabb, Arena, snapshots/events/results
     └── runtime/   MatchRunner (60 Hz thread), MatchListener
 ```
 
@@ -132,11 +139,14 @@ Rank tiers are derived from Elo and never stored: Atom < 1100 ≤ Molecule < 130
 src/
 ├── api/        fetch client (JWT, typed ApiError), DTO types, auth endpoints
 ├── auth/       AuthProvider (restores the session via /players/me), RequireAuth route guard
-├── screens/    LoginScreen, MainMenuScreen, PlayOnlineScreen, FightScreen (+ HUD)
+├── screens/    LoginScreen, MainMenuScreen, PlayOnlineScreen, FightScreen, LocalVersusScreen
+├── components/ FightHud: health/energy bars, round pips, timer, round banners
 ├── game/
 │   ├── protocol.ts          wire types mirroring the backend
-│   ├── input/               keyboard + gamepad → button bitmask
-│   ├── net/                 MatchConnection (60 Hz input pump, ping), SnapshotBuffer (interpolation)
+│   ├── sim/                 TypeScript port of the engine (+ Java parity fixture/test)
+│   ├── data/                fighter definitions (imported from the backend's JSON)
+│   ├── input/               keymaps (online / local P1 / local P2) + gamepads → button bitmask
+│   ├── net/                 MatchConnection (60 Hz input pump, ping), SnapshotBuffer (interpolation), Predictor
 │   └── render/              FightRenderer: camera follow/zoom, shake, sparks, shockwaves, hitbox overlay
 ├── fx/         PixiJS ChalkboardBackground (parallax stars, glowing equations, chalk dust), palette
 ├── audio/      Web Audio placeholder SFX (replaced by Howler assets later)

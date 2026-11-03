@@ -5,6 +5,8 @@ import com.newtonbrawl.engine.sim.FighterView;
 import com.newtonbrawl.engine.sim.HitEvent;
 import com.newtonbrawl.engine.sim.MatchPhase;
 import com.newtonbrawl.engine.sim.MatchResult;
+import com.newtonbrawl.engine.sim.MatchSnapshot;
+import com.newtonbrawl.engine.sim.RoundResult;
 
 import java.util.List;
 
@@ -30,26 +32,30 @@ public final class ServerMessages {
         public Lobby(List<PlayerInfo> players) { this("lobby", players); }
     }
 
-    /** Both players present: everything the client needs to render the match. */
-    public record Start(String t, String matchId, int tickRate, int countdownTicks, ArenaInfo arena,
+    /** Mirrors {@link com.newtonbrawl.engine.sim.MatchRules}. */
+    public record RulesInfo(int countdownTicks, int roundTimeTicks, int roundsToWin, int maxRounds, int roundEndTicks) {}
+
+    /** Both players present: everything the client needs to render (and predict) the match. */
+    public record Start(String t, String matchId, int tickRate, RulesInfo rules, ArenaInfo arena,
                         List<PlayerInfo> players, List<FighterDefinition> fighters) {
-        public Start(String matchId, int tickRate, int countdownTicks, ArenaInfo arena,
+        public Start(String matchId, int tickRate, RulesInfo rules, ArenaInfo arena,
                      List<PlayerInfo> players, List<FighterDefinition> fighters) {
-            this("start", matchId, tickRate, countdownTicks, arena, players, fighters);
+            this("start", matchId, tickRate, rules, arena, players, fighters);
         }
     }
 
     /** Authoritative snapshot, sent every tick. {@code ack[slot]} = last input seq applied for that slot. */
     public record State(String t, long tick, MatchPhase phase, int phaseTicks, int hitstop,
+                        int round, List<Integer> roundWins, int timer, RoundResult lastRound,
                         List<FighterView> fighters, List<HitEvent> events, long[] ack) {
-        public State(long tick, MatchPhase phase, int phaseTicks, int hitstop,
-                     List<FighterView> fighters, List<HitEvent> events, long[] ack) {
-            this("state", tick, phase, phaseTicks, hitstop, fighters, events, ack);
+        public State(MatchSnapshot s, long[] ack) {
+            this("state", s.tick(), s.phase(), s.phaseTicks(), s.hitstop(), s.round(), s.roundWins(),
+                s.timer(), s.lastRound(), s.fighters(), s.events(), ack);
         }
     }
 
-    public record End(String t, int winner, MatchResult.Reason reason, long ticks) {
-        public End(MatchResult r) { this("end", r.winner(), r.reason(), r.ticks()); }
+    public record End(String t, int winner, MatchResult.Reason reason, long ticks, List<Integer> roundWins) {
+        public End(MatchResult r) { this("end", r.winner(), r.reason(), r.ticks(), r.roundWins()); }
     }
 
     /** Echo of a client ping for round-trip measurement. */

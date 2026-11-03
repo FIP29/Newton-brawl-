@@ -1,62 +1,73 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import gsap from 'gsap';
 import { FightRenderer } from '../game/render/FightRenderer';
 import { MatchConnection } from '../game/net/MatchConnection';
 import { SnapshotBuffer } from '../game/net/SnapshotBuffer';
-import { InputController } from '../game/input/InputController';
-import type { EndMessage, MatchPhase, PlayerInfo, StartMessage } from '../game/protocol';
+import { Predictor } from '../game/net/Predictor';
+import { InputController, KEYS_ONLINE } from '../game/input/InputController';
+import type { EndMessage, PlayerInfo, StartMessage, StateMessage } from '../game/protocol';
 import { roomsApi } from '../api/rooms';
 import { useAuth } from '../auth/AuthContext';
 import { sfx } from '../audio/sfx';
+import { Banner, HudBar, useMatchPresentation } from '../components/FightHud';
 
 type Status = 'connecting' | 'waiting' | 'live' | 'ended' | 'error';
 
-interface Hud {
-  health: [number, number];
-  maxHealth: [number, number];
-  phase: MatchPhase;
-}
-
 /**
- * Online fight. Wires together: WebSocket connection (inputs out, snapshots in), the snapshot
- * buffer (interpolation), the PixiJS renderer and the React HUD overlay.
+ * Online fight. Data flow per display frame:
+ *   input → MatchConnection (60 Hz packets) → server
+ *                         ↘ Predictor (our fighter, instantly)
+ *   server snapshots → SnapshotBuffer (opponent, interpolated ~50 ms in the past)
+ *                    → Predictor.onServerState (rewind + replay unacked inputs)
+ *   renderer draws predicted-us + interpolated-them; HUD reads the newest snapshot.
  */
 export function FightScreen() {
   const { code = '' } = useParams();
   const navigate = useNavigate();
   const { player: me } = useAuth();
-  const hostRef = useRef<HTMLDivElement>(null);
+  const [host, setHost] = useState<HTMLDivElement | null>(null);
 
   const [status, setStatus] = useState<Status>('connecting');
   const [error, setError] = useState<string | null>(null);
   const [slot, setSlot] = useState<number>(-1);
   const [players, setPlayers] = useState<PlayerInfo[]>([]);
-  const [hud, setHud] = useState<Hud | null>(null);
-  const [banner, setBanner] = useState<{ text: string; key: number } | null>(null);
   const [end, setEnd] = useState<EndMessage | null>(null);
   const [ping, setPing] = useState(0);
+  const [predicting, setPredicting] = useState(true);
   const [attempt, setAttempt] = useState(0);
   const [showHelp, setShowHelp] = useState(true);
+  const { hud, banner, push, reset } = useMatchPresentation();
 
   useEffect(() => {
+    if (!host) return;
     let disposed = false;
+    let ready = false;                         // renderer initialised
+    let start: StartMessage | null = null;     // match config (fighters, arena, rules)
+    let mySlot = -1;
+    let names: string[] = ['P1', 'P2'];
+    let predictor: Predictor | null = null;
+    let predictionOn = true;
+    let latest: StateMessage | null = null;
+    let lastEventTick = 0;
+    let ended = false;
+    reset();
+
     const renderer = new FightRenderer();
     const buffer = new SnapshotBuffer();
-    const input = new InputController().attach();
-    let startMsg: StartMessage | null = null; // match config (fighters, arena)
-    let ready = false;                         // renderer initialised
-    let lastEventTick = 0;
-    let lastPhase: MatchPhase | null = null;
-    let lastHud = '';
-    let ended = false;
+    const input = new InputController(KEYS_ONLINE, 'any').attach();
 
-    const showBanner = (text: string) => setBanner({ text, key: performance.now() });
+    const onStart = (msg: StartMessage) => {
+      start = msg;
+      names = [0, 1].map((s) => msg.players.find((p) => p.slot === s)?.displayName ?? `P${s + 1}`);
+      if (mySlot >= 0) predictor = new Predictor(msg.arena, msg.fighters, mySlot);
+      if (ready) renderer.setup(msg.arena, msg.fighters);
+    };
 
     const conn = new MatchConnection(code, {
       onMessage(msg) {
         switch (msg.t) {
           case 'welcome':
+            mySlot = msg.slot;
             setSlot(msg.slot);
             setPlayers(msg.players);
             setStatus((s) => (s === 'live' ? s : 'waiting'));
@@ -67,22 +78,28 @@ export function FightScreen() {
           case 'start':
             setPlayers(msg.players);
             setStatus('live');
-            startMsg = msg;
-            if (ready) renderer.setup(msg);
+            onStart(msg);
             break;
           case 'state':
             buffer.push(msg, performance.now());
+            predictor?.onServerState(msg);
+            latest = msg;
+            // Our own hits get feedback the moment the server confirms them.
+            msg.events.forEach((e) => { if (e.attacker === mySlot && ready) hitFx(e); });
             break;
           case 'end':
             ended = true;
             setEnd(msg);
-            window.setTimeout(() => !disposed && setStatus('ended'), 600);
+            window.setTimeout(() => !disposed && setStatus('ended'), 900);
             break;
           case 'error':
             setError(msg.message);
             setStatus('error');
             break;
         }
+      },
+      onInputSent(seq, bits) {
+        predictor?.onInputSent(seq, bits);
       },
       onClose(closeCode) {
         if (ended || disposed) return;
@@ -91,50 +108,47 @@ export function FightScreen() {
       },
     });
 
-    // Game loop: runs every display frame.
+    const hitFx = (e: StateMessage['events'][number]) => {
+      renderer.onHit(e);
+      if (e.damage >= 100) sfx.error(); else sfx.click();
+    };
+
     const frame = () => {
       const now = performance.now();
       conn.pump(now, () => input.sample());
+      const dt = renderer.app.ticker.deltaMS;
       const tick = buffer.renderTick(now);
       const sample = buffer.sample(tick);
-      if (!sample) return;
+      if (!sample || !latest || !start) return;
 
-      // Fire hit effects when the interpolated view reaches the tick they happened on.
+      // Opponent's hits fire when the interpolated view reaches the tick they happened on.
       for (const s of buffer.between(lastEventTick, Math.floor(tick))) {
-        s.events.forEach((e) => { renderer.onHit(e); e.damage >= 100 ? sfx.error() : sfx.click(); });
+        s.events.forEach((e) => { if (e.attacker !== mySlot) hitFx(e); });
         lastEventTick = s.tick;
       }
-      renderer.render(sample.fighters, sample.base.hitstop, renderer.app.ticker.deltaMS);
 
-      const base = sample.base;
-      if (base.phase !== lastPhase) {
-        if (base.phase === 'COUNTDOWN') showBanner('ROUND 1');
-        if (base.phase === 'FIGHTING' && lastPhase === 'COUNTDOWN') { showBanner('FIGHT!'); sfx.success(); }
-        if (base.phase === 'KO') showBanner('K.O.');
-        lastPhase = base.phase;
-      }
-      // Only touch React state when something visible changed.
-      const key = `${base.fighters[0].health}|${base.fighters[1].health}|${base.phase}`;
-      if (key !== lastHud) {
-        lastHud = key;
-        setHud({ health: [base.fighters[0].health, base.fighters[1].health], maxHealth: hudMax(startMsg), phase: base.phase });
-      }
+      const fighters = sample.fighters.slice();
+      const mine = predictionOn ? predictor?.view(dt) : null;
+      if (mine && mySlot >= 0) fighters[mySlot] = mine;
+      renderer.render(fighters, latest.hitstop, dt);
+      push(latest, start.fighters.map((f) => f.maxHealth), start.rules, names);
     };
 
     const onVisibility = () => { if (document.hidden) conn.releaseAll(); };
     const onKey = (e: KeyboardEvent) => {
       if (e.code === 'KeyH') renderer.showHitboxes = !renderer.showHitboxes;
+      if (e.code === 'KeyP') { predictionOn = !predictionOn; setPredicting(predictionOn); }
       if (e.code === 'Slash' || e.code === 'F1') { e.preventDefault(); setShowHelp((v) => !v); }
     };
     document.addEventListener('visibilitychange', onVisibility);
     window.addEventListener('keydown', onKey);
     const pingTimer = window.setInterval(() => setPing(Math.round(conn.rtt)), 1000);
 
-    renderer.init(hostRef.current!).then(() => {
+    renderer.init(host).then(() => {
       if (disposed) { renderer.destroy(); return; }
       ready = true;
       if (import.meta.env.DEV) (window as unknown as { __nbRenderer: FightRenderer }).__nbRenderer = renderer;
-      if (startMsg) renderer.setup(startMsg);
+      if (start) renderer.setup(start.arena, start.fighters);
       renderer.app.ticker.add(frame);
     });
 
@@ -147,12 +161,12 @@ export function FightScreen() {
       window.clearInterval(pingTimer);
       if (ready) renderer.destroy();
     };
-  }, [code, attempt]);
+  }, [code, attempt, host, push, reset]);
 
-  const mySide = slot;
-  const result = end && (end.winner < 0 ? 'DRAW' : end.winner === mySide ? 'VICTORY' : 'DEFEAT');
+  const names = [0, 1].map((s) => players.find((p) => p.slot === s)?.displayName ?? (s === slot ? me?.displayName ?? 'You' : '???'));
+  const result = end && (end.winner < 0 ? 'DRAW' : end.winner === slot ? 'VICTORY' : 'DEFEAT');
 
-  const rematch = async () => {
+  const newRoom = async () => {
     sfx.click();
     try {
       const room = await roomsApi.create();
@@ -162,13 +176,10 @@ export function FightScreen() {
 
   return (
     <div className="fight-screen">
-      <div className="fight-canvas" ref={hostRef} />
+      <div className="fight-canvas" ref={setHost} />
 
-      {status === 'live' || status === 'ended' ? (
-        <HudBar players={players} hud={hud} mySlot={mySide} meName={me?.displayName} />
-      ) : null}
-
-      {banner && status === 'live' && <Banner key={banner.key} text={banner.text} />}
+      {(status === 'live' || status === 'ended') && <HudBar hud={hud} names={names} mySlot={slot} />}
+      {banner && status === 'live' && <Banner key={banner.key} text={banner.text} sub={banner.sub} />}
 
       {(status === 'connecting' || status === 'waiting') && (
         <div className="fight-overlay">
@@ -192,9 +203,10 @@ export function FightScreen() {
         <div className="fight-overlay">
           <div className={`panel overlay-card result-${result?.toLowerCase()}`}>
             <div className="result-title">{result}</div>
-            <p className="chalk-note">{reasonText(end, mySide)}</p>
+            <div className="result-score">{end.roundWins[0]} – {end.roundWins[1]}</div>
+            <p className="chalk-note">{reasonText(end, slot)}</p>
             <div className="overlay-actions">
-              <button className="btn-neon" onClick={rematch}>New room</button>
+              <button className="btn-neon" onClick={newRoom}>New room</button>
               <Link className="btn-ghost" to="/">Main menu</Link>
             </div>
           </div>
@@ -216,7 +228,9 @@ export function FightScreen() {
 
       {status === 'live' && (
         <>
-          <div className="net-stats">{ping ? `${ping} ms` : '…'} · H hitboxes · / help</div>
+          <div className="net-stats">
+            {ping ? `${ping} ms` : '…'} · prediction {predicting ? 'on' : 'off'} (P) · H hitboxes · / help
+          </div>
           {showHelp && (
             <div className="controls-help panel">
               <b>Controls</b>
@@ -231,51 +245,12 @@ export function FightScreen() {
   );
 }
 
-function hudMax(start: StartMessage | null): [number, number] {
-  return start ? [start.fighters[0].maxHealth, start.fighters[1].maxHealth] : [1000, 1000];
-}
-
 function reasonText(end: EndMessage, mySlot: number): string {
   switch (end.reason) {
-    case 'KO': return end.winner === mySlot ? 'Knockout! Momentum was on your side.' : 'Knocked out. Every action has an equal and opposite reaction…';
-    case 'DOUBLE_KO': return 'Double KO — perfectly balanced forces.';
+    case 'DECISION':
+      if (end.winner < 0) return 'A perfectly balanced draw. Equal and opposite.';
+      return end.winner === mySlot ? 'Best of three: momentum was on your side.' : 'Every action has an equal and opposite reaction… next time.';
     case 'FORFEIT': return end.winner === mySlot ? 'Your opponent left the lab.' : 'You left the match.';
     default: return 'The match was stopped.';
   }
-}
-
-function HudBar({ players, hud, mySlot, meName }: { players: PlayerInfo[]; hud: Hud | null; mySlot: number; meName?: string }) {
-  const name = (s: number) => players.find((p) => p.slot === s)?.displayName ?? (s === mySlot ? meName : '???');
-  const pct = (s: number) => (hud ? Math.max(0, hud.health[s] / hud.maxHealth[s]) * 100 : 100);
-  return (
-    <div className="hud">
-      {[0, 1].map((s) => (
-        <div key={s} className={`hud-side side-${s}`}>
-          <div className="hud-name">
-            {name(s)} {s === mySlot && <span className="you-tag">YOU</span>}
-          </div>
-          <div className="health">
-            <div className="health-ghost" style={{ width: `${pct(s)}%` }} />
-            <div className="health-fill" style={{ width: `${pct(s)}%` }} />
-          </div>
-        </div>
-      ))}
-      <div className="hud-center">
-        <div className="hud-timer">∞</div>
-        <div className="hud-round">ROUND 1</div>
-      </div>
-    </div>
-  );
-}
-
-function Banner({ text }: { text: string }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
-    const tl = gsap.timeline();
-    tl.fromTo(ref.current, { scale: 2.4, opacity: 0, letterSpacing: '0.6em' },
-                           { scale: 1, opacity: 1, letterSpacing: '0.08em', duration: 0.35, ease: 'expo.out' })
-      .to(ref.current, { opacity: 0, scale: 0.9, duration: 0.3, delay: text === 'ROUND 1' ? 1.1 : 0.6 });
-    return () => { tl.kill(); };
-  }, [text]);
-  return <div ref={ref} className={`banner ${text === 'K.O.' ? 'ko' : ''}`}>{text}</div>;
 }

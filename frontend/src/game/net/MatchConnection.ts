@@ -4,6 +4,8 @@ import { TICK_MS, type ServerMessage } from '../protocol';
 export interface ConnectionHandlers {
   onMessage(msg: ServerMessage): void;
   onClose(code: number, reason: string): void;
+  /** Every input packet sent (feeds client-side prediction). */
+  onInputSent?(seq: number, bits: number): void;
 }
 
 /**
@@ -20,7 +22,7 @@ export class MatchConnection {
   /** Smoothed round-trip time in ms. */
   rtt = 0;
 
-  constructor(room: string, handlers: ConnectionHandlers) {
+  constructor(room: string, private readonly handlers: ConnectionHandlers) {
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
     const base = import.meta.env.VITE_WS_BASE ?? `${proto}://${location.host}`;
     const token = encodeURIComponent(tokenStore.get() ?? '');
@@ -66,7 +68,9 @@ export class MatchConnection {
 
   private sendInput(bits: number) {
     if (this.ws.readyState !== WebSocket.OPEN) return;
-    this.ws.send(`{"t":"in","s":${++this.seq},"b":${bits}}`);
+    const seq = ++this.seq;
+    this.ws.send(`{"t":"in","s":${seq},"b":${bits}}`);
+    this.handlers.onInputSent?.(seq, bits);
   }
 
   private ping() {

@@ -18,7 +18,7 @@ export const Btn = {
   SPECIAL: 1 << 6,
 } as const;
 
-export type MatchPhase = 'COUNTDOWN' | 'FIGHTING' | 'KO' | 'FINISHED';
+export type MatchPhase = 'ROUND_START' | 'FIGHTING' | 'ROUND_END' | 'FINISHED';
 export type Action = 'IDLE' | 'WALK' | 'CROUCH' | 'AIRBORNE' | 'ATTACK' | 'HITSTUN' | 'KO';
 
 export interface Box { x: number; y: number; w: number; h: number }
@@ -46,12 +46,18 @@ export interface FighterDefinition {
 
 export interface FighterView {
   x: number; y: number; vx: number; vy: number;
-  facing: 1 | -1;
+  facing: number;
   health: number;
+  energy: number;
   action: Action;
   move: string | null;
   moveFrame: number;
   grounded: boolean;
+  /** Hidden timers, sent so the client can reconstruct exact state for prediction. */
+  stun: number;
+  connected: boolean;
+  buffered: number;
+  bufferAge: number;
 }
 
 export interface HitEvent { attacker: number; defender: number; move: string; damage: number; x: number; y: number }
@@ -60,24 +66,37 @@ export interface PlayerInfo { slot: number; id: number; username: string; displa
 
 export interface ArenaInfo { id: string; width: number; gravity: number }
 
+export interface MatchRules { countdownTicks: number; roundTimeTicks: number; roundsToWin: number; maxRounds: number; roundEndTicks: number }
+
+export interface RoundResult { round: number; winner: number; reason: 'KO' | 'DOUBLE_KO' | 'TIME' }
+
 export type ServerMessage =
   | { t: 'welcome'; room: string; slot: number; players: PlayerInfo[] }
   | { t: 'lobby'; players: PlayerInfo[] }
-  | { t: 'start'; matchId: string; tickRate: number; countdownTicks: number; arena: ArenaInfo;
+  | { t: 'start'; matchId: string; tickRate: number; rules: MatchRules; arena: ArenaInfo;
       players: PlayerInfo[]; fighters: FighterDefinition[] }
   | StateMessage
-  | { t: 'end'; winner: number; reason: 'KO' | 'DOUBLE_KO' | 'FORFEIT' | 'ABORTED'; ticks: number }
+  | { t: 'end'; winner: number; reason: 'DECISION' | 'FORFEIT' | 'ABORTED'; ticks: number; roundWins: number[] }
   | { t: 'pong'; c: number; tick: number }
   | { t: 'error'; code: string; message: string };
 
-export interface StateMessage {
-  t: 'state';
+/** Mirrors com.newtonbrawl.engine.sim.MatchSnapshot. */
+export interface Snapshot {
   tick: number;
   phase: MatchPhase;
   phaseTicks: number;
   hitstop: number;
-  fighters: [FighterView, FighterView];
+  round: number;
+  roundWins: number[];
+  /** Round clock in ticks. */
+  timer: number;
+  lastRound: RoundResult | null;
+  fighters: FighterView[];
   events: HitEvent[];
+}
+
+export interface StateMessage extends Snapshot {
+  t: 'state';
   ack: [number, number];
 }
 

@@ -1,10 +1,10 @@
 package com.newtonbrawl.engine.sim;
 
 public enum MatchPhase {
-    /** "FIGHT!" intro; fighters can't act yet. */
-    COUNTDOWN,
+    /** "ROUND n — FIGHT!" intro; fighters can't act yet. */
+    ROUND_START,
     FIGHTING,
-    /** Someone is down; physics keeps running for the KO slow-mo, inputs are ignored. */
-    KO,
+    /** Round decided (KO or time); physics keeps running for the slow-mo, inputs are ignored. */
+    ROUND_END,
     FINISHED
 }

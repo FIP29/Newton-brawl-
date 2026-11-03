@@ -28,6 +28,7 @@ newton-brawl:
     allowed-origins: ${CORS_ORIGINS:http://localhost:5173}
   match:
     countdown-ticks: 120   # "ROUND 1 — FIGHT!" intro (2 s)
+    round-seconds: 99      # round clock
     reconnect-grace: 8s    # time to reconnect before forfeiting
     room-ttl: 15m          # unused rooms expire
 

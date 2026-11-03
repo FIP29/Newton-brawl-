@@ -64,7 +64,7 @@ export class SnapshotBuffer {
   }
 }
 
-function lerpFighter(a: FighterView, b: FighterView, t: number): FighterView {
+export function lerpFighter(a: FighterView, b: FighterView, t: number): FighterView {
   // Teleport-sized jumps (e.g. a reset) aren't smoothed.
   if (Math.abs(a.x - b.x) > 400) return t < 0.5 ? a : b;
   return {
