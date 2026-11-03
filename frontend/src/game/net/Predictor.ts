@@ -59,7 +59,7 @@ export class Predictor implements StepHost {
     const me = msg.fighters[this.slot];
     const inBubble = msg.zones.some((z) => z.kind === 'BUBBLE' && z.owner !== this.slot
       && Math.abs(me.x - z.x) <= z.w / 2 + 60 && Math.abs(me.y + this.defs[this.slot].body.height / 2 - z.y) <= z.h / 2 + 60);
-    this.active = msg.phase === 'FIGHTING' && me.action !== 'KO' && me.flip === 0 && !inBubble;
+    this.active = msg.phase === 'FIGHTING' && me.action !== 'KO' && me.flip === 0 && me.buoy === 0 && !inBubble;
     if (!this.active) {
       this.self = null;
       this.err.x = this.err.y = 0;
@@ -128,6 +128,7 @@ export class Predictor implements StepHost {
   spawnZone() {}
   removeZones() {}
   teleport(s: FighterState, x: number) { s.x = x; clampToWalls(this.arena, s); }
+  shatter() {}
   startUltimate() { this.cinematic = CINEMATIC_TICKS; }
   event() {}
 }

@@ -25,7 +25,7 @@ import static org.assertj.core.api.Assertions.within;
 class RosterMechanicsTest {
 
     static final FighterCatalog CATALOG = FighterCatalog.loadFromClasspath();
-    static final Arena EMPTY = new Arena("test", 1600, 900, 2600, List.of());
+    static final Arena EMPTY = new Arena("test", "Test", 1600, 900, 2600, 1, 0.45, 0.6, List.of());
     static final InputFrame NONE = InputFrame.NONE;
     static final MatchRules RULES = MatchRules.STANDARD.withCountdown(0);
 

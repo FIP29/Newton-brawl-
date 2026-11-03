@@ -255,14 +255,15 @@ public class RoomService {
     private void startMatch(Room room) {
         Fighter p1 = catalog.create(room.seats[0].fighter);
         Fighter p2 = catalog.create(room.seats[1].fighter);
-        MatchSimulation sim = new MatchSimulation(Arena.THE_LAB, p1, p2, rules());
+        room.arena = Arena.ALL.get(java.util.concurrent.ThreadLocalRandom.current().nextInt(Arena.ALL.size()));
+        MatchSimulation sim = new MatchSimulation(room.arena, p1, p2, rules());
         room.fighterIds = List.of(p1.id(), p2.id());
         room.stats = new MatchStats(p1.definition(), p2.definition());
         room.runner = new MatchRunner(room.code, sim, new RoomMatchListener(room));
         room.status = RoomStatus.IN_PROGRESS;
         broadcast(room, startMessage(room));
         room.runner.start();
-        log.info("Room {}: match started", room.code);
+        log.info("Room {}: match started in {}", room.code, room.arena.id());
     }
 
     private MatchRules rules() {
@@ -271,11 +272,10 @@ public class RoomService {
     }
 
     private ServerMessages.Start startMessage(Room room) {
-        Arena a = Arena.THE_LAB;
         MatchRules r = rules();
         return new ServerMessages.Start(room.code, room.mode, EngineConstants.TICK_RATE,
             new ServerMessages.RulesInfo(r.countdownTicks(), r.roundTimeTicks(), r.roundsToWin(), r.maxRounds(), r.roundEndTicks()),
-            new ServerMessages.ArenaInfo(a.id(), a.width(), a.height(), a.gravity(), a.objectSpawns()), room.players(),
+            room.arena, room.players(),
             room.fighterIds.stream().map(catalog::definition).toList());
     }
 

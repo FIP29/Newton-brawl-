@@ -108,8 +108,8 @@ public final class MatchSimulation implements MatchWorld {
         projectiles.clear();
         zones.clear();
         objects.clear();
-        for (double x : arena.objectSpawns()) {
-            objects.add(new ArenaObject(nextId++, "beaker", true, x, 36, 56));
+        for (Arena.ObjectSpawn spawn : arena.objects()) {
+            objects.add(new ArenaObject(nextId++, spawn));
         }
         hitstop = 0;
         cinematic = 0;
@@ -178,7 +178,7 @@ public final class MatchSimulation implements MatchWorld {
     // ---------------------------------------------------------------- control
 
     private void control(FighterState s, InputFrame raw, FighterState opponent) {
-        if (!s.action.isFree()) {
+        if (!s.action.isFree() || s.buoyTicks > 0) {
             s.bufferPresses(raw.pressed());
             return;
         }
@@ -244,8 +244,9 @@ public final class MatchSimulation implements MatchWorld {
     // -------------------------------------------------------------- integrate
 
     private void integrate(FighterState s) {
-        boolean flipped = s.flipTicks > 0;
-        double g = arena.gravity() * (flipped ? EngineConstants.FLIP_GRAVITY : 1.0);
+        double gScale = s.flipTicks > 0 ? EngineConstants.FLIP_GRAVITY : s.buoyTicks > 0 ? EngineConstants.BUOY_GRAVITY : 1.0;
+        boolean flipped = gScale < 0;
+        double g = arena.gravity() * gScale;
         s.vy -= g * DT;
         s.x += s.vx * DT;
         s.y += s.vy * DT;
@@ -315,7 +316,17 @@ public final class MatchSimulation implements MatchWorld {
     /** Magnetic pull: the opponent and metal objects slide toward the zone's owner. */
     private void applyZoneForces() {
         for (Zone z : zones) {
-            if (z.dead || !Zone.PULL.equals(z.kind)) continue;
+            if (z.dead) continue;
+            if (Zone.STORM.equals(z.kind)) {
+                FighterState t = f[1 - z.owner];
+                double dx = z.x - t.x;
+                if (z.contains(t.x, t.y + t.def.body().height() / 2) && Math.abs(dx) > 20 && t.invulnTicks == 0) {
+                    t.x += Math.signum(dx) * z.strength * DT;
+                    clampToWalls(t);
+                }
+                continue;
+            }
+            if (!Zone.PULL.equals(z.kind)) continue;
             FighterState src = f[z.owner], t = f[1 - z.owner];
             double dx = src.x - t.x;
             if (Math.abs(dx) <= z.w / 2 && Math.abs(dx) > 110 && t.invulnTicks == 0) {
@@ -335,19 +346,23 @@ public final class MatchSimulation implements MatchWorld {
     // ---------------------------------------------------------------- objects
 
     private void updateObjects() {
+        boolean zeroG = arena.objectGravity() == 0;
         for (ArenaObject o : objects) {
-            o.vy -= arena.gravity() * DT;
+            o.vy -= arena.gravity() * arena.objectGravity() * DT;
             o.x += o.vx * DT;
             o.y += o.vy * DT;
             if (o.y <= 0) {
                 o.y = 0;
-                if (o.vy < -150) o.vy = -o.vy * 0.45; else o.vy = 0;
-                o.vx *= 0.9;
-                if (Math.abs(o.vx) < 5) o.vx = 0;
+                if (o.vy < -150 || (zeroG && o.vy < 0)) o.vy = -o.vy * arena.bounce(); else o.vy = 0;
+                if (!zeroG) {
+                    o.vx *= 0.9;
+                    if (Math.abs(o.vx) < 5) o.vx = 0;
+                }
             }
+            if (o.y + o.h > arena.height()) { o.y = arena.height() - o.h; if (o.vy > 0) o.vy = -o.vy * arena.bounce(); }
             double half = o.w / 2;
-            if (o.x < half) { o.x = half; o.vx = -o.vx * 0.6; }
-            if (o.x > arena.width() - half) { o.x = arena.width() - half; o.vx = -o.vx * 0.6; }
+            if (o.x < half) { o.x = half; o.vx = -o.vx * arena.wallBounce(); }
+            if (o.x > arena.width() - half) { o.x = arena.width() - half; o.vx = -o.vx * arena.wallBounce(); }
 
             if (o.owner >= 0) {
                 double speed = Math.abs(o.vx) + Math.abs(o.vy);
@@ -441,16 +456,49 @@ public final class MatchSimulation implements MatchWorld {
             double scale = timeScaleAt(p.x, p.y, p.owner);
             p.age++;
             p.life--;
-            p.vx += p.ax * DT * scale;
-            p.vy += p.ay * DT * scale;
-            p.x += p.vx * DT * scale;
-            p.y += p.vy * DT * scale;
+            switch (p.motion) {
+                case LINEAR -> {
+                    p.vx += p.ax * DT * scale;
+                    p.vy += p.ay * DT * scale;
+                    p.x += p.vx * DT * scale;
+                    p.y += p.vy * DT * scale;
+                }
+                case PENDULUM -> {
+                    // θ'' = −(g/L)·θ  →  period T = 2π·√(L/g)
+                    p.omega -= p.gOverL * p.theta * DT * scale;
+                    p.theta += p.omega * DT * scale;
+                    p.x = p.pivotX + p.length * p.theta;
+                    p.y = p.pivotY - p.length * (1 - p.theta * p.theta * 0.5);
+                }
+                case ORBIT -> {
+                    // central force a = −ω²·r keeps the moon circling its caster
+                    FighterState a = f[p.anchor];
+                    p.ovx -= p.k * p.ox * DT * scale;
+                    p.ovy -= p.k * p.oy * DT * scale;
+                    p.ox += p.ovx * DT * scale;
+                    p.oy += p.ovy * DT * scale;
+                    p.x = a.x + p.ox;
+                    p.y = a.y + a.def.body().height() * 0.55 + p.oy;
+                }
+            }
             if (p.electric && p.chains < p.maxChains) chainThroughMetal(p);
 
             FighterState target = f[1 - p.owner];
             Aabb box = p.box(), hurt = target.hurtbox();
             if (target.invulnTicks == 0 && box.intersects(hurt)) {
                 double[] pt = box.overlapCenter(hurt);
+                if (p.electric && target.cageTicks > 0) {
+                    // Faraday cage: charge spreads over the conducting shell, none reaches inside.
+                    events.add(new GameEvent(GameEvent.BLOCK, target.slot, p.owner, p.move, 0, r(pt[0]), r(pt[1])));
+                    p.dead = true;
+                    continue;
+                }
+                if (target.reflectTicks > 0 && !p.reflected && p.motion != Projectile.Motion.LINEAR) {
+                    // Swinging / orbiting attacks can't be sent back along a straight line: they're simply stopped.
+                    events.add(new GameEvent(GameEvent.REFLECT, target.slot, 1 - target.slot, p.move, 0, r(pt[0]), r(pt[1])));
+                    p.dead = true;
+                    continue;
+                }
                 if (target.reflectTicks > 0 && !p.reflected) {
                     // Third Law: the projectile comes straight back at whoever threw it.
                     p.owner = target.slot;
@@ -462,6 +510,9 @@ public final class MatchSimulation implements MatchWorld {
                 } else {
                     if (p.effect == Projectile.Effect.GRAVITY_FLIP && target.reflectTicks == 0) {
                         target.flipTicks = p.effectTicks;
+                    }
+                    if (p.effect == Projectile.Effect.BUOY && target.reflectTicks == 0) {
+                        target.buoyTicks = p.effectTicks;
                     }
                     hitFighter(f[p.owner], target, p.currentDamage(), p.dir * p.impulseX, p.impulseY,
                         p.hitstun, p.hitstop, p.move, pt);
@@ -521,7 +572,7 @@ public final class MatchSimulation implements MatchWorld {
                         z.dead = true;
                     }
                 }
-                case Zone.BLAST, Zone.BEAM -> {
+                case Zone.BLAST, Zone.BEAM, Zone.LEVER, Zone.FOCUS -> {
                     boolean live = z.age > z.delay && z.age <= z.delay + z.active;
                     if (live && (z.hitMask & (1 << t.slot)) == 0 && t.invulnTicks == 0 && z.box().intersects(hurt)) {
                         z.hitMask |= 1 << t.slot;
@@ -532,10 +583,51 @@ public final class MatchSimulation implements MatchWorld {
                     if (z.age > z.delay + z.active) z.dead = true;
                 }
                 case Zone.FIELD -> {
-                    if (z.age % z.interval == 0 && t.invulnTicks == 0) {
+                    if (z.age % z.interval == 0 && t.invulnTicks == 0 && electricBlocked(z, t)) {
+                        events.add(new GameEvent(GameEvent.BLOCK, t.slot, z.owner, z.move, 0, r(t.x), r(t.y + t.def.body().height() * 0.6)));
+                    } else if (z.age % z.interval == 0 && t.invulnTicks == 0) {
                         int dir = t.x >= src.x ? 1 : -1;
                         hitFighter(src, t, z.damage, dir * z.impulseX, z.impulseY, z.hitstun, z.hitstop, z.move,
                             new double[] {t.x, t.y + t.def.body().height() * 0.6});
+                    }
+                }
+                case Zone.INDUCTION -> {
+                    // Moving through the coil's field induces current: faster movement, more damage.
+                    if (t.invulnTicks == 0 && z.box().intersects(hurt)) {
+                        z.acc += (Math.abs(t.vx) + Math.abs(t.vy)) * DT * z.strength;
+                        if (z.acc >= z.damage) {
+                            z.acc -= z.damage;
+                            if (electricBlocked(z, t)) {
+                                events.add(new GameEvent(GameEvent.BLOCK, t.slot, z.owner, z.move, 0, r(t.x), r(t.y + 60)));
+                            } else {
+                                hitFighter(src, t, z.damage, (t.vx >= 0 ? 1 : -1) * z.impulseX, z.impulseY, z.hitstun, z.hitstop,
+                                    z.move, z.box().overlapCenter(hurt));
+                            }
+                        }
+                    }
+                }
+                case Zone.STORM -> {
+                    if (z.age % z.interval == 0 && t.invulnTicks == 0 && z.contains(t.x, t.y + t.def.body().height() / 2)) {
+                        if (electricBlocked(z, t)) {
+                            events.add(new GameEvent(GameEvent.BLOCK, t.slot, z.owner, z.move, 0, r(t.x), r(t.y + 60)));
+                        } else {
+                            int dir = t.x >= z.x ? 1 : -1;
+                            hitFighter(src, t, z.damage, dir * z.impulseX, z.impulseY, z.hitstun, z.hitstop, z.move,
+                                new double[] {t.x, t.y + t.def.body().height() * 0.5});
+                        }
+                    }
+                }
+                case Zone.SPRING -> {
+                    if (z.arm > 0) {
+                        z.arm--;
+                    } else if (t.invulnTicks == 0 && t.grounded && z.box().intersects(hurt)) {
+                        // F = −kx: the farther Hooke has stretched the spring, the harder it snaps.
+                        double stretch = Math.min(z.maxStretch, Math.abs(src.x - z.x));
+                        double force = z.springK * stretch;
+                        int dir = src.x >= z.x ? 1 : -1; // snaps back toward Hooke
+                        int dmg = z.damage + (int) Math.round(stretch * 0.15);
+                        hitFighter(src, t, dmg, dir * force * 0.4, force, z.hitstun, z.hitstop, z.move, z.box().overlapCenter(hurt));
+                        z.dead = true;
                     }
                 }
                 default -> { /* BUBBLE and PULL act elsewhere */ }
@@ -569,6 +661,8 @@ public final class MatchSimulation implements MatchWorld {
 
     private void tickStatuses(FighterState s) {
         if (s.flipTicks > 0) s.flipTicks--;
+        if (s.buoyTicks > 0) s.buoyTicks--;
+        if (s.cageTicks > 0) s.cageTicks--;
         if (s.reflectTicks > 0) s.reflectTicks--;
         if (s.invulnTicks > 0) s.invulnTicks--;
         if (s.cooldowns[0] > 0) s.cooldowns[0]--;
@@ -615,6 +709,26 @@ public final class MatchSimulation implements MatchWorld {
     @Override
     public void removeZones(int owner, String kind) {
         for (Zone z : zones) if (z.owner == owner && z.kind.equals(kind)) z.dead = true;
+    }
+
+    @Override
+    public void shatter(int victimSlot, int sourceSlot, double x, double y, double speed) {
+        for (Projectile p : projectiles) if (p.owner == victimSlot) p.dead = true;
+        for (Zone z : zones) if (z.owner == victimSlot) z.dead = true;
+        for (ArenaObject o : objects) {
+            double dx = o.x - x, dy = o.centerY() - y;
+            double d = Math.sqrt(dx * dx + dy * dy);
+            if (d < 1) d = 1;
+            o.vx = dx / d * speed;
+            o.vy = Math.max(200, dy / d * speed + 300);
+            o.owner = sourceSlot;
+        }
+        events.add(new GameEvent(GameEvent.SHATTER, sourceSlot, victimSlot, "ultimate", 0, r(x), r(y)));
+    }
+
+    /** Faraday's cage stops electric zones. */
+    private static boolean electricBlocked(Zone z, FighterState target) {
+        return z.electric && target.cageTicks > 0;
     }
 
     @Override

@@ -1,0 +1,117 @@
+{
+  "id": "faraday",
+  "name": "Michael Faraday",
+  "title": "The Induction Zoner",
+  "fighterClass": "ZONER",
+  "color": "#e8834a",
+  "mass": 72,
+  "maxHealth": 980,
+  "walkSpeed": 400,
+  "jumpVelocity": 1170,
+  "airAcceleration": 1900,
+  "body": {
+    "width": 86,
+    "height": 192
+  },
+  "moves": {
+    "light": {
+      "name": "Electrolysis Jab",
+      "startup": 4,
+      "active": 3,
+      "recovery": 9,
+      "damage": 40,
+      "hitstun": 14,
+      "hitstop": 5,
+      "hitbox": {
+        "x": 70,
+        "y": 130,
+        "w": 82,
+        "h": 38
+      },
+      "impulse": {
+        "x": 20000,
+        "y": 0
+      }
+    },
+    "heavy": {
+      "name": "Field Line Swing",
+      "startup": 12,
+      "active": 4,
+      "recovery": 18,
+      "damage": 110,
+      "hitstun": 25,
+      "hitstop": 9,
+      "hitbox": {
+        "x": 92,
+        "y": 110,
+        "w": 118,
+        "h": 62
+      },
+      "impulse": {
+        "x": 52000,
+        "y": 34000
+      }
+    },
+    "special1": {
+      "name": "Faraday Cage",
+      "kind": "SPECIAL",
+      "equation": "E_inside = 0",
+      "startup": 6,
+      "active": 1,
+      "recovery": 14,
+      "cooldown": 300,
+      "damage": 0,
+      "hitstun": 0,
+      "hitstop": 0,
+      "params": {
+        "cageTicks": 210
+      }
+    },
+    "special2": {
+      "name": "Induction Coil",
+      "kind": "SPECIAL",
+      "equation": "ε = −dΦ/dt",
+      "startup": 10,
+      "active": 1,
+      "recovery": 18,
+      "cooldown": 240,
+      "damage": 18,
+      "hitstun": 8,
+      "hitstop": 2,
+      "impulse": {
+        "x": 6000,
+        "y": 4000
+      },
+      "params": {
+        "offset": 170,
+        "w": 240,
+        "h": 220,
+        "life": 300,
+        "strength": 0.09
+      }
+    },
+    "ultimate": {
+      "name": "Dynamo",
+      "kind": "ULTIMATE",
+      "equation": "ε = N·B·A·ω",
+      "startup": 10,
+      "active": 1,
+      "recovery": 30,
+      "cooldown": 0,
+      "damage": 26,
+      "hitstun": 14,
+      "hitstop": 3,
+      "impulse": {
+        "x": 8000,
+        "y": 8000
+      },
+      "params": {
+        "w": 620,
+        "h": 420,
+        "life": 210,
+        "interval": 18,
+        "pull": 240
+      }
+    }
+  }
+}

@@ -5,17 +5,28 @@ import newton from '../../../../backend/src/main/resources/fighters/newton.json'
 import tesla from '../../../../backend/src/main/resources/fighters/tesla.json';
 import curie from '../../../../backend/src/main/resources/fighters/curie.json';
 import einstein from '../../../../backend/src/main/resources/fighters/einstein.json';
+import galileo from '../../../../backend/src/main/resources/fighters/galileo.json';
+import archimedes from '../../../../backend/src/main/resources/fighters/archimedes.json';
+import faraday from '../../../../backend/src/main/resources/fighters/faraday.json';
+import hooke from '../../../../backend/src/main/resources/fighters/hooke.json';
 
 export const FIGHTERS: Record<string, FighterDefinition> = {
   newton: newton as FighterDefinition,
   tesla: tesla as FighterDefinition,
   curie: curie as FighterDefinition,
   einstein: einstein as FighterDefinition,
+  galileo: galileo as FighterDefinition,
+  archimedes: archimedes as FighterDefinition,
+  faraday: faraday as FighterDefinition,
+  hooke: hooke as FighterDefinition,
   prototype: prototype as FighterDefinition,
 };
 
-/** Selectable fighters in roster order (mirrors FighterCatalog.PLAYABLE). */
+/** Starter fighters, always available (mirrors FighterCatalog.PLAYABLE). */
 export const PLAYABLE = ['newton', 'tesla', 'curie', 'einstein'] as const;
+
+/** Every implemented fighter in roster order (unlockable ones need an unlock). */
+export const ROSTER = ['newton', 'tesla', 'curie', 'einstein', 'galileo', 'archimedes', 'faraday', 'hooke'] as const;
 
 export function fighter(id: string): FighterDefinition {
   const def = FIGHTERS[id];

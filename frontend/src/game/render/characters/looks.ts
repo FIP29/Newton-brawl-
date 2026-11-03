@@ -7,9 +7,14 @@
  *   Tesla    — tall and lean, centre-parted slicked black hair, thin moustache, dark three-piece suit
  *   Curie    — hair drawn up into a bun, long dark Victorian dress with high collar, glowing vial
  *   Einstein — wild white hair, bushy moustache, baggy grey cardigan
+ *   Galileo  — grey beard, receding hair, dark scholar's robe with a white falling collar, telescope
+ *   Archimedes — curly grey hair and beard, cream chiton with a bronze meander border, sandals
+ *   Faraday  — wavy greying hair, Victorian frock coat and stock
+ *   Hooke    — no authentic portrait survives; drawn from contemporaries' descriptions: thin,
+ *              stooped, long unpowdered brown hair, in a plain steel-grey coat
  */
-export type HairStyle = 'periwig' | 'slick' | 'bun' | 'wild';
-export type Outfit = 'frockcoat' | 'suit' | 'dress' | 'cardigan';
+export type HairStyle = 'periwig' | 'slick' | 'bun' | 'wild' | 'balding' | 'curly' | 'wavy' | 'long';
+export type Outfit = 'frockcoat' | 'suit' | 'dress' | 'cardigan' | 'robe' | 'chiton';
 export type Stance = 'boxer' | 'showman' | 'chemist' | 'professor';
 
 export interface Look {
@@ -28,11 +33,14 @@ export interface Look {
   outfit: Outfit;
   stance: Stance;
   moustache: 'none' | 'thin' | 'bushy';
+  beard?: 'full';
+  /** Forward stoop of the upper body (radians). */
+  posture?: number;
   brows: 'stern' | 'fine' | 'soft' | 'bushy';
   /** Shoulder width as a fraction of height. */
   shoulders: number;
   /** Visual-only prop held in the back hand. */
-  prop?: 'vial';
+  prop?: 'vial' | 'telescope';
 }
 
 export const LOOKS: Record<string, Look> = {
@@ -59,6 +67,30 @@ export const LOOKS: Record<string, Look> = {
     coat: 0x8b9097, coatShade: 0x6c7178, trim: 0x5d6168, shirt: 0xf0f0ea, accent: 0x7f6a52,
     legs: 0x6b5a47, shoes: 0x3a2c22, hairStyle: 'wild', outfit: 'cardigan', stance: 'professor',
     moustache: 'bushy', brows: 'bushy', shoulders: 0.28,
+  },
+  galileo: {
+    glow: 0xffa630, skin: 0xeec4a0, hair: 0xcfc7b8, hairShade: 0x9a9284,
+    coat: 0x1f1c22, coatShade: 0x151317, trim: 0xd9b25a, shirt: 0xf2eee4, accent: 0xffa630,
+    legs: 0x2a2420, shoes: 0x1a1512, hairStyle: 'balding', outfit: 'robe', stance: 'showman',
+    moustache: 'bushy', beard: 'full', brows: 'soft', shoulders: 0.22, prop: 'telescope',
+  },
+  archimedes: {
+    glow: 0xcd7f32, skin: 0xdfae84, hair: 0xd6d1c7, hairShade: 0xa39d91,
+    coat: 0xefe6d2, coatShade: 0xd1c4a9, trim: 0xcd7f32, shirt: 0xefe6d2, accent: 0x8c4a2b,
+    legs: 0xdfae84, shoes: 0x7a5230, hairStyle: 'curly', outfit: 'chiton', stance: 'boxer',
+    moustache: 'bushy', beard: 'full', brows: 'bushy', shoulders: 0.29,
+  },
+  faraday: {
+    glow: 0xe8834a, skin: 0xf0c8a6, hair: 0x8f8478, hairShade: 0x645a50,
+    coat: 0x2d2522, coatShade: 0x201a18, trim: 0xe8834a, shirt: 0xf1ede4, accent: 0x1c1c1c,
+    legs: 0x2d2522, shoes: 0x121010, hairStyle: 'wavy', outfit: 'suit', stance: 'professor',
+    moustache: 'none', brows: 'soft', shoulders: 0.23,
+  },
+  hooke: {
+    glow: 0xc8d2dc, skin: 0xe6c2a2, hair: 0x5a4030, hairShade: 0x3e2b20,
+    coat: 0x56606c, coatShade: 0x3f4650, trim: 0xc8d2dc, shirt: 0xece8df, accent: 0x8a96a3,
+    legs: 0x2b2f36, shoes: 0x141518, hairStyle: 'long', outfit: 'frockcoat', stance: 'showman',
+    moustache: 'none', brows: 'fine', shoulders: 0.2, posture: 0.12,
   },
   prototype: {
     glow: 0xe9ece4, skin: 0xd0d4d8, hair: 0x3a3f45, hairShade: 0x2a2e33,

@@ -29,7 +29,7 @@ class MatchSimulationTest {
     private static final InputFrame NONE = InputFrame.NONE;
 
     /** Same size/gravity as The Lab but with no props in the way. */
-    static final Arena EMPTY = new Arena("test", 1600, 900, 2600, List.of());
+    static final Arena EMPTY = new Arena("test", "Test", 1600, 900, 2600, 1, 0.45, 0.6, List.of());
 
     private static MatchSimulation newSim(MatchRules rules) {
         return new MatchSimulation(EMPTY, CATALOG.create("prototype"), CATALOG.create("prototype"), rules);

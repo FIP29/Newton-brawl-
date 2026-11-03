@@ -111,7 +111,24 @@
       "origin": "Italy",
       "phase": 6,
       "bio": "Astronomer and physicist who turned an early telescope on the sky in 1609–10 and discovered four moons orbiting Jupiter, now called the Galilean moons, which he described in Sidereus Nuncius (\"The Starry Messenger\"). He studied pendulums and falling bodies, and argued that, ignoring air resistance, heavy and light objects fall at the same rate.",
-      "funFact": "In 1971 Apollo 15 astronaut David Scott dropped a hammer and a feather on the airless Moon. They hit the ground together, just as Galileo predicted."
+      "funFact": "In 1971 Apollo 15 astronaut David Scott dropped a hammer and a feather on the airless Moon. They hit the ground together, just as Galileo predicted.",
+      "moves": {
+        "special1": {
+          "law": "Pendulum period: T = 2π√(L / g)",
+          "explain": "A pendulum's period depends only on its length and on gravity, not on the weight of the bob or (for small swings) on how wide it swings. Galileo noticed this regular timing, so Pendulum Swing always strikes on the same rhythm.",
+          "labNote": "A pendulum about 1 metre long takes roughly one second to swing from one side to the other. From Huygens' first pendulum clock in 1656, pendulum clocks were the most accurate timekeepers for nearly 300 years."
+        },
+        "special2": {
+          "law": "Free fall: every mass falls with the same acceleration (ignoring air)",
+          "explain": "A heavy ball feels more gravity, but it also has more inertia, and the two cancel exactly. So a cannonball and a musket ball dropped together land together.",
+          "labNote": "Air resistance is the only reason a feather falls slowly on Earth. In a huge vacuum chamber, a feather and a bowling ball dropped together hit the floor at the same instant."
+        },
+        "ultimate": {
+          "law": "Kepler's third law: T² ∝ a³",
+          "explain": "In January 1610 Galileo discovered four moons circling Jupiter: Io, Europa, Ganymede and Callisto. The farther a moon orbits, the longer its year: Io takes about 1.8 days, Callisto about 16.7. The moons in Starry Messenger follow the same rule.",
+          "labNote": "Io, the innermost Galilean moon, is the most volcanically active world in the Solar System. Jupiter's tides squeeze and heat its interior."
+        }
+      }
     },
     {
       "id": "archimedes",
@@ -120,7 +137,24 @@
       "origin": "Syracuse (Sicily)",
       "phase": 6,
       "bio": "Mathematician and engineer of the ancient Greek world who explained the law of the lever and the principle of buoyancy: an object in a fluid is pushed up by a force equal to the weight of the fluid it displaces. He also produced one of the best ancient approximations of π.",
-      "funFact": "He is said to have declared \"Give me a place to stand, and I will move the Earth\", a perfect summary of what a long enough lever can do."
+      "funFact": "He is said to have declared \"Give me a place to stand, and I will move the Earth\", a perfect summary of what a long enough lever can do.",
+      "moves": {
+        "special1": {
+          "law": "Law of the lever: F₁·d₁ = F₂·d₂",
+          "explain": "A small force far from the fulcrum balances a large force close to it. The ratio of the two arms is the mechanical advantage. Lever Launch multiplies its push by 4.",
+          "labNote": "Your forearm is a lever, but one that trades force for speed. The biceps attaches close to the elbow, so it must pull many times harder than the weight in your hand, and in return your hand moves fast."
+        },
+        "special2": {
+          "law": "Archimedes' principle: F_b = ρ·V·g",
+          "explain": "A fluid pushes up on an object with a force equal to the weight of the fluid it displaces. If that's more than the object's own weight, up it goes.",
+          "labNote": "A steel ship floats because its hollow hull displaces an enormous volume of water. The water pushed aside weighs as much as the entire ship."
+        },
+        "ultimate": {
+          "law": "Mirror equation: 1/f = 1/dₒ + 1/dᵢ",
+          "explain": "A curved mirror brings parallel sunlight together at its focus. Legend says Archimedes used mirrors to set Roman ships alight at Syracuse in 212 BC; modern experiments disagree on whether it could really have worked.",
+          "labNote": "Solar furnaces focus sunlight with fields of mirrors. The one at Odeillo in the French Pyrenees reaches temperatures above 3,000 °C."
+        }
+      }
     },
     {
       "id": "faraday",
@@ -129,7 +163,24 @@
       "origin": "England",
       "phase": 6,
       "bio": "Experimental scientist who discovered electromagnetic induction in 1831, the principle behind every electric generator and transformer. A changing magnetic field drives a current through a wire. He also showed that a conducting enclosure, now called a Faraday cage, shields its inside from electric fields.",
-      "funFact": "He had almost no formal schooling. He educated himself by reading the books he was binding as a teenage apprentice, and later started the Royal Institution's Christmas Lectures for young people (1825), which still run today."
+      "funFact": "He had almost no formal schooling. He educated himself by reading the books he was binding as a teenage apprentice, and later started the Royal Institution's Christmas Lectures for young people (1825), which still run today.",
+      "moves": {
+        "special1": {
+          "law": "Inside a closed conductor the electric field is zero",
+          "explain": "Charges on a conducting shell spread out until their fields cancel inside. In 1836 Faraday sat inside a charged metal-coated room to prove it.",
+          "labNote": "If lightning strikes a car or an aeroplane, the metal body acts as a Faraday cage and carries the current around the people inside. The mesh in a microwave oven's door is a Faraday cage too."
+        },
+        "special2": {
+          "law": "Faraday's law of induction: ε = −dΦ/dt",
+          "explain": "A changing magnetic field induces a voltage in a nearby conductor. Only change counts, which is why the Induction Coil hurts opponents who move through it and spares those who stand still.",
+          "labNote": "Wireless phone chargers use induction: a changing magnetic field in the pad induces a current in a coil inside the phone, with no wires touching."
+        },
+        "ultimate": {
+          "law": "EMF of a spinning coil: ε = N·B·A·ω",
+          "explain": "Spin a coil in a magnetic field and the flux through it changes continuously, driving a current. Faraday's copper disc of 1831 was the first electric generator.",
+          "labNote": "Most of the world's electricity, whether from coal, gas, nuclear, wind or hydro, comes from generators using Faraday's discovery: spin a magnet near a coil. Solar panels are the big exception."
+        }
+      }
     },
     {
       "id": "hooke",
@@ -138,7 +189,24 @@
       "origin": "England",
       "phase": 6,
       "bio": "Polymath who found that the force needed to stretch a spring is proportional to how far it is stretched (F = −kx). His book Micrographia (1665) amazed readers with microscope drawings, and he coined the word \"cell\" for the tiny compartments he saw in cork.",
-      "funFact": "He first announced his spring law as a scrambled Latin anagram, \"ceiiinosssttuv\", to claim priority. Decoded, it reads \"ut tensio, sic vis\": as the extension, so the force."
+      "funFact": "He first announced his spring law as a scrambled Latin anagram, \"ceiiinosssttuv\", to claim priority. Decoded, it reads \"ut tensio, sic vis\": as the extension, so the force.",
+      "moves": {
+        "special1": {
+          "law": "Hooke's law: F = −kx",
+          "explain": "A spring pulls back with a force proportional to how far it's stretched. The spring constant k measures its stiffness. That's why Spring Trap hits harder the farther Hooke walks away from it.",
+          "labNote": "Hooke's law reaches all the way down to atoms. The bonds between them act like tiny springs, which is why solids vibrate and how sound travels through them."
+        },
+        "special2": {
+          "law": "Elastic potential energy: E = ½·k·x²",
+          "explain": "The energy stored in a stretched spring grows with the square of the stretch: pull twice as far and you store four times the energy.",
+          "labNote": "The crack of a whip is a tiny sonic boom. Energy funnels into the thin tip until it moves faster than the speed of sound."
+        },
+        "ultimate": {
+          "law": "Past the yield strength σ_y, deformation becomes permanent",
+          "explain": "Below the elastic limit a material springs back. Beyond its yield strength it deforms permanently and, pushed further, fractures. Breaking Point goes past that limit.",
+          "labNote": "Weight for weight, spider silk can absorb more energy before it snaps than steel, which makes it one of the toughest materials known."
+        }
+      }
     },
     {
       "id": "schrodinger",

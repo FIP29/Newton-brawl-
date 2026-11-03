@@ -6,7 +6,15 @@ package com.newtonbrawl.engine.sim;
  * Position is the box centre.
  */
 public final class Projectile {
-    public enum Effect { NONE, GRAVITY_FLIP }
+    public enum Effect { NONE, GRAVITY_FLIP, BUOY }
+
+    /**
+     * How the projectile moves. LINEAR integrates velocity + acceleration. PENDULUM swings from a
+     * pivot under θ'' = −(g/L)·θ. ORBIT circles its caster under a central force a = −ω²·r
+     * (with ω chosen per moon so that T² ∝ r³, Kepler's third law). All three use only + − × ÷
+     * so Java and JavaScript stay bit-identical.
+     */
+    public enum Motion { LINEAR, PENDULUM, ORBIT }
 
     public final int id;
     public int owner;
@@ -26,6 +34,12 @@ public final class Projectile {
     public Effect effect = Effect.NONE;
     public int effectTicks;
     public boolean reflected;
+    public Motion motion = Motion.LINEAR;
+    // PENDULUM
+    public double pivotX, pivotY, length, theta, omega, gOverL;
+    // ORBIT (offsets relative to the anchor fighter's chest)
+    public int anchor = -1;
+    public double ox, oy, ovx, ovy, k;
     boolean dead;
 
     public Projectile(int id, int owner, String kind, String move) {
@@ -55,6 +69,7 @@ public final class Projectile {
 
     ProjectileView view() {
         return new ProjectileView(id, owner, kind, move, MatchSimulation.r(x), MatchSimulation.r(y),
-            MatchSimulation.r(vx), MatchSimulation.r(vy), w, h, currentDamage(), age, chains, reflected);
+            MatchSimulation.r(vx), MatchSimulation.r(vy), w, h, currentDamage(), age, chains, reflected,
+            MatchSimulation.r(pivotX), MatchSimulation.r(pivotY));
     }
 }

@@ -107,7 +107,7 @@ class MatchWebSocketIntegrationTest {
 
     private Client connect(Login who, String room) throws Exception {
         Client c = new Client();
-        c.session = new StandardWebSocketClient()
+        c.session = wsClient()
             .execute(c, "ws://localhost:" + port + "/ws/match?room=" + room + "&token=" + who.token())
             .get(5, TimeUnit.SECONDS);
         return c;
@@ -121,7 +121,8 @@ class MatchWebSocketIntegrationTest {
         Client p1 = connect(newton, room);
         JsonNode welcome = p1.awaitType("welcome");
         assertThat(welcome.get("slot").asInt()).isZero();
-        assertThat(welcome.get("roster")).hasSize(4);
+        assertThat(welcome.get("roster")).hasSize(8);
+        assertThat(welcome.at("/roster/0/id").asText()).isEqualTo("newton");
         Client p2 = connect(tesla, room);
         assertThat(p2.awaitType("welcome").get("slot").asInt()).isEqualTo(1);
 
@@ -135,7 +136,7 @@ class MatchWebSocketIntegrationTest {
         JsonNode start = p1.awaitType("start");
         assertThat(start.at("/fighters/0/id").asText()).isEqualTo("newton");
         assertThat(start.at("/fighters/1/id").asText()).isEqualTo("tesla");
-        assertThat(start.at("/arena/objectSpawns")).hasSize(3);
+        assertThat(start.at("/arena/objects").size()).isGreaterThanOrEqualTo(3);
         assertThat(start.get("tickRate").asInt()).isEqualTo(60);
         assertThat(start.get("fighters")).hasSize(2);
         assertThat(start.at("/players/1/username").asText()).isEqualTo("tesla");
@@ -236,9 +237,16 @@ class MatchWebSocketIntegrationTest {
 
     @Test
     void handshakeWithoutValidTokenIsRefused() {
-        assertThatThrownBy(() -> new StandardWebSocketClient()
+        assertThatThrownBy(() -> wsClient()
             .execute(new TextWebSocketHandler(), "ws://localhost:" + port + "/ws/match?room=ABCDE&token=bogus")
             .get(5, TimeUnit.SECONDS))
             .hasMessageContaining("401");
+    }
+
+    /** The JSR-356 client defaults to 8 KB messages; the welcome (full roster) is larger. Browsers have no such cap. */
+    static StandardWebSocketClient wsClient() {
+        jakarta.websocket.WebSocketContainer c = jakarta.websocket.ContainerProvider.getWebSocketContainer();
+        c.setDefaultMaxTextMessageBufferSize(1024 * 1024);
+        return new StandardWebSocketClient(c);
     }
 }

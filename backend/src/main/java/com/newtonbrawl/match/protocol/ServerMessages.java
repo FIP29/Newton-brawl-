@@ -1,6 +1,7 @@
 package com.newtonbrawl.match.protocol;
 
 import com.newtonbrawl.engine.fighter.FighterDefinition;
+import com.newtonbrawl.engine.sim.Arena;
 import com.newtonbrawl.engine.sim.FighterView;
 import com.newtonbrawl.engine.sim.GameEvent;
 import com.newtonbrawl.engine.sim.ObjectView;
@@ -29,7 +30,6 @@ public final class ServerMessages {
     public record PlayerInfo(int slot, long id, String username, String displayName, int elo, boolean connected,
                              String fighter, String skin) {}
 
-    public record ArenaInfo(String id, double width, double height, double gravity, List<Double> objectSpawns) {}
 
     /**
      * First message after joining: which slot you are, who's here, who can be picked, and which of
@@ -52,9 +52,9 @@ public final class ServerMessages {
     public record RulesInfo(int countdownTicks, int roundTimeTicks, int roundsToWin, int maxRounds, int roundEndTicks) {}
 
     /** Both players present: everything the client needs to render (and predict) the match. */
-    public record Start(String t, String matchId, MatchMode mode, int tickRate, RulesInfo rules, ArenaInfo arena,
+    public record Start(String t, String matchId, MatchMode mode, int tickRate, RulesInfo rules, Arena arena,
                         List<PlayerInfo> players, List<FighterDefinition> fighters) {
-        public Start(String matchId, MatchMode mode, int tickRate, RulesInfo rules, ArenaInfo arena,
+        public Start(String matchId, MatchMode mode, int tickRate, RulesInfo rules, Arena arena,
                      List<PlayerInfo> players, List<FighterDefinition> fighters) {
             this("start", matchId, mode, tickRate, rules, arena, players, fighters);
         }

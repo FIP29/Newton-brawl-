@@ -1,0 +1,133 @@
+{
+  "id": "galileo",
+  "name": "Galileo Galilei",
+  "title": "The Pendulum Speedster",
+  "fighterClass": "SPEEDSTER",
+  "color": "#ffa630",
+  "mass": 65,
+  "maxHealth": 920,
+  "walkSpeed": 480,
+  "jumpVelocity": 1220,
+  "airAcceleration": 2100,
+  "body": {
+    "width": 84,
+    "height": 190
+  },
+  "moves": {
+    "light": {
+      "name": "Quick Observation",
+      "startup": 3,
+      "active": 3,
+      "recovery": 8,
+      "damage": 35,
+      "hitstun": 13,
+      "hitstop": 4,
+      "hitbox": {
+        "x": 68,
+        "y": 128,
+        "w": 80,
+        "h": 36
+      },
+      "impulse": {
+        "x": 18000,
+        "y": 0
+      }
+    },
+    "heavy": {
+      "name": "Inclined Plane",
+      "startup": 10,
+      "active": 4,
+      "recovery": 16,
+      "damage": 95,
+      "hitstun": 24,
+      "hitstop": 9,
+      "hitbox": {
+        "x": 90,
+        "y": 108,
+        "w": 112,
+        "h": 58
+      },
+      "impulse": {
+        "x": 48000,
+        "y": 32000
+      }
+    },
+    "special1": {
+      "name": "Pendulum Swing",
+      "kind": "SPECIAL",
+      "equation": "T = 2π√(L / g)",
+      "startup": 8,
+      "active": 1,
+      "recovery": 14,
+      "cooldown": 70,
+      "damage": 70,
+      "hitstun": 20,
+      "hitstop": 7,
+      "impulse": {
+        "x": 30000,
+        "y": 12000
+      },
+      "params": {
+        "length": 110,
+        "gravity": 2600,
+        "offset": 70,
+        "pivotHeight": 290,
+        "amplitude": 1.15,
+        "size": 46,
+        "life": 78
+      }
+    },
+    "special2": {
+      "name": "Tower Drop",
+      "kind": "SPECIAL",
+      "equation": "a = g for every mass",
+      "startup": 12,
+      "active": 1,
+      "recovery": 18,
+      "cooldown": 110,
+      "damage": 40,
+      "hitstun": 18,
+      "hitstop": 6,
+      "impulse": {
+        "x": 12000,
+        "y": 6000
+      },
+      "params": {
+        "spread": 36,
+        "dropHeight": 780,
+        "heavySize": 44,
+        "lightSize": 22,
+        "gravity": 980,
+        "life": 240
+      }
+    },
+    "ultimate": {
+      "name": "Starry Messenger",
+      "kind": "ULTIMATE",
+      "equation": "T² ∝ a³",
+      "startup": 10,
+      "active": 1,
+      "recovery": 26,
+      "cooldown": 0,
+      "damage": 55,
+      "hitstun": 18,
+      "hitstop": 5,
+      "impulse": {
+        "x": 24000,
+        "y": 16000
+      },
+      "params": {
+        "r1": 70,
+        "w1": 8.976,
+        "r2": 92,
+        "w2": 5.9573,
+        "r3": 115,
+        "w3": 4.2627,
+        "r4": 138,
+        "w4": 3.2427,
+        "size": 30,
+        "life": 240
+      }
+    }
+  }
+}

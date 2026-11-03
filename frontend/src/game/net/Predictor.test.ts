@@ -7,7 +7,7 @@ import { Predictor } from './Predictor';
 
 const defs = [fighter('prototype'), fighter('prototype')] as [ReturnType<typeof fighter>, ReturnType<typeof fighter>];
 /** No beakers: these tests are about movement prediction. */
-const ARENA = { ...THE_LAB, objectSpawns: [] };
+const ARENA = { ...THE_LAB, objects: [] };
 
 /**
  * A miniature server: the TS simulation (parity-identical to Java) plus an input queue that, like

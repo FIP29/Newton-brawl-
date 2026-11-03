@@ -13,9 +13,13 @@ export class Projectile {
   halfLife = 0;
   electric = false;
   chains = 0; maxChains = 0; lastChainObject = -1;
-  effect: 'NONE' | 'GRAVITY_FLIP' = 'NONE';
+  effect: 'NONE' | 'GRAVITY_FLIP' | 'BUOY' = 'NONE';
   effectTicks = 0;
   reflected = false;
+  /** LINEAR integrates v and a; PENDULUM swings under θ'' = −(g/L)θ; ORBIT circles the anchor under a = −ω²r. */
+  motion: 'LINEAR' | 'PENDULUM' | 'ORBIT' = 'LINEAR';
+  pivotX = 0; pivotY = 0; length = 0; theta = 0; omega = 0; gOverL = 0;
+  anchor = -1; ox = 0; oy = 0; ovx = 0; ovy = 0; k = 0;
   dead = false;
 
   constructor(readonly id: number, public owner: number, readonly kind: string, readonly move: string) {}
@@ -36,7 +40,7 @@ export class Projectile {
   view(): ProjectileView {
     return { id: this.id, owner: this.owner, kind: this.kind, move: this.move, x: r(this.x), y: r(this.y),
       vx: r(this.vx), vy: r(this.vy), w: this.w, h: this.h, damage: this.currentDamage(), age: this.age,
-      chains: this.chains, reflected: this.reflected };
+      chains: this.chains, reflected: this.reflected, px: r(this.pivotX), py: r(this.pivotY) };
   }
 }
 
@@ -50,6 +54,8 @@ export class Zone {
   damage = 0; hitstun = 0; hitstop = 0;
   impulseX = 0; impulseY = 0;
   strength = 0; timeScale = 1.0;
+  /** INDUCTION: accumulated charge. SPRING: k and maximum stretch. */
+  acc = 0; springK = 0; maxStretch = 0;
   electric = false;
   hitMask = 0;
   dead = false;
@@ -68,7 +74,15 @@ export class Zone {
   }
 }
 
+import type { ObjectSpawn } from '../protocol';
+
 export class ArenaObject {
+  static fromSpawn(id: number, s: ObjectSpawn): ArenaObject {
+    const o = new ArenaObject(id, s.kind, s.metal, s.x, s.w, s.h);
+    o.y = s.y; o.vx = s.vx; o.vy = s.vy;
+    return o;
+  }
+
   y = 0; vx = 0; vy = 0;
   owner = -1;
 

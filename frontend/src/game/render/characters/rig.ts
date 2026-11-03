@@ -21,6 +21,8 @@ export interface Pose {
   /** 0..1 how "charged" the character looks (specials/ultimates). */
   power: number;
   handFOpen: boolean;
+  /** End of a whip/elastic lash held in the front hand (Hooke), or null. */
+  whip: P | null;
 }
 
 /** Animation state the rig keeps between frames. */
@@ -80,7 +82,8 @@ export function computePose(v: FighterView, def: FighterDefinition, look: Look, 
   let bodyRot = 0, headTilt = 0, power = 0;
   let expression: Pose['expression'] = 'calm';
   let handFOpen = look.stance !== 'boxer';
-  let lean = 0;
+  let lean = look.posture ?? 0;
+  let whip: P | null = null;
 
   switch (v.action) {
     case 'WALK': {
@@ -143,7 +146,16 @@ export function computePose(v: FighterView, def: FighterDefinition, look: Look, 
       expression = kind === 'NORMAL' ? 'focus' : 'shout';
       power = kind === 'ULTIMATE' ? 1 : kind === 'SPECIAL' ? (inStartup ? pS : 1 - pR) : 0;
 
-      if (kind === 'NORMAL') {
+      if (kind !== 'NORMAL' && m.hitbox) {
+        // A special with its own hitbox (Hooke's Elastic Whip): the arm cracks a lash to the hitbox tip.
+        const hb = m.hitbox;
+        const tip: P = { x: hb.x + hb.w * 0.5, y: -hb.y };
+        handF = inStartup ? lp(handF, { x: -H * 0.08, y: -H * 0.95 }, ease(pS)) : { x: H * 0.3, y: -H * 0.72 };
+        if (inActive) whip = tip;
+        else if (!inStartup) whip = lp(tip, handF, ease(pR));
+        lean = 0.12;
+        handFOpen = false;
+      } else if (kind === 'NORMAL') {
         const hb = m.hitbox!;
         const tip: P = { x: hb.x + hb.w * 0.4, y: -hb.y };
         const heavy = v.move === 'heavy';
@@ -200,7 +212,7 @@ export function computePose(v: FighterView, def: FighterDefinition, look: Look, 
     kneeB: ik(hipB, footB, thigh, shin, -1),
     footF, footB, bodyRot, headTilt,
     sway: Math.max(-1, Math.min(1, -v.vx * v.facing / 600)),
-    expression, power, handFOpen,
+    expression, power, handFOpen, whip,
   };
 }
 
@@ -220,6 +232,17 @@ function castPoseFor(id: string, move: string, H: number): { f: P; b: P; lean: n
     case 'einstein.special1': return { f: { x: H * 0.28, y: -H * 0.66 }, b: { x: -H * 0.22, y: -H * 0.62 }, lean: 0.3 };  // blur forward
     case 'einstein.special2': return { f: { x: H * 0.3, y: -H * 0.8 }, b: { x: H * 0.04, y: -H * 0.58 }, lean: 0.05 };   // conjures a clock
     case 'einstein.ultimate': return { f: { x: H * 0.32, y: -H * 0.68 }, b: { x: H * 0.3, y: -H * 0.62 }, lean: 0.14 };  // two-hand release
+    case 'galileo.special1':  return { f: { x: H * 0.26, y: -H * 0.98 }, b: { x: -H * 0.06, y: -H * 0.6 }, lean: -0.04 }; // sets the pendulum swinging
+    case 'galileo.special2':  return { f: { x: H * 0.08, y: -H * 1.12 }, b: { x: -H * 0.04, y: -H * 0.62 }, lean: -0.08 }; // points up the tower
+    case 'galileo.ultimate':  return { f: { x: H * 0.16, y: -H * 0.9 }, b: { x: H * 0.13, y: -H * 0.88 }, lean: -0.12 };  // telescope to the sky
+    case 'archimedes.special1': return { f: { x: H * 0.26, y: -H * 0.2 }, b: { x: H * 0.18, y: -H * 0.22 }, lean: 0.3, crouch: true }; // presses the lever
+    case 'archimedes.special2': return { f: { x: H * 0.3, y: -H * 0.62 }, b: { x: H * 0.26, y: -H * 0.56 }, lean: 0.06 };
+    case 'archimedes.ultimate': return { f: { x: H * 0.2, y: -H * 1.14 }, b: { x: -H * 0.16, y: -H * 1.1 }, lean: -0.1 }; // raises the mirror
+    case 'faraday.special1':  return { f: { x: H * 0.12, y: -H * 0.72 }, b: { x: H * 0.1, y: -H * 0.74 }, lean: 0 };     // braces inside the cage
+    case 'faraday.special2':  return { f: { x: H * 0.3, y: -H * 0.32 }, b: { x: -H * 0.04, y: -H * 0.58 }, lean: 0.22 }; // sets the coil
+    case 'faraday.ultimate':  return { f: { x: H * 0.3, y: -H * 0.82 }, b: { x: -H * 0.3, y: -H * 0.82 }, lean: 0 };     // spins up the dynamo
+    case 'hooke.special1':    return { f: { x: H * 0.22, y: -H * 0.06 }, b: { x: -H * 0.02, y: -H * 0.45 }, lean: 0.2, crouch: true };
+    case 'hooke.ultimate':    return { f: { x: H * 0.16, y: -H * 0.52 }, b: { x: -H * 0.1, y: -H * 0.52 }, lean: -0.12 }; // strains past the limit
     default: return { f: { x: H * 0.28, y: -H * 0.7 }, b: { x: H * 0.05, y: -H * 0.6 }, lean: 0.08 };
   }
 }

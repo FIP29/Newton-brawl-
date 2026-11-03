@@ -18,6 +18,16 @@ public final class Zone {
     public static final String BEAM = "BEAM";
     /** Strikes the opponent anywhere every {@link #interval} ticks. */
     public static final String FIELD = "FIELD";
+    /** Archimedes' lever: a BLAST launched from a plank (visual difference only). */
+    public static final String LEVER = "LEVER";
+    /** Archimedes' burning mirrors: a BLAST at a focal point (visual difference only). */
+    public static final String FOCUS = "FOCUS";
+    /** Faraday's induction coil: an opponent MOVING inside builds up induced current and takes damage (ε = −dΦ/dt). */
+    public static final String INDUCTION = "INDUCTION";
+    /** Faraday's dynamo: pulls toward its centre and shocks every {@link #interval} ticks while inside. */
+    public static final String STORM = "STORM";
+    /** Hooke's spring trap: launches whoever steps on it with force proportional to the stretch to Hooke (F = −kx). */
+    public static final String SPRING = "SPRING";
 
     public final int id;
     public final int owner;
@@ -31,6 +41,8 @@ public final class Zone {
     public int damage, hitstun, hitstop;
     public double impulseX, impulseY;
     public double strength, timeScale = 1.0;
+    /** INDUCTION: accumulated induced charge. SPRING: spring constant k. */
+    public double acc, springK, maxStretch;
     public boolean electric;
     int hitMask;
     boolean dead;

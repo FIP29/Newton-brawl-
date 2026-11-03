@@ -25,6 +25,8 @@ public final class EngineConstants {
     public static final double REAL_G = 980;
     /** While gravity is flipped a fighter "falls" upwards at this fraction of normal gravity. */
     public static final double FLIP_GRAVITY = -0.35;
+    /** Buoyancy: a floating fighter rises gently at this fraction of gravity (pointing up). */
+    public static final double BUOY_GRAVITY = -0.12;
     /** World freeze while an ULTIMATE's cinematic plays. */
     public static final int CINEMATIC_TICKS = 60;
     /** Arena objects (lab beakers) respond to impulses as if they had this mass. */

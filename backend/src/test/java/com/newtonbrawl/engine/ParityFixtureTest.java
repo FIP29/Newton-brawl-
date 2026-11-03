@@ -37,12 +37,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ParityFixtureTest {
 
     static final Path FIXTURE = Path.of("../frontend/src/game/sim/__fixtures__/parity.json");
-    static final int TICKS = 2400;
-    static final int CHECKPOINT_EVERY = 45;
+    static final int TICKS = 2000;
+    static final int CHECKPOINT_EVERY = 60;
     static final MatchRules RULES = MatchRules.STANDARD.withCountdown(30).withRoundTime(900);
-    /** Matchups covering every special and ultimate of the starter roster, in The Lab (with beakers). */
+    /** Matchups covering every special and ultimate, in both arenas: fighter A, fighter B, arena. */
     static final List<List<String>> MATCHUPS = List.of(
-        List.of("newton", "tesla"), List.of("curie", "einstein"), List.of("tesla", "curie"), List.of("einstein", "newton"));
+        List.of("newton", "tesla", "the-lab"), List.of("curie", "einstein", "the-lab"), List.of("tesla", "curie", "space-station"),
+        List.of("einstein", "newton", "space-station"), List.of("galileo", "archimedes", "space-station"),
+        List.of("faraday", "tesla", "the-lab"), List.of("hooke", "faraday", "space-station"), List.of("archimedes", "hooke", "the-lab"),
+        List.of("galileo", "curie", "the-lab"));
 
     @Test
     void fixtureMatchesCurrentEngine() throws Exception {
@@ -53,7 +56,8 @@ class ParityFixtureTest {
         java.util.Set<String> movesUsed = new java.util.TreeSet<>();
 
         for (List<String> pair : MATCHUPS) {
-            MatchSimulation sim = new MatchSimulation(Arena.THE_LAB, catalog.create(pair.get(0)), catalog.create(pair.get(1)), RULES);
+            Arena arena = Arena.byId(pair.get(2));
+            MatchSimulation sim = new MatchSimulation(arena, catalog.create(pair.get(0)), catalog.create(pair.get(1)), RULES);
             Bot[] bots = {new Bot(rng), new Bot(rng)};
             // One int per tick: held0 | pressed0 << 8 | held1 << 16 | pressed1 << 24.
             List<Integer> inputs = new ArrayList<>(TICKS);
@@ -73,9 +77,9 @@ class ParityFixtureTest {
                 if (sim.phase() == MatchPhase.FINISHED) break;
             }
             Map<String, Object> match = new LinkedHashMap<>();
-            match.put("arena", Arena.THE_LAB);
+            match.put("arena", arena);
             match.put("rules", RULES);
-            match.put("fighters", pair);
+            match.put("fighters", pair.subList(0, 2));
             match.put("inputs", inputs);
             match.put("checkpoints", checkpoints);
             matches.add(match);
@@ -86,7 +90,7 @@ class ParityFixtureTest {
 
         // Sanity: the bots must actually exercise the interesting mechanics.
         assertThat(eventTypes).contains(GameEvent.HIT, GameEvent.CAST, GameEvent.ULTIMATE, GameEvent.CLANK);
-        for (String f : List.of("newton", "tesla", "curie", "einstein")) {
+        for (String f : List.of("newton", "tesla", "curie", "einstein", "galileo", "archimedes", "faraday", "hooke")) {
             assertThat(movesUsed).contains(f + ".special1", f + ".special2", f + ".ultimate");
         }
 

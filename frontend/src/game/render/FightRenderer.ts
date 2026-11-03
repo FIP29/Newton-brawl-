@@ -2,6 +2,7 @@ import { Application, Container, Graphics, type Filter } from 'pixi.js';
 import { AdvancedBloomFilter, RGBSplitFilter, ShockwaveFilter } from 'pixi-filters';
 import type { ArenaInfo, FighterDefinition, FighterView, GameEvent, ObjectView, ProjectileView, ZoneView } from '../protocol';
 import { NEON } from '../../fx/palette';
+import { THE_LAB } from '../sim/constants';
 import { createFighterVisual, type FighterVisual } from './characters/FighterVisual';
 import { lookFor } from './characters/looks';
 import { TheLab } from './arena/TheLab';
@@ -60,7 +61,7 @@ export class FightRenderer {
   private quality: Quality = 'high';
   private slowFrames = 0;
 
-  private arena: ArenaInfo = { id: 'the-lab', width: 1600, height: 900, gravity: 2600, objectSpawns: [] };
+  private arena: ArenaInfo = THE_LAB;
   private defs: FighterDefinition[] = [];
   private colors: number[] = [NEON.newton, NEON.tesla];
   private cam = { x: 800, viewW: 1600, shake: 0, zoomKick: 0, focusX: null as number | null };

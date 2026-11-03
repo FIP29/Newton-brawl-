@@ -1,0 +1,124 @@
+{
+  "id": "archimedes",
+  "name": "Archimedes",
+  "title": "The Leverage Bruiser",
+  "fighterClass": "BRUISER",
+  "color": "#cd7f32",
+  "mass": 105,
+  "maxHealth": 1150,
+  "walkSpeed": 330,
+  "jumpVelocity": 1050,
+  "airAcceleration": 1500,
+  "body": {
+    "width": 104,
+    "height": 195
+  },
+  "moves": {
+    "light": {
+      "name": "Syracusan Jab",
+      "startup": 6,
+      "active": 3,
+      "recovery": 11,
+      "damage": 55,
+      "hitstun": 16,
+      "hitstop": 6,
+      "hitbox": {
+        "x": 80,
+        "y": 130,
+        "w": 92,
+        "h": 44
+      },
+      "impulse": {
+        "x": 28000,
+        "y": 0
+      }
+    },
+    "heavy": {
+      "name": "Screw Pump Uppercut",
+      "startup": 14,
+      "active": 5,
+      "recovery": 21,
+      "damage": 145,
+      "hitstun": 28,
+      "hitstop": 11,
+      "hitbox": {
+        "x": 104,
+        "y": 108,
+        "w": 132,
+        "h": 72
+      },
+      "impulse": {
+        "x": 70000,
+        "y": 42000
+      }
+    },
+    "special1": {
+      "name": "Lever Launch",
+      "kind": "SPECIAL",
+      "equation": "F₁·d₁ = F₂·d₂",
+      "startup": 10,
+      "active": 1,
+      "recovery": 22,
+      "cooldown": 120,
+      "damage": 60,
+      "hitstun": 26,
+      "hitstop": 9,
+      "impulse": {
+        "x": 6000,
+        "y": 24000
+      },
+      "params": {
+        "ratio": 4,
+        "offset": 150,
+        "w": 220,
+        "delay": 6,
+        "active": 6
+      }
+    },
+    "special2": {
+      "name": "Buoyancy Bubble",
+      "kind": "SPECIAL",
+      "equation": "F_b = ρ·V·g",
+      "startup": 12,
+      "active": 1,
+      "recovery": 18,
+      "cooldown": 240,
+      "damage": 20,
+      "hitstun": 10,
+      "hitstop": 5,
+      "impulse": {
+        "x": 4000,
+        "y": 8000
+      },
+      "params": {
+        "offset": 80,
+        "height": 110,
+        "size": 60,
+        "speed": 260,
+        "life": 160,
+        "floatTicks": 150
+      }
+    },
+    "ultimate": {
+      "name": "Burning Mirrors",
+      "kind": "ULTIMATE",
+      "equation": "1/f = 1/dₒ + 1/dᵢ",
+      "startup": 10,
+      "active": 1,
+      "recovery": 30,
+      "cooldown": 0,
+      "damage": 260,
+      "hitstun": 38,
+      "hitstop": 14,
+      "impulse": {
+        "x": 30000,
+        "y": 50000
+      },
+      "params": {
+        "w": 110,
+        "delay": 24,
+        "active": 24
+      }
+    }
+  }
+}

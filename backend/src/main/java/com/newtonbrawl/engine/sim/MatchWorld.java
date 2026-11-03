@@ -16,4 +16,7 @@ public interface MatchWorld {
 
     /** Moves a fighter horizontally, clamped to the arena walls (teleports, dashes). */
     void teleport(FighterState s, double x);
+
+    /** Hooke's Breaking Point: destroys the victim's projectiles and zones and blasts every prop away from (x, y). */
+    void shatter(int victimSlot, int sourceSlot, double x, double y, double speed);
 }

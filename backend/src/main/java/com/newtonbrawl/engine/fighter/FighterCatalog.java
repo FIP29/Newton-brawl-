@@ -12,7 +12,11 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.function.Function;
 
+import com.newtonbrawl.engine.fighter.roster.Archimedes;
 import com.newtonbrawl.engine.fighter.roster.Curie;
+import com.newtonbrawl.engine.fighter.roster.Faraday;
+import com.newtonbrawl.engine.fighter.roster.Galileo;
+import com.newtonbrawl.engine.fighter.roster.Hooke;
 import com.newtonbrawl.engine.fighter.roster.Einstein;
 import com.newtonbrawl.engine.fighter.roster.Newton;
 import com.newtonbrawl.engine.fighter.roster.Tesla;
@@ -32,17 +36,23 @@ public final class FighterCatalog {
         FACTORIES.put(Tesla.ID, Tesla::new);
         FACTORIES.put(Curie.ID, Curie::new);
         FACTORIES.put(Einstein.ID, Einstein::new);
+        // Unlockable roster (Phase 6)
+        FACTORIES.put(Galileo.ID, Galileo::new);
+        FACTORIES.put(Archimedes.ID, Archimedes::new);
+        FACTORIES.put(Faraday.ID, Faraday::new);
+        FACTORIES.put(Hooke.ID, Hooke::new);
         // Training dummy with only light/heavy; used by tests, not selectable.
         FACTORIES.put(PrototypeFighter.ID, PrototypeFighter::new);
     }
 
-    /** Fighters players can pick, in roster order. */
+    /** Starter fighters every player can pick (others must be unlocked), in roster order. */
     public static final java.util.List<String> PLAYABLE = java.util.List.of(Newton.ID, Tesla.ID, Curie.ID, Einstein.ID);
 
     private final Map<String, FighterDefinition> definitions;
 
     private FighterCatalog(Map<String, FighterDefinition> definitions) {
-        this.definitions = Map.copyOf(definitions);
+        // Keep roster order (Map.copyOf would scramble it).
+        this.definitions = java.util.Collections.unmodifiableMap(new LinkedHashMap<>(definitions));
     }
 
     /** Loads every registered fighter's JSON from {@code classpath:/fighters/}. */

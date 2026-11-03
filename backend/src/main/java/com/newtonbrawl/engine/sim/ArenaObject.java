@@ -22,6 +22,13 @@ public final class ArenaObject {
         this.h = h;
     }
 
+    public ArenaObject(int id, Arena.ObjectSpawn s) {
+        this(id, s.kind(), s.metal(), s.x(), s.w(), s.h());
+        this.y = s.y();
+        this.vx = s.vx();
+        this.vy = s.vy();
+    }
+
     Aabb box() {
         return new Aabb(x - w / 2, y, w, h);
     }

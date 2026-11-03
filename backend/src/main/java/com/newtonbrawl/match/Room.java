@@ -17,6 +17,8 @@ final class Room {
     /** For matchmade rooms: the two player ids allowed in, by slot. Null for private rooms. */
     final long[] reserved;
     MatchStats stats;
+    /** Chosen when the match starts. */
+    com.newtonbrawl.engine.sim.Arena arena = com.newtonbrawl.engine.sim.Arena.THE_LAB;
     final Instant createdAt = Instant.now();
 
     final Seat[] seats = new Seat[2];

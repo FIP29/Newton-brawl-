@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Application, Container, Graphics, Text } from 'pixi.js';
-import { FIGHTERS, PLAYABLE } from '../game/data/fighters';
+import { FIGHTERS, ROSTER } from '../game/data/fighters';
 import { ProceduralFighterVisual, idleView } from '../game/render/characters/FighterVisual';
 import type { FighterView } from '../game/protocol';
 import { SKINS } from '../game/render/characters/looks';
@@ -26,7 +26,8 @@ export function CharacterPreview() {
       const world = new Container();
       world.scale.set(1, -1);
       app.stage.addChild(world);
-      PLAYABLE.forEach((id, row) => {
+      const ids = location.search.includes('new') ? ROSTER.slice(4) : ROSTER.slice(0, 4);
+      ids.forEach((id, row) => {
         poses.forEach(([name, make], col) => {
           const def = FIGHTERS[id];
           const v = new ProceduralFighterVisual(def);

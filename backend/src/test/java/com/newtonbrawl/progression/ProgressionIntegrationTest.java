@@ -104,7 +104,7 @@ class ProgressionIntegrationTest {
 
     private Client connect(Login who, String room) throws Exception {
         Client c = new Client();
-        c.session = new StandardWebSocketClient()
+        c.session = wsClient()
             .execute(c, "ws://localhost:" + port + "/ws/match?room=" + room + "&token=" + who.token())
             .get(5, TimeUnit.SECONDS);
         return c;
@@ -177,12 +177,12 @@ class ProgressionIntegrationTest {
             if (p.get("id").asText().equals("newton")) newton = p;
             if (p.get("id").asText().equals("galileo")) galileo = p;
         }
-        assertThat(codex.get("totalCount").asInt()).isEqualTo(16 + 12);
+        assertThat(codex.get("totalCount").asInt()).isEqualTo(16 + 24);
         assertThat(newton.get("unlocked").asBoolean()).isTrue();
         assertThat(newton.get("bio").asText()).contains("Principia");
         assertThat(galileo.get("unlocked").asBoolean()).isFalse();
         assertThat(galileo.get("bio").isNull()).isTrue();
-        assertThat(galileo.get("available").asBoolean()).isFalse();
+        assertThat(galileo.get("available").asBoolean()).isTrue();
 
         // Unlock progress: Galileo needs 3 matches.
         JsonNode status = call(HttpMethod.GET, "/api/unlocks", ada);
@@ -211,7 +211,7 @@ class ProgressionIntegrationTest {
                 // Third match: Galileo (3 matches) for both; Newton skin (3 wins as Newton) for the winner only.
                 assertThat(r[0].newUnlocks()).extracting(u -> u.id()).contains("fighter.galileo", "skin.newton.royal-society");
                 assertThat(r[1].newUnlocks()).extracting(u -> u.id()).containsExactly("fighter.galileo");
-                assertThat(r[0].newUnlocks().stream().filter(u -> u.id().equals("fighter.galileo")).findFirst().get().available()).isFalse();
+                assertThat(r[0].newUnlocks().stream().filter(u -> u.id().equals("fighter.galileo")).findFirst().get().available()).isTrue();
             }
         }
         assertThat(first[0].mode()).isEqualTo(MatchMode.CASUAL);
@@ -224,7 +224,15 @@ class ProgressionIntegrationTest {
 
         assertThat(unlocks.canUse(a.id(), "newton", "royal-society")).isTrue();
         assertThat(unlocks.canUse(b.id(), "newton", "royal-society")).isFalse();
-        assertThat(unlocks.canUse(a.id(), "galileo", null)).isFalse();     // unlocked but not in this build yet
+        assertThat(unlocks.canUse(a.id(), "galileo", null)).isTrue();      // unlocked after 3 matches, and playable since Phase 6
+        assertThat(unlocks.canUse(b.id(), "hooke", null)).isFalse();       // needs 5 wins
         assertThat(unlocks.usable(a.id()).get("newton")).containsExactly("classic", "royal-society");
+    }
+
+    /** The JSR-356 client defaults to 8 KB messages; the welcome (full roster) is larger. Browsers have no such cap. */
+    static StandardWebSocketClient wsClient() {
+        jakarta.websocket.WebSocketContainer c = jakarta.websocket.ContainerProvider.getWebSocketContainer();
+        c.setDefaultMaxTextMessageBufferSize(1024 * 1024);
+        return new StandardWebSocketClient(c);
     }
 }

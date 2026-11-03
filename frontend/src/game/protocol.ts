@@ -78,23 +78,29 @@ export interface FighterView {
   cd2: number;
   timeAcc: number;
   objHits: number;
+  buoy: number;
+  cage: number;
 }
 
 export interface ProjectileView {
   id: number; owner: number; kind: string; move: string;
   x: number; y: number; vx: number; vy: number; w: number; h: number;
   damage: number; age: number; chains: number; reflected: boolean;
+  /** Pendulum pivot (0 for other motions). */
+  px: number; py: number;
 }
 
 export interface ZoneView {
-  id: number; owner: number; kind: 'BUBBLE' | 'PULL' | 'TRAP' | 'BLAST' | 'BEAM' | 'FIELD'; move: string;
+  id: number; owner: number;
+  kind: 'BUBBLE' | 'PULL' | 'TRAP' | 'BLAST' | 'BEAM' | 'FIELD' | 'LEVER' | 'FOCUS' | 'INDUCTION' | 'STORM' | 'SPRING';
+  move: string;
   x: number; y: number; w: number; h: number;
   age: number; life: number; delay: number; active: number; armed: boolean;
 }
 
 export interface ObjectView { id: number; kind: string; x: number; y: number; vx: number; vy: number; w: number; h: number; owner: number }
 
-export type GameEventType = 'HIT' | 'REFLECT' | 'ULTIMATE' | 'CAST' | 'ARC' | 'CLANK';
+export type GameEventType = 'HIT' | 'REFLECT' | 'ULTIMATE' | 'CAST' | 'ARC' | 'CLANK' | 'BLOCK' | 'SHATTER';
 
 /** Mirrors com.newtonbrawl.engine.sim.GameEvent. */
 export interface GameEvent { type: GameEventType; attacker: number; defender: number; move: string | null; damage: number; x: number; y: number }
@@ -106,7 +112,13 @@ export interface PlayerInfo {
   skin: string;
 }
 
-export interface ArenaInfo { id: string; width: number; height: number; gravity: number; objectSpawns: number[] }
+export interface ObjectSpawn { kind: string; x: number; y: number; vx: number; vy: number; w: number; h: number; metal: boolean }
+
+/** Mirrors com.newtonbrawl.engine.sim.Arena. */
+export interface ArenaInfo {
+  id: string; name: string; width: number; height: number; gravity: number;
+  objectGravity: number; bounce: number; wallBounce: number; objects: ObjectSpawn[];
+}
 
 export interface MatchRules { countdownTicks: number; roundTimeTicks: number; roundsToWin: number; maxRounds: number; roundEndTicks: number }
 
