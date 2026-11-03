@@ -177,7 +177,7 @@ class ProgressionIntegrationTest {
             if (p.get("id").asText().equals("newton")) newton = p;
             if (p.get("id").asText().equals("galileo")) galileo = p;
         }
-        assertThat(codex.get("totalCount").asInt()).isEqualTo(16 + 24);
+        assertThat(codex.get("totalCount").asInt()).isEqualTo(16 + 36);
         assertThat(newton.get("unlocked").asBoolean()).isTrue();
         assertThat(newton.get("bio").asText()).contains("Principia");
         assertThat(galileo.get("unlocked").asBoolean()).isFalse();
@@ -226,6 +226,9 @@ class ProgressionIntegrationTest {
         assertThat(unlocks.canUse(b.id(), "newton", "royal-society")).isFalse();
         assertThat(unlocks.canUse(a.id(), "galileo", null)).isTrue();      // unlocked after 3 matches, and playable since Phase 6
         assertThat(unlocks.canUse(b.id(), "hooke", null)).isFalse();       // needs 5 wins
+        assertThat(unlocks.canUse(a.id(), "doppler", null)).isFalse();     // Phase 7: implemented, but needs 25 matches
+        assertThat(unlocks.statusFor(a.id())).filteredOn(u -> u.fighter().equals("schrodinger"))
+            .singleElement().satisfies(u -> assertThat(u.available()).isTrue());
         assertThat(unlocks.usable(a.id()).get("newton")).containsExactly("classic", "royal-society");
     }
 

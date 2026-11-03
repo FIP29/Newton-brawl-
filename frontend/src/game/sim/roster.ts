@@ -361,7 +361,210 @@ const hooke: Trigger = (w, self, opp, moveId, m) => {
   }
 };
 
-const TRIGGERS: Record<string, Trigger> = { newton, tesla, curie, einstein, galileo, archimedes, faraday, hooke };
+/** Schrödinger: Superposition (ghost copy), Schrödinger's Cat (alive or dead), ULTIMATE Particle in a Box. */
+const schrodinger: Trigger = (w, self, _opp, moveId, m) => {
+  switch (moveId) {
+    case 'special1': {
+      w.removeZones(self.slot, 'GHOST');
+      const half = self.def.body.width / 2;
+      const ghost = zone(w, self, 'GHOST', moveId, m);
+      ghost.x = Math.max(half, Math.min(w.arena.width - half, self.x + self.facing * param(m, 'offset', 260)));
+      ghost.y = self.def.body.height / 2;
+      ghost.w = self.def.body.width;
+      ghost.h = self.def.body.height;
+      ghost.life = int(param(m, 'life', 240));
+      ghost.arm = int(param(m, 'invuln', 24));
+      w.spawnZone(ghost);
+      break;
+    }
+    case 'special2': {
+      w.removeZones(self.slot, 'CATBOX');
+      const box = zone(w, self, 'CATBOX', moveId, m);
+      box.x = Math.max(40, Math.min(w.arena.width - 40, self.x + self.facing * param(m, 'offset', 190)));
+      box.w = 70;
+      box.h = 70;
+      box.y = box.h / 2;
+      box.delay = int(param(m, 'seal', 50));
+      box.life = box.delay + 2;
+      box.source = m;
+      w.spawnZone(box);
+      break;
+    }
+    case 'ultimate': {
+      const width = w.arena.width, height = w.arena.height;
+      for (const n of [3, 2]) {
+        for (let k = 0; k < n; k++) {
+          const wave = zone(w, self, 'WAVE', moveId, m);
+          wave.x = width * (2 * k + 1) / (2.0 * n);
+          wave.y = height / 2;
+          wave.w = width / n * param(m, 'width', 0.6);
+          wave.h = height;
+          wave.delay = int(param(m, n === 3 ? 'delay3' : 'delay2', n === 3 ? 16 : 70));
+          wave.active = int(param(m, 'active', 7));
+          wave.life = wave.delay + wave.active + 2;
+          wave.strength = n;
+          w.spawnZone(wave);
+        }
+      }
+      break;
+    }
+  }
+};
+
+/** Heisenberg: Uncertain Position (random blink), Measurement (random knockback), ULTIMATE Uncertainty Principle. */
+const heisenberg: Trigger = (w, self, opp, moveId, m) => {
+  switch (moveId) {
+    case 'special1': {
+      const distances = [param(m, 'd1', 170), param(m, 'd2', 270), param(m, 'd3', 370)];
+      w.teleport(self, self.x + self.facing * distances[w.random(3)]);
+      self.invulnTicks = int(param(m, 'invuln', 10));
+      const arrive = zone(w, self, 'BURST', moveId, m);
+      arrive.x = self.x;
+      arrive.y = self.def.body.height / 2;
+      arrive.w = param(m, 'w', 150);
+      arrive.h = self.def.body.height;
+      arrive.delay = 1;
+      arrive.active = 4;
+      arrive.life = 7;
+      w.spawnZone(arrive);
+      break;
+    }
+    case 'special2': {
+      const photon = projectile(w, self, 'photon', moveId, m);
+      photon.x = self.x + self.facing * param(m, 'offset', 60);
+      photon.y = param(m, 'height', 120);
+      photon.w = 44;
+      photon.h = 24;
+      photon.vx = self.facing * param(m, 'speed', 1400);
+      photon.life = int(param(m, 'life', 55));
+      photon.effect = 'MEASURE';
+      w.spawnProjectile(photon);
+      break;
+    }
+    case 'ultimate': {
+      opp.scrambleTicks = int(param(m, 'scramble', 300));
+      const field = zone(w, self, 'UNCERTAIN', moveId, m);
+      field.x = w.arena.width / 2;
+      field.y = w.arena.height / 2;
+      field.w = w.arena.width;
+      field.h = w.arena.height;
+      field.life = int(param(m, 'life', 300));
+      field.interval = int(param(m, 'interval', 20));
+      w.spawnZone(field);
+      break;
+    }
+  }
+};
+
+function singularity(w: MatchWorld, self: FighterState, moveId: string, m: MoveDefinition, width: number, height: number): Zone {
+  const hole = zone(w, self, 'SINGULARITY', moveId, m);
+  const aw = w.arena.width;
+  hole.x = Math.max(width / 4, Math.min(aw - width / 4, self.x + self.facing * param(m, 'offset', 320)));
+  hole.w = width;
+  hole.h = height;
+  hole.strength = param(m, 'pull', 170);
+  hole.core = param(m, 'core', 42);
+  hole.interval = int(param(m, 'interval', 30));
+  hole.life = int(param(m, 'life', 240));
+  return hole;
+}
+
+/** Hawking: Hawking Radiation (evaporating mini black hole), Event Horizon, ULTIMATE Supermassive Black Hole. */
+const hawking: Trigger = (w, self, _opp, moveId, m) => {
+  switch (moveId) {
+    case 'special1': {
+      const hole = projectile(w, self, 'minihole', moveId, m);
+      hole.x = self.x + self.facing * param(m, 'offset', 70);
+      hole.y = param(m, 'height', 130);
+      hole.w = hole.h = hole.size0 = param(m, 'size', 60);
+      hole.minSize = param(m, 'minSize', 14);
+      hole.life = int(param(m, 'life', 100));
+      hole.shrink = (hole.size0 - hole.minSize) / hole.life;
+      hole.vx = self.facing * param(m, 'speed', 380);
+      w.spawnProjectile(hole);
+      break;
+    }
+    case 'special2': {
+      w.removeZones(self.slot, 'SINGULARITY');
+      const hole = singularity(w, self, moveId, m, param(m, 'size', 340), param(m, 'size', 340));
+      hole.y = param(m, 'height', 150);
+      w.spawnZone(hole);
+      break;
+    }
+    case 'ultimate': {
+      const hole = singularity(w, self, moveId, m, param(m, 'w', 900), param(m, 'h', 640));
+      hole.y = param(m, 'height', 280);
+      w.spawnZone(hole);
+      const burst = zone(w, self, 'BURST', moveId, m);
+      burst.x = hole.x;
+      burst.y = hole.y;
+      burst.w = burst.h = param(m, 'burstSize', 520);
+      burst.damage = int(param(m, 'burstDamage', 120));
+      burst.impulseX = param(m, 'burstX', 36000);
+      burst.impulseY = param(m, 'burstY', 42000);
+      burst.hitstun = 30;
+      burst.hitstop = 12;
+      burst.delay = hole.life;
+      burst.active = 6;
+      burst.life = burst.delay + burst.active + 2;
+      w.spawnZone(burst);
+      break;
+    }
+  }
+};
+
+/** Doppler: Doppler Shift (f' = f(c+v_o)/(c−v_s)), Sonic Boom, ULTIMATE Blueshift Barrage. */
+const doppler: Trigger = (w, self, _opp, moveId, m) => {
+  switch (moveId) {
+    case 'special1': {
+      const wave = projectile(w, self, 'soundwave', moveId, m);
+      wave.x = self.x + self.facing * param(m, 'offset', 70);
+      wave.y = param(m, 'height', 120);
+      wave.w = param(m, 'w', 50);
+      wave.h = param(m, 'h', 140);
+      wave.waveSpeed = param(m, 'speed', 820);
+      wave.vx = self.facing * wave.waveSpeed;
+      wave.vs = self.facing * self.vx;
+      wave.life = int(param(m, 'life', 70));
+      wave.effect = 'DOPPLER';
+      w.spawnProjectile(wave);
+      break;
+    }
+    case 'special2': {
+      const start = self.x;
+      w.teleport(self, start + self.facing * param(m, 'distance', 320));
+      self.invulnTicks = int(param(m, 'invuln', 10));
+      const boom = zone(w, self, 'BOOM', moveId, m);
+      boom.x = (start + self.x) / 2;
+      boom.w = Math.abs(self.x - start) + 80;
+      boom.h = self.def.body.height;
+      boom.y = boom.h / 2;
+      boom.delay = int(param(m, 'delay', 5));
+      boom.active = int(param(m, 'active', 5));
+      boom.life = boom.delay + boom.active + 2;
+      w.spawnZone(boom);
+      break;
+    }
+    case 'ultimate': {
+      const waves = int(param(m, 'waves', 6));
+      const spacing = param(m, 'lambda', 140) * (1 - param(m, 'mach', 0.6));
+      for (let i = 0; i < waves; i++) {
+        const front = projectile(w, self, 'wavefront', moveId, m);
+        front.x = self.x + self.facing * (80 + i * spacing);
+        front.y = 120;
+        front.w = 40;
+        front.h = 170;
+        front.vx = self.facing * param(m, 'speed', 900);
+        front.life = int(param(m, 'life', 80));
+        w.spawnProjectile(front);
+      }
+      break;
+    }
+  }
+};
+
+const TRIGGERS: Record<string, Trigger> = { newton, tesla, curie, einstein, galileo, archimedes, faraday, hooke,
+  schrodinger, heisenberg, hawking, doppler };
 
 export function onTrigger(w: MatchWorld, self: FighterState, opp: FighterState, moveId: string, m: MoveDefinition) {
   TRIGGERS[self.def.id]?.(w, self, opp, moveId, m);

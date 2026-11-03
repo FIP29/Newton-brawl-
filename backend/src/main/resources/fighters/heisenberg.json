@@ -1,0 +1,121 @@
+{
+  "id": "heisenberg",
+  "name": "Werner Heisenberg",
+  "title": "The Uncertain Speedster",
+  "fighterClass": "SPEEDSTER",
+  "color": "#ff3df2",
+  "mass": 64,
+  "maxHealth": 900,
+  "walkSpeed": 470,
+  "jumpVelocity": 1200,
+  "airAcceleration": 2200,
+  "body": {
+    "width": 82,
+    "height": 184
+  },
+  "moves": {
+    "light": {
+      "name": "Quantum Jab",
+      "startup": 3,
+      "active": 3,
+      "recovery": 8,
+      "damage": 34,
+      "hitstun": 13,
+      "hitstop": 4,
+      "hitbox": {
+        "x": 64,
+        "y": 122,
+        "w": 78,
+        "h": 34
+      },
+      "impulse": {
+        "x": 17000,
+        "y": 0
+      }
+    },
+    "heavy": {
+      "name": "Matrix Mechanics",
+      "startup": 9,
+      "active": 4,
+      "recovery": 16,
+      "damage": 96,
+      "hitstun": 24,
+      "hitstop": 9,
+      "hitbox": {
+        "x": 86,
+        "y": 106,
+        "w": 108,
+        "h": 56
+      },
+      "impulse": {
+        "x": 47000,
+        "y": 33000
+      }
+    },
+    "special1": {
+      "name": "Uncertain Position",
+      "kind": "SPECIAL",
+      "equation": "Δx·Δp ≥ ħ/2",
+      "startup": 6,
+      "active": 1,
+      "recovery": 12,
+      "cooldown": 60,
+      "damage": 45,
+      "hitstun": 16,
+      "hitstop": 6,
+      "impulse": {
+        "x": 24000,
+        "y": 18000
+      },
+      "params": {
+        "d1": 170,
+        "d2": 270,
+        "d3": 370,
+        "invuln": 10,
+        "w": 150
+      }
+    },
+    "special2": {
+      "name": "Measurement",
+      "kind": "SPECIAL",
+      "equation": "Δp ≥ ħ / (2Δx)",
+      "startup": 9,
+      "active": 1,
+      "recovery": 14,
+      "cooldown": 95,
+      "damage": 50,
+      "hitstun": 22,
+      "hitstop": 8,
+      "impulse": {
+        "x": 52000,
+        "y": 30000
+      },
+      "params": {
+        "speed": 1400,
+        "offset": 60,
+        "height": 120,
+        "life": 55
+      }
+    },
+    "ultimate": {
+      "name": "Uncertainty Principle",
+      "kind": "ULTIMATE",
+      "equation": "ΔE·Δt ≥ ħ/2",
+      "startup": 10,
+      "active": 1,
+      "recovery": 26,
+      "damage": 38,
+      "hitstun": 16,
+      "hitstop": 5,
+      "impulse": {
+        "x": 22000,
+        "y": 16000
+      },
+      "params": {
+        "scramble": 300,
+        "life": 300,
+        "interval": 20
+      }
+    }
+  }
+}

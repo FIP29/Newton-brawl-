@@ -12,6 +12,8 @@ public final class ArenaObject {
     public final double w, h;
     /** Slot that last sent it flying (it can hurt the other slot), or -1. */
     public int owner = -1;
+    /** Where it started (props swallowed by a gravity well reappear here); null for ad-hoc objects. */
+    final Arena.ObjectSpawn spawn;
 
     public ArenaObject(int id, String kind, boolean metal, double x, double w, double h) {
         this.id = id;
@@ -20,13 +22,26 @@ public final class ArenaObject {
         this.x = x;
         this.w = w;
         this.h = h;
+        this.spawn = null;
     }
 
     public ArenaObject(int id, Arena.ObjectSpawn s) {
-        this(id, s.kind(), s.metal(), s.x(), s.w(), s.h());
-        this.y = s.y();
-        this.vx = s.vx();
-        this.vy = s.vy();
+        this.id = id;
+        this.kind = s.kind();
+        this.metal = s.metal();
+        this.w = s.w();
+        this.h = s.h();
+        this.spawn = s;
+        respawn();
+    }
+
+    /** Back to the starting position and velocity. */
+    void respawn() {
+        x = spawn.x();
+        y = spawn.y();
+        vx = spawn.vx();
+        vy = spawn.vy();
+        owner = -1;
     }
 
     Aabb box() {

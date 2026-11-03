@@ -1,5 +1,5 @@
 /** Mirrors engine.sim.Projectile / Zone / ArenaObject field-for-field (see the Java docs for semantics). */
-import type { ObjectView, ProjectileView, ZoneView } from '../protocol';
+import type { MoveDefinition, ObjectView, ProjectileView, ZoneView } from '../protocol';
 import { centered, type Aabb } from './aabb';
 import { OBJECT_INTERACT_HEIGHT } from './constants';
 import { r } from './FighterState';
@@ -13,13 +13,17 @@ export class Projectile {
   halfLife = 0;
   electric = false;
   chains = 0; maxChains = 0; lastChainObject = -1;
-  effect: 'NONE' | 'GRAVITY_FLIP' | 'BUOY' = 'NONE';
+  effect: 'NONE' | 'GRAVITY_FLIP' | 'BUOY' | 'MEASURE' | 'DOPPLER' = 'NONE';
   effectTicks = 0;
   reflected = false;
   /** LINEAR integrates v and a; PENDULUM swings under θ'' = −(g/L)θ; ORBIT circles the anchor under a = −ω²r. */
   motion: 'LINEAR' | 'PENDULUM' | 'ORBIT' = 'LINEAR';
   pivotX = 0; pivotY = 0; length = 0; theta = 0; omega = 0; gOverL = 0;
   anchor = -1; ox = 0; oy = 0; ovx = 0; ovy = 0; k = 0;
+  /** Evaporating black hole: shrinks by `shrink` per tick to `minSize`; damage ∝ size0 / size. */
+  shrink = 0; size0 = 0; minSize = 0;
+  /** DOPPLER: wave speed c and source velocity toward the target at emission. */
+  waveSpeed = 0; vs = 0;
   dead = false;
 
   constructor(readonly id: number, public owner: number, readonly kind: string, readonly move: string) {}
@@ -28,6 +32,7 @@ export class Projectile {
 
   /** Exact halving every half-life, linear in between (no pow, so Java and JS agree bit-for-bit). */
   currentDamage(): number {
+    if (this.size0 > 0) return Math.round(this.damage * this.size0 / this.w);
     if (this.halfLife <= 0) return this.damage;
     const n = Math.min(Math.trunc(this.age / this.halfLife), 30);
     const frac = (this.age % this.halfLife) / this.halfLife;
@@ -56,7 +61,11 @@ export class Zone {
   strength = 0; timeScale = 1.0;
   /** INDUCTION: accumulated charge. SPRING: k and maximum stretch. */
   acc = 0; springK = 0; maxStretch = 0;
+  /** SINGULARITY event-horizon radius; GHOST uses `arm` as post-dodge invulnerability. */
+  core = 0;
   electric = false;
+  /** The move that created it (CATBOX reads its outcome parameters from here). */
+  source: MoveDefinition | null = null;
   hitMask = 0;
   dead = false;
 
@@ -79,12 +88,20 @@ import type { ObjectSpawn } from '../protocol';
 export class ArenaObject {
   static fromSpawn(id: number, s: ObjectSpawn): ArenaObject {
     const o = new ArenaObject(id, s.kind, s.metal, s.x, s.w, s.h);
-    o.y = s.y; o.vx = s.vx; o.vy = s.vy;
+    o.spawn = s;
+    o.respawn();
     return o;
   }
 
   y = 0; vx = 0; vy = 0;
   owner = -1;
+  spawn: ObjectSpawn | null = null;
+
+  respawn() {
+    const s = this.spawn!;
+    this.x = s.x; this.y = s.y; this.vx = s.vx; this.vy = s.vy;
+    this.owner = -1;
+  }
 
   constructor(readonly id: number, readonly kind: string, readonly metal: boolean, public x: number,
               readonly w: number, readonly h: number) {}

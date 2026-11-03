@@ -129,6 +129,8 @@ export class Predictor implements StepHost {
   removeZones() {}
   teleport(s: FighterState, x: number) { s.x = x; clampToWalls(this.arena, s); }
   shatter() {}
+  /** Randomness only matters for hits, which the server decides; teleport guesses are corrected on the next snapshot. */
+  random() { return 0; }
   startUltimate() { this.cinematic = CINEMATIC_TICKS; }
   event() {}
 }

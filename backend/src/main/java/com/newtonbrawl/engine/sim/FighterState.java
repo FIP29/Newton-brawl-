@@ -40,6 +40,8 @@ public final class FighterState {
     int buoyTicks;
     /** Faraday Cage: immune to electric attacks. */
     int cageTicks;
+    /** Heisenberg's Uncertainty Principle: left and right are swapped. */
+    int scrambleTicks;
     int reflectTicks;
     int invulnTicks;
     final int[] cooldowns = new int[2];
@@ -77,6 +79,7 @@ public final class FighterState {
         flipTicks = 0;
         buoyTicks = 0;
         cageTicks = 0;
+        scrambleTicks = 0;
         reflectTicks = 0;
         invulnTicks = 0;
         cooldowns[0] = 0;
@@ -151,7 +154,7 @@ public final class FighterState {
     FighterView view() {
         return new FighterView(r(x), r(y), r(vx), r(vy), facing, health, energy, action, moveId, moveFrame,
             grounded, stunTicks, moveConnected, bufferedPresses, bufferAge,
-            flipTicks, reflectTicks, invulnTicks, cooldowns[0], cooldowns[1], r(timeAcc), objHitMask, buoyTicks, cageTicks);
+            flipTicks, reflectTicks, invulnTicks, cooldowns[0], cooldowns[1], r(timeAcc), objHitMask, buoyTicks, cageTicks, scrambleTicks);
     }
 
     private static double r(double v) {
@@ -166,6 +169,9 @@ public final class FighterState {
     public void setReflectTicks(int ticks) { reflectTicks = ticks; }
     public void setInvulnTicks(int ticks) { invulnTicks = ticks; }
     public void setCageTicks(int ticks) { cageTicks = ticks; }
+    public void setScrambleTicks(int ticks) { scrambleTicks = ticks; }
+    public double vx() { return vx; }
+    public boolean grounded() { return grounded; }
 
     public int slot() { return slot; }
     public int health() { return health; }

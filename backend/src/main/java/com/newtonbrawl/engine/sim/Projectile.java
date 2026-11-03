@@ -6,7 +6,12 @@ package com.newtonbrawl.engine.sim;
  * Position is the box centre.
  */
 public final class Projectile {
-    public enum Effect { NONE, GRAVITY_FLIP, BUOY }
+    /**
+     * Extra behaviour on hit. MEASURE (Heisenberg): the knockback's direction and size are random
+     * (pinning down x leaves p uncertain). DOPPLER: damage scales with the observed frequency
+     * f' = f·(c + v_o)/(c − v_s).
+     */
+    public enum Effect { NONE, GRAVITY_FLIP, BUOY, MEASURE, DOPPLER }
 
     /**
      * How the projectile moves. LINEAR integrates velocity + acceleration. PENDULUM swings from a
@@ -40,6 +45,10 @@ public final class Projectile {
     // ORBIT (offsets relative to the anchor fighter's chest)
     public int anchor = -1;
     public double ox, oy, ovx, ovy, k;
+    /** Evaporating black hole (Hawking): size shrinks by {@code shrink} per tick down to {@code minSize}; damage ∝ size0 / size. */
+    public double shrink, size0, minSize;
+    /** DOPPLER: wave speed c and the source's velocity toward the target at emission, v_s. */
+    public double waveSpeed, vs;
     boolean dead;
 
     public Projectile(int id, int owner, String kind, String move) {
@@ -58,6 +67,7 @@ public final class Projectile {
      * agree bit-for-bit: exact halving every half-life, linear in between.
      */
     public int currentDamage() {
+        if (size0 > 0) return (int) Math.round(damage * size0 / w); // hotter as it shrinks: T ∝ 1/M
         if (halfLife <= 0) return damage;
         int n = Math.min(age / halfLife, 30);
         double frac = (double) (age % halfLife) / halfLife;

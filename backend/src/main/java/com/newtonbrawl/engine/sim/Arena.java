@@ -12,15 +12,29 @@ import java.util.Map;
  * @param bounce         restitution off the floor/ceiling
  * @param wallBounce     restitution off the side walls
  * @param objects        props placed at the start of each round
+ * @param well           a point mass (black hole) whose gravity bends projectiles and keeps props in orbit, or null
  */
 public record Arena(String id, String name, double width, double height, double gravity,
-                    double objectGravity, double bounce, double wallBounce, List<ObjectSpawn> objects) {
+                    double objectGravity, double bounce, double wallBounce, List<ObjectSpawn> objects, Well well) {
 
     /** A prop's starting state. {@code metal} props conduct Tesla's lightning and answer to magnetism. */
     public record ObjectSpawn(String kind, double x, double y, double vx, double vy, double w, double h, boolean metal) {}
 
+    /**
+     * A gravity well. Props and projectiles accelerate toward (x, y) with a = GM / (r² + soft²)
+     * (softened inverse-square law); anything that falls inside {@code core} is swallowed (props
+     * respawn). Fighters, standing on a platform, only feel a slow tidal {@code drift} toward it.
+     */
+    public record Well(double x, double y, double gm, double soft, double core, double drift) {}
+
     public Arena {
         objects = objects == null ? List.of() : List.copyOf(objects);
+    }
+
+    /** An arena without a gravity well. */
+    public Arena(String id, String name, double width, double height, double gravity,
+                 double objectGravity, double bounce, double wallBounce, List<ObjectSpawn> objects) {
+        this(id, name, width, height, gravity, objectGravity, bounce, wallBounce, objects, null);
     }
 
     /** The Lab: conductive metal beakers on the floor (Tesla's lightning chains through them). */
@@ -39,8 +53,20 @@ public record Arena(String id, String name, double width, double height, double 
         new ObjectSpawn("wrench", 1060, 300, 20, -14, 70, 24, true),
         new ObjectSpawn("crate", 1330, 520, -28, -10, 60, 60, true)));
 
-    public static final List<Arena> ALL = List.of(THE_LAB, SPACE_STATION);
-    private static final Map<String, Arena> BY_ID = Map.of(THE_LAB.id(), THE_LAB, SPACE_STATION.id(), SPACE_STATION);
+    /**
+     * Black Hole Edge: a platform at the edge of a black hole. Rocks orbit it (inverse-square
+     * gravity: the two near-circular orbits move at v = √(a·r)), projectiles curve toward it, and
+     * fighters drift slowly toward the middle. Rocks that fall in are swallowed and reappear.
+     */
+    public static final Arena BLACK_HOLE_EDGE = new Arena("black-hole-edge", "Black Hole Edge", 1600, 900, 2200, 0, 0.7, 0.7, List.of(
+        new ObjectSpawn("rock", 1060, 540, 0, 209, 52, 46, false),
+        new ObjectSpawn("rock", 540, 540, 0, -209, 46, 40, false),
+        new ObjectSpawn("rock", 800, 280, 180, 0, 58, 50, false)),
+        new Well(800, 560, 12_000_000, 60, 48, 45));
+
+    public static final List<Arena> ALL = List.of(THE_LAB, SPACE_STATION, BLACK_HOLE_EDGE);
+    private static final Map<String, Arena> BY_ID = Map.of(THE_LAB.id(), THE_LAB, SPACE_STATION.id(), SPACE_STATION,
+        BLACK_HOLE_EDGE.id(), BLACK_HOLE_EDGE);
 
     public static Arena byId(String id) {
         Arena a = BY_ID.get(id);

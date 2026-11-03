@@ -14,6 +14,10 @@ import java.util.function.Function;
 
 import com.newtonbrawl.engine.fighter.roster.Archimedes;
 import com.newtonbrawl.engine.fighter.roster.Curie;
+import com.newtonbrawl.engine.fighter.roster.Doppler;
+import com.newtonbrawl.engine.fighter.roster.Hawking;
+import com.newtonbrawl.engine.fighter.roster.Heisenberg;
+import com.newtonbrawl.engine.fighter.roster.Schrodinger;
 import com.newtonbrawl.engine.fighter.roster.Faraday;
 import com.newtonbrawl.engine.fighter.roster.Galileo;
 import com.newtonbrawl.engine.fighter.roster.Hooke;
@@ -41,6 +45,11 @@ public final class FighterCatalog {
         FACTORIES.put(Archimedes.ID, Archimedes::new);
         FACTORIES.put(Faraday.ID, Faraday::new);
         FACTORIES.put(Hooke.ID, Hooke::new);
+        // Phase 7
+        FACTORIES.put(Schrodinger.ID, Schrodinger::new);
+        FACTORIES.put(Heisenberg.ID, Heisenberg::new);
+        FACTORIES.put(Hawking.ID, Hawking::new);
+        FACTORIES.put(Doppler.ID, Doppler::new);
         // Training dummy with only light/heavy; used by tests, not selectable.
         FACTORIES.put(PrototypeFighter.ID, PrototypeFighter::new);
     }

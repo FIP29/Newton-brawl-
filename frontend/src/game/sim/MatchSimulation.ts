@@ -22,6 +22,8 @@ export interface MatchWorld {
   removeZones(owner: number, kind: ZoneKind): void;
   teleport(s: FighterState, x: number): void;
   shatter(victimSlot: number, sourceSlot: number, x: number, y: number, speed: number): void;
+  /** Deterministic random integer in [0, n) (xorshift32, identical to Java). */
+  random(n: number): number;
 }
 
 /** Hooks the per-fighter step functions need (implemented by the simulation and by the Predictor). */
@@ -54,6 +56,9 @@ export class MatchSimulation implements StepHost {
   timer = 0;
   lastRound: RoundResult | null = null;
   result: MatchOutcome | null = null;
+  /** xorshift32 state, mirrors Java's `int rng`. */
+  private rng = 0x2F6B1D3A;
+  private pendingZones: Zone[] = [];
 
   constructor(readonly arena: ArenaInfo, defs: [FighterDefinition, FighterDefinition], readonly rules: MatchRules) {
     this.f = [new FighterState(0, defs[0], this.startX(0), +1), new FighterState(1, defs[1], this.startX(1), -1)];
@@ -172,6 +177,17 @@ export class MatchSimulation implements StepHost {
         }
         continue;
       }
+      if (z.kind === 'SINGULARITY') {
+        const t = this.f[1 - z.owner];
+        const cy = t.y + t.def.body.height / 2;
+        const dx = z.x - t.x, dy = z.y - cy, rr = z.w / 2;
+        if (z.contains(t.x, cy) && Math.abs(dx) > 10 && t.invulnTicks === 0) {
+          const v = z.strength * rr * rr / (dx * dx + dy * dy + rr * rr * 0.25);
+          t.x += Math.sign(dx) * Math.min(Math.abs(dx), v * DT);
+          clampToWalls(this.arena, t);
+        }
+        continue;
+      }
       if (z.kind !== 'PULL') continue;
       const src = this.f[z.owner], t = this.f[1 - z.owner];
       const dx = src.x - t.x;
@@ -193,7 +209,19 @@ export class MatchSimulation implements StepHost {
 
   private updateObjects() {
     const zeroG = this.arena.objectGravity === 0;
+    const well = this.arena.well;
     for (const o of this.objects) {
+      if (well) {
+        const dx = well.x - o.x, dy = well.y - o.centerY(), r2 = dx * dx + dy * dy, rr = Math.sqrt(r2);
+        if (rr < well.core) {
+          this.event('SWALLOW', -1, -1, o.kind, 0, r(o.x), r(o.centerY()));
+          o.respawn();
+          continue;
+        }
+        const a = well.gm / (r2 + well.soft * well.soft) * DT;
+        o.vx += dx / rr * a;
+        o.vy += dy / rr * a;
+      }
       o.vy -= this.arena.gravity * this.arena.objectGravity * DT;
       o.x += o.vx * DT;
       o.y += o.vy * DT;
@@ -264,16 +292,35 @@ export class MatchSimulation implements StepHost {
 
   /** Knockback = momentum transfer (J / m). Third Law: a reflecting target bounces the hit back. */
   private hitFighter(src: FighterState, target: FighterState, damage: number, ix: number, iy: number,
-                     hitstun: number, stop: number, move: string, point: [number, number]) {
+                     hitstun: number, stop: number, move: string, point: [number, number]): boolean {
+    if (src !== target && this.collapse(target, src)) return false;
     if (target.reflectTicks > 0 && src !== target) {
       applyDamage(target, src, damage, -ix, iy, hitstun);
       this.hitstop = Math.max(this.hitstop, stop);
       this.event('REFLECT', target.slot, src.slot, move, damage, r(point[0]), r(point[1]));
-      return;
+      return false;
     }
     applyDamage(src, target, damage, ix, iy, hitstun);
     this.hitstop = Math.max(this.hitstop, stop);
     this.event('HIT', src.slot, target.slot, move, damage, r(point[0]), r(point[1]));
+    return true;
+  }
+
+  /** Superposition: the first hit measures which copy was real (50/50). True = the hit is cancelled. */
+  private collapse(target: FighterState, src: FighterState): boolean {
+    for (const z of this.zones) {
+      if (z.dead || z.owner !== target.slot || z.kind !== 'GHOST') continue;
+      z.dead = true;
+      const dodge = this.random(2) === 0;
+      this.event('COLLAPSE', target.slot, src.slot, z.move, dodge ? 1 : 0, r(z.x), r(z.y));
+      if (dodge) {
+        target.x = z.x;
+        clampToWalls(this.arena, target);
+        target.invulnTicks = Math.max(target.invulnTicks, z.arm);
+      }
+      return dodge;
+    }
+    return false;
   }
 
   // ------------------------------------------------------------------ projectiles
@@ -303,6 +350,14 @@ export class MatchSimulation implements StepHost {
         p.x = a.x + p.ox;
         p.y = a.y + a.def.body.height * 0.55 + p.oy;
       }
+      if (p.shrink > 0) {
+        p.w = Math.max(p.minSize, p.w - p.shrink * scale);
+        p.h = p.w;
+      }
+      if (p.motion === 'LINEAR' && this.bendAndSwallow(p, scale)) {
+        p.dead = true;
+        continue;
+      }
       if (p.electric && p.chains < p.maxChains) this.chainThroughMetal(p);
 
       const target = this.f[1 - p.owner];
@@ -327,10 +382,21 @@ export class MatchSimulation implements StepHost {
           p.reflected = true;
           this.event('REFLECT', target.slot, 1 - target.slot, p.move, 0, r(pt[0]), r(pt[1]));
         } else {
-          if (p.effect === 'GRAVITY_FLIP' && target.reflectTicks === 0) target.flipTicks = p.effectTicks;
-          if (p.effect === 'BUOY' && target.reflectTicks === 0) target.buoyTicks = p.effectTicks;
-          this.hitFighter(this.f[p.owner], target, p.currentDamage(), p.dir * p.impulseX, p.impulseY,
-            p.hitstun, p.hitstop, p.move, pt);
+          let dmg = p.currentDamage();
+          let ix = p.dir * p.impulseX, iy = p.impulseY;
+          if (p.effect === 'MEASURE') {
+            const sign = this.random(2) === 0 ? 1 : -1;
+            ix = sign * p.impulseX * (0.5 + 0.5 * this.random(3));
+            iy = p.impulseY * (0.5 + 0.5 * this.random(3));
+          }
+          if (p.effect === 'DOPPLER') {
+            const vo = -p.dir * target.vx;
+            const ratio = clamp((p.waveSpeed + vo) / (p.waveSpeed - p.vs), 0.5, 2.5);
+            dmg = Math.round(dmg * ratio);
+          }
+          const landed = this.hitFighter(this.f[p.owner], target, dmg, ix, iy, p.hitstun, p.hitstop, p.move, pt);
+          if (landed && p.effect === 'GRAVITY_FLIP') target.flipTicks = p.effectTicks;
+          if (landed && p.effect === 'BUOY') target.buoyTicks = p.effectTicks;
           p.dead = true;
           continue;
         }
@@ -339,6 +405,33 @@ export class MatchSimulation implements StepHost {
       const outside = p.x < -100 || p.x > this.arena.width + 100 || p.y > this.arena.height + 200;
       if (p.life <= 0 || hitFloor || outside) p.dead = true;
     }
+  }
+
+  /** Gravitational lensing toward the arena's black hole and the opponent's singularities. True = swallowed. */
+  private bendAndSwallow(p: Projectile, scale: number): boolean {
+    const well = this.arena.well;
+    if (well) {
+      const dx = well.x - p.x, dy = well.y - p.y, r2 = dx * dx + dy * dy, rr = Math.sqrt(r2);
+      if (rr < well.core) {
+        this.event('SWALLOW', p.owner, -1, p.move, 0, r(p.x), r(p.y));
+        return true;
+      }
+      const a = well.gm / (r2 + well.soft * well.soft) * DT * scale;
+      p.vx += dx / rr * a;
+      p.vy += dy / rr * a;
+    }
+    for (const z of this.zones) {
+      if (z.dead || z.owner === p.owner || z.kind !== 'SINGULARITY' || !z.contains(p.x, p.y)) continue;
+      const dx = z.x - p.x, dy = z.y - p.y, r2 = dx * dx + dy * dy, rr = Math.sqrt(r2), half = z.w / 2;
+      if (rr < z.core) {
+        this.event('SWALLOW', z.owner, p.owner, p.move, 0, r(p.x), r(p.y));
+        return true;
+      }
+      const a = z.strength * 20 * half * half / (r2 + half * half * 0.25) * DT * scale;
+      p.vx += dx / rr * a;
+      p.vy += dy / rr * a;
+    }
+    return false;
   }
 
   private chainThroughMetal(p: Projectile) {
@@ -389,11 +482,14 @@ export class MatchSimulation implements StepHost {
         case 'BLAST':
         case 'BEAM':
         case 'LEVER':
-        case 'FOCUS': {
+        case 'FOCUS':
+        case 'WAVE':
+        case 'BURST':
+        case 'BOOM': {
           const live = z.age > z.delay && z.age <= z.delay + z.active;
           if (live && (z.hitMask & (1 << t.slot)) === 0 && t.invulnTicks === 0 && intersects(z.box(), hurt)) {
             z.hitMask |= 1 << t.slot;
-            const dir = z.kind === 'BEAM' ? z.dir : (t.x >= z.x ? 1 : -1);
+            const dir = z.kind === 'BEAM' || z.kind === 'BOOM' ? z.dir : (t.x >= z.x ? 1 : -1);
             this.hitFighter(src, t, z.damage, dir * z.impulseX, z.impulseY, z.hitstun, z.hitstop, z.move,
               overlapCenter(z.box(), hurt));
           }
@@ -446,10 +542,78 @@ export class MatchSimulation implements StepHost {
             z.dead = true;
           }
           break;
+        case 'CATBOX':
+          if (z.age >= z.delay) this.openBox(z, t);
+          break;
+        case 'CLOUD':
+          if (z.age % z.interval === 0 && t.invulnTicks === 0 && intersects(z.box(), hurt)) {
+            const dir = t.x >= z.x ? 1 : -1;
+            this.hitFighter(src, t, z.damage, dir * z.impulseX, z.impulseY, z.hitstun, z.hitstop, z.move,
+              [t.x, t.y + t.def.body.height * 0.6]);
+          }
+          break;
+        case 'UNCERTAIN':
+          if (z.age % z.interval === 0 && t.invulnTicks === 0 && this.random(2) === 0) {
+            const dir = this.random(2) === 0 ? 1 : -1;
+            this.hitFighter(src, t, z.damage, dir * z.impulseX, z.impulseY, z.hitstun, z.hitstop, z.move,
+              [t.x, t.y + t.def.body.height * 0.6]);
+          }
+          break;
+        case 'SINGULARITY': {
+          const cy = t.y + t.def.body.height / 2, dx = t.x - z.x, dy = cy - z.y;
+          if (z.age % z.interval === 0 && t.invulnTicks === 0 && dx * dx + dy * dy < z.core * z.core * 4) {
+            this.hitFighter(src, t, z.damage, (dx >= 0 ? 1 : -1) * z.impulseX, z.impulseY, z.hitstun, z.hitstop,
+              z.move, [t.x, cy]);
+          }
+          break;
+        }
         default:
           break;
       }
       if (z.life <= 0) z.dead = true;
+    }
+    this.zones.push(...this.pendingZones);
+    this.pendingZones = [];
+  }
+
+  /** Schrödinger's box opens: alive → the cat pounces; dead → poison vapour. */
+  private openBox(z: Zone, t: FighterState) {
+    z.dead = true;
+    const m = z.source!;
+    const p = (key: string, fallback: number) => m.params?.[key] ?? fallback;
+    const alive = this.random(2) === 0;
+    this.event('COLLAPSE', z.owner, -1, z.move, alive ? 1 : 0, r(z.x), r(z.y));
+    if (alive) {
+      const cat = new Projectile(this.idSeq++, z.owner, 'cat', z.move);
+      cat.dir = t.x >= z.x ? 1 : -1;
+      cat.x = z.x;
+      cat.y = z.y + z.h / 2;
+      cat.w = 64;
+      cat.h = 40;
+      cat.vx = cat.dir * p('catSpeed', 760);
+      cat.vy = p('catLeap', 900);
+      cat.ay = -this.arena.gravity;
+      cat.damage = z.damage;
+      cat.impulseX = z.impulseX;
+      cat.impulseY = z.impulseY;
+      cat.hitstun = z.hitstun;
+      cat.hitstop = z.hitstop;
+      cat.life = 90;
+      this.projectiles.push(cat);
+    } else {
+      const cloud = new Zone(this.idSeq++, z.owner, 'CLOUD', z.move);
+      cloud.x = z.x;
+      cloud.w = p('cloudW', 300);
+      cloud.h = p('cloudH', 260);
+      cloud.y = cloud.h / 2;
+      cloud.life = Math.trunc(p('cloudLife', 200));
+      cloud.interval = Math.trunc(p('cloudInterval', 25));
+      cloud.damage = Math.trunc(p('cloudDamage', 26));
+      cloud.impulseX = 4000;
+      cloud.impulseY = 2000;
+      cloud.hitstun = 10;
+      cloud.hitstop = 2;
+      this.pendingZones.push(cloud);
     }
   }
 
@@ -503,6 +667,14 @@ export class MatchSimulation implements StepHost {
     }
     this.event('SHATTER', sourceSlot, victimSlot, 'ultimate', 0, r(x), r(y));
   }
+  random(n: number): number {
+    let x = this.rng;
+    x ^= x << 13;
+    x ^= x >>> 17;
+    x ^= x << 5;
+    this.rng = x;
+    return (x >>> 0) % n;
+  }
   startUltimate(s: FighterState) {
     this.cinematic = CINEMATIC_TICKS;
     this.event('ULTIMATE', s.slot, -1, 'ultimate', 0, r(s.x), r(s.y + s.def.body.height / 2));
@@ -539,7 +711,8 @@ export function control(s: FighterState, raw: InputFrame, opponent: FighterState
     return;
   }
   const inp: InputFrame = { held: raw.held, pressed: raw.pressed | s.takeBufferedPresses() };
-  const dir = ((inp.held & Btn.RIGHT) ? 1 : 0) - ((inp.held & Btn.LEFT) ? 1 : 0);
+  let dir = ((inp.held & Btn.RIGHT) ? 1 : 0) - ((inp.held & Btn.LEFT) ? 1 : 0);
+  if (s.scrambleTicks > 0) dir = -dir;
 
   if (s.grounded) {
     s.facing = opponent.x >= s.x ? 1 : -1;
@@ -599,6 +772,8 @@ export function integrate(arena: ArenaInfo, s: FighterState) {
   s.vy -= g * DT;
   s.x += s.vx * DT;
   s.y += s.vy * DT;
+  const well = arena.well;
+  if (well && Math.abs(well.x - s.x) > 30) s.x += Math.sign(well.x - s.x) * well.drift * DT;
 
   if (flipped) {
     s.grounded = false;
@@ -677,6 +852,7 @@ export function tickStatuses(s: FighterState) {
   if (s.flipTicks > 0) s.flipTicks--;
   if (s.buoyTicks > 0) s.buoyTicks--;
   if (s.cageTicks > 0) s.cageTicks--;
+  if (s.scrambleTicks > 0) s.scrambleTicks--;
   if (s.reflectTicks > 0) s.reflectTicks--;
   if (s.invulnTicks > 0) s.invulnTicks--;
   if (s.cooldowns[0] > 0) s.cooldowns[0]--;

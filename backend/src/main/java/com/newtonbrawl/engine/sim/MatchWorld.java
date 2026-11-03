@@ -19,4 +19,10 @@ public interface MatchWorld {
 
     /** Hooke's Breaking Point: destroys the victim's projectiles and zones and blasts every prop away from (x, y). */
     void shatter(int victimSlot, int sourceSlot, double x, double y, double speed);
+
+    /**
+     * A deterministic random integer in [0, n) from the match's own generator (xorshift32,
+     * identical in Java and TypeScript), so quantum randomness still replays exactly.
+     */
+    int random(int n);
 }

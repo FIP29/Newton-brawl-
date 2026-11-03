@@ -1,0 +1,134 @@
+{
+  "id": "hawking",
+  "name": "Stephen Hawking",
+  "title": "The Event Horizon Zoner",
+  "fighterClass": "ZONER",
+  "color": "#6f7bff",
+  "mass": 95,
+  "maxHealth": 1000,
+  "walkSpeed": 330,
+  "jumpVelocity": 1000,
+  "airAcceleration": 1600,
+  "body": {
+    "width": 96,
+    "height": 176
+  },
+  "moves": {
+    "light": {
+      "name": "Thought Pulse",
+      "startup": 5,
+      "active": 3,
+      "recovery": 10,
+      "damage": 40,
+      "hitstun": 14,
+      "hitstop": 5,
+      "hitbox": {
+        "x": 70,
+        "y": 112,
+        "w": 84,
+        "h": 40
+      },
+      "impulse": {
+        "x": 20000,
+        "y": 0
+      }
+    },
+    "heavy": {
+      "name": "Big Bang Bump",
+      "startup": 13,
+      "active": 5,
+      "recovery": 20,
+      "damage": 120,
+      "hitstun": 26,
+      "hitstop": 10,
+      "hitbox": {
+        "x": 88,
+        "y": 92,
+        "w": 118,
+        "h": 70
+      },
+      "impulse": {
+        "x": 60000,
+        "y": 38000
+      }
+    },
+    "special1": {
+      "name": "Hawking Radiation",
+      "kind": "SPECIAL",
+      "equation": "T = ħc³ / (8πGMk_B)",
+      "startup": 11,
+      "active": 1,
+      "recovery": 18,
+      "cooldown": 80,
+      "damage": 26,
+      "hitstun": 18,
+      "hitstop": 6,
+      "impulse": {
+        "x": 26000,
+        "y": 12000
+      },
+      "params": {
+        "speed": 380,
+        "offset": 70,
+        "height": 130,
+        "size": 60,
+        "minSize": 14,
+        "life": 100
+      }
+    },
+    "special2": {
+      "name": "Event Horizon",
+      "kind": "SPECIAL",
+      "equation": "r_s = 2GM / c²",
+      "startup": 14,
+      "active": 1,
+      "recovery": 20,
+      "cooldown": 260,
+      "damage": 30,
+      "hitstun": 16,
+      "hitstop": 5,
+      "impulse": {
+        "x": 9000,
+        "y": 6000
+      },
+      "params": {
+        "offset": 320,
+        "height": 150,
+        "size": 340,
+        "pull": 170,
+        "core": 42,
+        "interval": 30,
+        "life": 240
+      }
+    },
+    "ultimate": {
+      "name": "Supermassive Black Hole",
+      "kind": "ULTIMATE",
+      "equation": "F = GMm / r²",
+      "startup": 12,
+      "active": 1,
+      "recovery": 34,
+      "damage": 22,
+      "hitstun": 14,
+      "hitstop": 4,
+      "impulse": {
+        "x": 6000,
+        "y": 6000
+      },
+      "params": {
+        "offset": 420,
+        "height": 280,
+        "w": 900,
+        "h": 640,
+        "pull": 260,
+        "core": 70,
+        "interval": 20,
+        "life": 180,
+        "burstDamage": 120,
+        "burstSize": 520,
+        "burstX": 36000,
+        "burstY": 42000
+      }
+    }
+  }
+}

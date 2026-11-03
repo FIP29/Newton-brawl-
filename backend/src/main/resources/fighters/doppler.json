@@ -1,0 +1,124 @@
+{
+  "id": "doppler",
+  "name": "Christian Doppler",
+  "title": "The Sonic Bruiser",
+  "fighterClass": "BRUISER",
+  "color": "#ff4d5e",
+  "mass": 90,
+  "maxHealth": 1080,
+  "walkSpeed": 360,
+  "jumpVelocity": 1080,
+  "airAcceleration": 1800,
+  "body": {
+    "width": 98,
+    "height": 190
+  },
+  "moves": {
+    "light": {
+      "name": "Tuning Fork Tap",
+      "startup": 5,
+      "active": 3,
+      "recovery": 11,
+      "damage": 50,
+      "hitstun": 15,
+      "hitstop": 6,
+      "hitbox": {
+        "x": 68,
+        "y": 126,
+        "w": 86,
+        "h": 38
+      },
+      "impulse": {
+        "x": 26000,
+        "y": 0
+      }
+    },
+    "heavy": {
+      "name": "Resonance Hammer",
+      "startup": 14,
+      "active": 5,
+      "recovery": 21,
+      "damage": 138,
+      "hitstun": 28,
+      "hitstop": 11,
+      "hitbox": {
+        "x": 92,
+        "y": 106,
+        "w": 120,
+        "h": 62
+      },
+      "impulse": {
+        "x": 68000,
+        "y": 40000
+      }
+    },
+    "special1": {
+      "name": "Doppler Shift",
+      "kind": "SPECIAL",
+      "equation": "f' = f·(c + v_o) / (c − v_s)",
+      "startup": 10,
+      "active": 1,
+      "recovery": 16,
+      "cooldown": 60,
+      "damage": 60,
+      "hitstun": 20,
+      "hitstop": 7,
+      "impulse": {
+        "x": 30000,
+        "y": 10000
+      },
+      "params": {
+        "speed": 820,
+        "offset": 70,
+        "height": 120,
+        "w": 50,
+        "h": 140,
+        "life": 70
+      }
+    },
+    "special2": {
+      "name": "Sonic Boom",
+      "kind": "SPECIAL",
+      "equation": "sin θ = c / v",
+      "startup": 8,
+      "active": 1,
+      "recovery": 20,
+      "cooldown": 120,
+      "damage": 90,
+      "hitstun": 24,
+      "hitstop": 9,
+      "impulse": {
+        "x": 50000,
+        "y": 26000
+      },
+      "params": {
+        "distance": 320,
+        "invuln": 10,
+        "delay": 5,
+        "active": 5
+      }
+    },
+    "ultimate": {
+      "name": "Blueshift Barrage",
+      "kind": "ULTIMATE",
+      "equation": "λ' = λ·(1 − v/c)",
+      "startup": 10,
+      "active": 1,
+      "recovery": 30,
+      "damage": 42,
+      "hitstun": 14,
+      "hitstop": 4,
+      "impulse": {
+        "x": 9000,
+        "y": 5000
+      },
+      "params": {
+        "waves": 6,
+        "lambda": 140,
+        "mach": 0.6,
+        "speed": 900,
+        "life": 80
+      }
+    }
+  }
+}

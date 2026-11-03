@@ -215,7 +215,24 @@
       "origin": "Austria",
       "phase": 7,
       "bio": "Physicist who in 1926 wrote the wave equation that describes how quantum systems evolve, sharing the 1933 Nobel Prize in Physics. His wave functions let a particle be in a superposition of several states at once.",
-      "funFact": "His famous cat, both alive and dead in a sealed box, was invented in 1935 to show how strange quantum superposition becomes when applied to everyday objects."
+      "funFact": "His famous cat, both alive and dead in a sealed box, was invented in 1935 to show how strange quantum superposition becomes when applied to everyday objects.",
+      "moves": {
+        "special1": {
+          "law": "Superposition: |ψ⟩ = α|A⟩ + β|B⟩, with |α|² + |β|² = 1",
+          "explain": "A quantum system can be in a combination of states at once. Measuring it gives one definite answer, with probability |α|² or |β|². Here both copies are equally likely, ½ each, and the first hit is the measurement.",
+          "labNote": "Superposition shows up in experiments. Send electrons through two slits one at a time and they still build up an interference pattern, as if each one passed through both slits."
+        },
+        "special2": {
+          "law": "Schrödinger's cat (1935): P(alive) = P(dead) = ½ until the box is opened",
+          "explain": "Schrödinger imagined a cat sealed in a box with a radioactive atom, a Geiger counter and a flask of poison. Applied naively, quantum mechanics describes the cat as alive and dead at once until someone looks. He meant it as a criticism: that sounds absurd for an everyday object.",
+          "labNote": "Physicists still debate what counts as a measurement. One answer, decoherence, says that interactions with the surroundings destroy superpositions of big objects almost instantly."
+        },
+        "ultimate": {
+          "law": "Particle in a box: ψₙ(x) = √(2/L)·sin(nπx/L), Eₙ = n²h² / (8mL²)",
+          "explain": "A particle trapped between two walls can only form standing waves. The chance of finding it at x is |ψ|², largest at the antinodes and zero at the nodes. So ψ₃ leaves safe spots at L/3 and 2L/3, and ψ₂ only at L/2.",
+          "labNote": "The same maths explains quantum dots: tiny semiconductor crystals whose colour depends on their size. Smaller boxes have more widely spaced energy levels and glow bluer."
+        }
+      }
     },
     {
       "id": "heisenberg",
@@ -224,7 +241,24 @@
       "origin": "Germany",
       "phase": 7,
       "bio": "Physicist who created matrix mechanics in 1925 and formulated the uncertainty principle in 1927: the more precisely you know a particle's position, the less precisely you can know its momentum (Δx·Δp ≥ ħ/2). He received the 1932 Nobel Prize in Physics.",
-      "funFact": "He worked out the key ideas of matrix mechanics while recovering from severe hay fever on the remote, nearly pollen-free North Sea island of Heligoland."
+      "funFact": "He worked out the key ideas of matrix mechanics while recovering from severe hay fever on the remote, nearly pollen-free North Sea island of Heligoland.",
+      "moves": {
+        "special1": {
+          "law": "Uncertainty principle: Δx·Δp ≥ ħ/2",
+          "explain": "Position and momentum can't both be known exactly at the same time. This isn't a problem with clumsy instruments: particles behave like waves, and a wave can't be sharply located and have a sharply defined wavelength at once.",
+          "labNote": "Heisenberg published the principle in 1927, aged 25, and received the 1932 Nobel Prize in Physics for creating quantum mechanics."
+        },
+        "special2": {
+          "law": "Measuring disturbs: locating a particle with light gives it an unpredictable kick",
+          "explain": "Heisenberg's 1927 thought experiment: to see an electron sharply you need light of short wavelength, but short-wavelength photons carry more momentum (p = h/λ), so they knock the electron by an amount you can't predict.",
+          "labNote": "Bohr pointed out gaps in this \"microscope\" argument. Today the uncertainty principle is understood as more fundamental than any particular way of measuring."
+        },
+        "ultimate": {
+          "law": "Energy–time uncertainty: ΔE·Δt ≥ ħ/2",
+          "explain": "A similar relation links energy and time. A state that lasts only a short time doesn't have a sharply defined energy, which is why very short-lived particles show a spread of masses in experiments.",
+          "labNote": "Heisenberg worked out matrix mechanics in 1925, aged 23, while recovering from severe hay fever on the North Sea island of Heligoland."
+        }
+      }
     },
     {
       "id": "hawking",
@@ -233,7 +267,24 @@
       "origin": "England",
       "phase": 7,
       "bio": "Theoretical physicist who showed in 1974 that black holes are not completely black. Quantum effects near the event horizon make them emit Hawking radiation and slowly evaporate. He held Cambridge's Lucasian Professorship, Newton's old post, and his book A Brief History of Time brought cosmology to millions.",
-      "funFact": "In 2009 he held a party for time travellers and sent the invitations only after it was over. Nobody showed up."
+      "funFact": "In 2009 he held a party for time travellers and sent the invitations only after it was over. Nobody showed up.",
+      "moves": {
+        "special1": {
+          "law": "Hawking temperature: T = ħc³ / (8πGMk_B)",
+          "explain": "In 1974 Hawking showed that quantum effects make black holes glow faintly: they aren't completely black. The smaller the black hole, the hotter it is, so as it radiates away its mass it heats up and evaporates faster and faster.",
+          "labNote": "A black hole with the mass of the Sun would be about 60 billionths of a degree above absolute zero. That's far colder than the cosmic microwave background, so today it absorbs more radiation than it emits."
+        },
+        "special2": {
+          "law": "Schwarzschild radius: r_s = 2GM / c²",
+          "explain": "Squeeze a mass inside this radius and not even light can escape: the boundary is the event horizon. Gravity bends the paths of things passing nearby, so projectiles curve toward the hole, and anything that crosses the horizon never comes back.",
+          "labNote": "If the Earth were squeezed into a black hole, its event horizon would have a radius of about 9 millimetres, roughly the size of a marble."
+        },
+        "ultimate": {
+          "law": "Newton's law of gravitation: F = GMm / r²",
+          "explain": "Gravity weakens with the square of distance, so the pull grows sharply as you get closer. Supermassive black holes, millions to billions of times the Sun's mass, sit at the centres of most large galaxies.",
+          "labNote": "In 2019 the Event Horizon Telescope released the first image of a black hole's shadow, of the supermassive black hole at the centre of galaxy M87."
+        }
+      }
     },
     {
       "id": "doppler",
@@ -242,7 +293,24 @@
       "origin": "Austria",
       "phase": 7,
       "bio": "Physicist who proposed in 1842 that the observed frequency of a wave depends on the motion of its source relative to the observer. It's the reason a passing siren drops in pitch, and how astronomers measure the motion of stars through red- and blueshift.",
-      "funFact": "In 1845 Buys Ballot tested the idea with trumpeters playing a steady note on a moving train, while musicians with perfect pitch listened from beside the track."
+      "funFact": "In 1845 Buys Ballot tested the idea with trumpeters playing a steady note on a moving train, while musicians with perfect pitch listened from beside the track.",
+      "moves": {
+        "special1": {
+          "law": "Doppler effect: f' = f·(c + v_o) / (c − v_s)",
+          "explain": "When a source of waves moves toward you, or you move toward it, the crests arrive more often and you hear a higher pitch. Moving apart lowers it. That's why Doppler Shift hits harder when Doppler jumps in, or when the opponent walks into the wave.",
+          "labNote": "Doppler proposed the effect in 1842. In 1845 Buys Ballot tested it in the Netherlands: musicians on a moving train played a steady note while listeners by the track heard its pitch change."
+        },
+        "special2": {
+          "law": "Mach cone: sin θ = c / v",
+          "explain": "Faster than sound, a source outruns its own waves. They pile up into a cone-shaped shock wave, the sonic boom, which reaches you only after the source has gone past.",
+          "labNote": "Chuck Yeager made the first confirmed supersonic flight, in the Bell X-1 rocket plane, on 14 October 1947."
+        },
+        "ultimate": {
+          "law": "Blueshift: λ' = λ·(1 − v/c) for an approaching source",
+          "explain": "Waves sent out ahead of a moving source are squeezed together, so their wavelength shrinks. For light that's a blueshift. Behind the source the waves are stretched: a redshift.",
+          "labNote": "Edwin Hubble's 1929 finding that distant galaxies are redshifted, and more so the farther away they are, was key early evidence that the universe is expanding."
+        }
+      }
     },
     {
       "id": "bernoulli",

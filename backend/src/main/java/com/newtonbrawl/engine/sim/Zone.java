@@ -28,6 +28,22 @@ public final class Zone {
     public static final String STORM = "STORM";
     /** Hooke's spring trap: launches whoever steps on it with force proportional to the stretch to Hooke (F = −kx). */
     public static final String SPRING = "SPRING";
+    /** Schrödinger's superposition: a second copy of him. The first hit he takes collapses it (50/50 which copy was real). */
+    public static final String GHOST = "GHOST";
+    /** Schrödinger's cat box: sealed for {@link #delay} ticks, then opens. Alive: the cat pounces. Dead: poison vapour ({@link #CLOUD}). */
+    public static final String CATBOX = "CATBOX";
+    /** Poison vapour: hurts the opponent every {@link #interval} ticks while inside. */
+    public static final String CLOUD = "CLOUD";
+    /** Schrödinger's standing wave: a BLAST at an antinode of ψₙ (visual difference only). */
+    public static final String WAVE = "WAVE";
+    /** A BLAST drawn in the owner's colour (Heisenberg's arrival, Hawking's evaporation). */
+    public static final String BURST = "BURST";
+    /** Heisenberg's uncertainty field: every {@link #interval} ticks it MAY strike the opponent (50%). */
+    public static final String UNCERTAIN = "UNCERTAIN";
+    /** Hawking's black hole: pulls the opponent in, bends and swallows their projectiles, hurts inside {@link #core}. */
+    public static final String SINGULARITY = "SINGULARITY";
+    /** Doppler's sonic boom: a BEAM along his path that arrives after he has passed (visual difference only). */
+    public static final String BOOM = "BOOM";
 
     public final int id;
     public final int owner;
@@ -43,7 +59,11 @@ public final class Zone {
     public double strength, timeScale = 1.0;
     /** INDUCTION: accumulated induced charge. SPRING: spring constant k. */
     public double acc, springK, maxStretch;
+    /** SINGULARITY: event-horizon radius. Projectiles inside it are swallowed; a fighter whose centre is within 2× takes damage. GHOST: invulnerability after a dodge is {@link #arm}. */
+    public double core;
     public boolean electric;
+    /** The move that created it (CATBOX reads its outcome parameters from here). */
+    public com.newtonbrawl.engine.fighter.FighterDefinition.MoveDefinition source;
     int hitMask;
     boolean dead;
 

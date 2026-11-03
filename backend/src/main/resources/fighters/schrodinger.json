@@ -1,0 +1,125 @@
+{
+  "id": "schrodinger",
+  "name": "Erwin Schrödinger",
+  "title": "The Superposed Trickster",
+  "fighterClass": "TRICKSTER",
+  "color": "#2ee6c1",
+  "mass": 70,
+  "maxHealth": 950,
+  "walkSpeed": 400,
+  "jumpVelocity": 1140,
+  "airAcceleration": 1900,
+  "body": {
+    "width": 86,
+    "height": 186
+  },
+  "moves": {
+    "light": {
+      "name": "Wave Packet",
+      "startup": 5,
+      "active": 3,
+      "recovery": 10,
+      "damage": 42,
+      "hitstun": 15,
+      "hitstop": 5,
+      "hitbox": {
+        "x": 66,
+        "y": 124,
+        "w": 84,
+        "h": 36
+      },
+      "impulse": {
+        "x": 21000,
+        "y": 0
+      }
+    },
+    "heavy": {
+      "name": "Probability Cloud",
+      "startup": 12,
+      "active": 5,
+      "recovery": 19,
+      "damage": 110,
+      "hitstun": 25,
+      "hitstop": 9,
+      "hitbox": {
+        "x": 86,
+        "y": 104,
+        "w": 116,
+        "h": 64
+      },
+      "impulse": {
+        "x": 52000,
+        "y": 34000
+      }
+    },
+    "special1": {
+      "name": "Superposition",
+      "kind": "SPECIAL",
+      "equation": "|ψ⟩ = α|here⟩ + β|there⟩",
+      "startup": 8,
+      "active": 1,
+      "recovery": 16,
+      "cooldown": 200,
+      "damage": 0,
+      "hitstun": 0,
+      "hitstop": 0,
+      "impulse": {
+        "x": 0,
+        "y": 0
+      },
+      "params": {
+        "offset": 260,
+        "life": 240,
+        "invuln": 24
+      }
+    },
+    "special2": {
+      "name": "Schrödinger's Cat",
+      "kind": "SPECIAL",
+      "equation": "P(alive) = P(dead) = ½",
+      "startup": 12,
+      "active": 1,
+      "recovery": 18,
+      "cooldown": 150,
+      "damage": 85,
+      "hitstun": 22,
+      "hitstop": 8,
+      "impulse": {
+        "x": 30000,
+        "y": 26000
+      },
+      "params": {
+        "offset": 190,
+        "seal": 50,
+        "catSpeed": 760,
+        "catLeap": 900,
+        "cloudW": 300,
+        "cloudH": 260,
+        "cloudLife": 200,
+        "cloudInterval": 25,
+        "cloudDamage": 26
+      }
+    },
+    "ultimate": {
+      "name": "Particle in a Box",
+      "kind": "ULTIMATE",
+      "equation": "ψₙ(x) = √(2/L)·sin(nπx/L)",
+      "startup": 12,
+      "active": 1,
+      "recovery": 34,
+      "damage": 120,
+      "hitstun": 28,
+      "hitstop": 10,
+      "impulse": {
+        "x": 30000,
+        "y": 46000
+      },
+      "params": {
+        "width": 0.6,
+        "delay3": 16,
+        "delay2": 70,
+        "active": 7
+      }
+    }
+  }
+}

@@ -40,7 +40,18 @@ export const SPACE_STATION: ArenaInfo = {
   ],
 };
 
-export const ARENAS: ArenaInfo[] = [THE_LAB, SPACE_STATION];
+/** Rocks orbiting a black hole; projectiles bend toward it and fighters drift to the middle. */
+export const BLACK_HOLE_EDGE: ArenaInfo = {
+  id: 'black-hole-edge', name: 'Black Hole Edge', width: 1600, height: 900, gravity: 2200, objectGravity: 0, bounce: 0.7, wallBounce: 0.7,
+  objects: [
+    { kind: 'rock', x: 1060, y: 540, vx: 0, vy: 209, w: 52, h: 46, metal: false },
+    { kind: 'rock', x: 540, y: 540, vx: 0, vy: -209, w: 46, h: 40, metal: false },
+    { kind: 'rock', x: 800, y: 280, vx: 180, vy: 0, w: 58, h: 50, metal: false },
+  ],
+  well: { x: 800, y: 560, gm: 12_000_000, soft: 60, core: 48, drift: 45 },
+};
+
+export const ARENAS: ArenaInfo[] = [THE_LAB, SPACE_STATION, BLACK_HOLE_EDGE];
 
 export const STANDARD_RULES: MatchRules = {
   countdownTicks: 120, roundTimeTicks: 99 * 60, roundsToWin: 2, maxRounds: 5, roundEndTicks: 150,

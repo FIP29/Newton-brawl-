@@ -54,6 +54,10 @@ public final class MatchSimulation implements MatchWorld {
     private int timer;
     private RoundResult lastRound;
     private MatchResult result;
+    /** xorshift32 state for {@link #random(int)}; mirrored exactly by the TypeScript port. */
+    private int rng = 0x2F6B1D3A;
+    /** Zones spawned while zones are being updated (added after the loop). */
+    private final List<Zone> pendingZones = new ArrayList<>();
 
     public MatchSimulation(Arena arena, Fighter p1, Fighter p2, MatchRules rules) {
         this.arena = arena;
@@ -184,6 +188,7 @@ public final class MatchSimulation implements MatchWorld {
         }
         InputFrame in = new InputFrame(raw.held(), raw.pressed() | s.takeBufferedPresses());
         int dir = in.horizontal();
+        if (s.scrambleTicks > 0) dir = -dir; // Uncertainty Principle: you can't be sure where you're going
 
         if (s.grounded) {
             s.facing = opponent.x >= s.x ? 1 : -1; // always face the opponent on the ground
@@ -250,6 +255,10 @@ public final class MatchSimulation implements MatchWorld {
         s.vy -= g * DT;
         s.x += s.vx * DT;
         s.y += s.vy * DT;
+        Arena.Well well = arena.well();
+        if (well != null && Math.abs(well.x() - s.x) > 30) {
+            s.x += Math.signum(well.x() - s.x) * well.drift() * DT; // slow tidal drift toward the black hole
+        }
 
         if (flipped) {
             // Gravity points up: the fighter drifts helplessly toward the ceiling.
@@ -326,6 +335,18 @@ public final class MatchSimulation implements MatchWorld {
                 }
                 continue;
             }
+            if (Zone.SINGULARITY.equals(z.kind)) {
+                // Pull grows toward the centre like a softened inverse-square law.
+                FighterState t = f[1 - z.owner];
+                double cy = t.y + t.def.body().height() / 2;
+                double dx = z.x - t.x, dy = z.y - cy, rr = z.w / 2;
+                if (z.contains(t.x, cy) && Math.abs(dx) > 10 && t.invulnTicks == 0) {
+                    double v = z.strength * rr * rr / (dx * dx + dy * dy + rr * rr * 0.25);
+                    t.x += Math.signum(dx) * Math.min(Math.abs(dx), v * DT);
+                    clampToWalls(t);
+                }
+                continue;
+            }
             if (!Zone.PULL.equals(z.kind)) continue;
             FighterState src = f[z.owner], t = f[1 - z.owner];
             double dx = src.x - t.x;
@@ -347,7 +368,20 @@ public final class MatchSimulation implements MatchWorld {
 
     private void updateObjects() {
         boolean zeroG = arena.objectGravity() == 0;
+        Arena.Well well = arena.well();
         for (ArenaObject o : objects) {
+            if (well != null) {
+                // a = GM / (r² + soft²) toward the black hole; inside the core the prop is swallowed.
+                double dx = well.x() - o.x, dy = well.y() - o.centerY(), r2 = dx * dx + dy * dy, rr = Math.sqrt(r2);
+                if (rr < well.core()) {
+                    events.add(new GameEvent(GameEvent.SWALLOW, -1, -1, o.kind, 0, r(o.x), r(o.centerY())));
+                    o.respawn();
+                    continue;
+                }
+                double a = well.gm() / (r2 + well.soft() * well.soft()) * DT;
+                o.vx += dx / rr * a;
+                o.vy += dy / rr * a;
+            }
             o.vy -= arena.gravity() * arena.objectGravity() * DT;
             o.x += o.vx * DT;
             o.y += o.vy * DT;
@@ -423,17 +457,40 @@ public final class MatchSimulation implements MatchWorld {
      * <p>Newton's Third Law: if the target is reflecting, the attacker receives the hit instead, with
      * the impulse reversed ("every action has an equal and opposite reaction").
      */
-    private void hitFighter(FighterState src, FighterState target, int damage, double ix, double iy,
-                            int hitstun, int stop, String move, double[] point) {
+    private boolean hitFighter(FighterState src, FighterState target, int damage, double ix, double iy,
+                               int hitstun, int stop, String move, double[] point) {
+        if (src != target && collapse(target, src)) return false;
         if (target.reflectTicks > 0 && src != target) {
             applyDamage(target, src, damage, -ix, iy, hitstun);
             hitstop = Math.max(hitstop, stop);
             events.add(new GameEvent(GameEvent.REFLECT, target.slot, src.slot, move, damage, r(point[0]), r(point[1])));
-            return;
+            return false;
         }
         applyDamage(src, target, damage, ix, iy, hitstun);
         hitstop = Math.max(hitstop, stop);
         events.add(new GameEvent(GameEvent.HIT, src.slot, target.slot, move, damage, r(point[0]), r(point[1])));
+        return true;
+    }
+
+    /**
+     * Superposition: the first hit on a fighter with a live GHOST "measures" which copy was real.
+     * Heads, he was the ghost all along: he appears there and the hit passes through. Tails, the
+     * ghost vanishes and the hit lands. Returns true if the hit is cancelled.
+     */
+    private boolean collapse(FighterState target, FighterState src) {
+        for (Zone z : zones) {
+            if (z.dead || z.owner != target.slot || !Zone.GHOST.equals(z.kind)) continue;
+            z.dead = true;
+            boolean dodge = random(2) == 0;
+            events.add(new GameEvent(GameEvent.COLLAPSE, target.slot, src.slot, z.move, dodge ? 1 : 0, r(z.x), r(z.y)));
+            if (dodge) {
+                target.x = z.x;
+                clampToWalls(target);
+                target.invulnTicks = Math.max(target.invulnTicks, z.arm);
+            }
+            return dodge;
+        }
+        return false;
     }
 
     private void applyDamage(FighterState src, FighterState target, int damage, double ix, double iy, int hitstun) {
@@ -481,6 +538,14 @@ public final class MatchSimulation implements MatchWorld {
                     p.y = a.y + a.def.body().height() * 0.55 + p.oy;
                 }
             }
+            if (p.shrink > 0) {
+                p.w = Math.max(p.minSize, p.w - p.shrink * scale);
+                p.h = p.w;
+            }
+            if (p.motion == Projectile.Motion.LINEAR && bendAndSwallow(p, scale)) {
+                p.dead = true;
+                continue;
+            }
             if (p.electric && p.chains < p.maxChains) chainThroughMetal(p);
 
             FighterState target = f[1 - p.owner];
@@ -508,14 +573,23 @@ public final class MatchSimulation implements MatchWorld {
                     p.reflected = true;
                     events.add(new GameEvent(GameEvent.REFLECT, target.slot, 1 - target.slot, p.move, 0, r(pt[0]), r(pt[1])));
                 } else {
-                    if (p.effect == Projectile.Effect.GRAVITY_FLIP && target.reflectTicks == 0) {
-                        target.flipTicks = p.effectTicks;
+                    int dmg = p.currentDamage();
+                    double ix = p.dir * p.impulseX, iy = p.impulseY;
+                    if (p.effect == Projectile.Effect.MEASURE) {
+                        // Δx·Δp ≥ ħ/2: position pinned down, so the momentum kick is anyone's guess.
+                        int sign = random(2) == 0 ? 1 : -1;
+                        ix = sign * p.impulseX * (0.5 + 0.5 * random(3));
+                        iy = p.impulseY * (0.5 + 0.5 * random(3));
                     }
-                    if (p.effect == Projectile.Effect.BUOY && target.reflectTicks == 0) {
-                        target.buoyTicks = p.effectTicks;
+                    if (p.effect == Projectile.Effect.DOPPLER) {
+                        // f' = f·(c + v_o)/(c − v_s): approaching source or observer → higher pitch, more damage.
+                        double vo = -p.dir * target.vx;
+                        double ratio = clamp((p.waveSpeed + vo) / (p.waveSpeed - p.vs), 0.5, 2.5);
+                        dmg = (int) Math.round(dmg * ratio);
                     }
-                    hitFighter(f[p.owner], target, p.currentDamage(), p.dir * p.impulseX, p.impulseY,
-                        p.hitstun, p.hitstop, p.move, pt);
+                    boolean landed = hitFighter(f[p.owner], target, dmg, ix, iy, p.hitstun, p.hitstop, p.move, pt);
+                    if (landed && p.effect == Projectile.Effect.GRAVITY_FLIP) target.flipTicks = p.effectTicks;
+                    if (landed && p.effect == Projectile.Effect.BUOY) target.buoyTicks = p.effectTicks;
                     p.dead = true;
                     continue;
                 }
@@ -524,6 +598,36 @@ public final class MatchSimulation implements MatchWorld {
             boolean outside = p.x < -100 || p.x > arena.width() + 100 || p.y > arena.height() + 200;
             if (p.life <= 0 || hitFloor || outside) p.dead = true;
         }
+    }
+
+    /**
+     * Gravitational lensing: straight-line projectiles curve toward the arena's black hole and
+     * toward the opponent's singularities, and are swallowed inside their cores. Returns true if swallowed.
+     */
+    private boolean bendAndSwallow(Projectile p, double scale) {
+        Arena.Well well = arena.well();
+        if (well != null) {
+            double dx = well.x() - p.x, dy = well.y() - p.y, r2 = dx * dx + dy * dy, rr = Math.sqrt(r2);
+            if (rr < well.core()) {
+                events.add(new GameEvent(GameEvent.SWALLOW, p.owner, -1, p.move, 0, r(p.x), r(p.y)));
+                return true;
+            }
+            double a = well.gm() / (r2 + well.soft() * well.soft()) * DT * scale;
+            p.vx += dx / rr * a;
+            p.vy += dy / rr * a;
+        }
+        for (Zone z : zones) {
+            if (z.dead || z.owner == p.owner || !Zone.SINGULARITY.equals(z.kind) || !z.contains(p.x, p.y)) continue;
+            double dx = z.x - p.x, dy = z.y - p.y, r2 = dx * dx + dy * dy, rr = Math.sqrt(r2), half = z.w / 2;
+            if (rr < z.core) {
+                events.add(new GameEvent(GameEvent.SWALLOW, z.owner, p.owner, p.move, 0, r(p.x), r(p.y)));
+                return true;
+            }
+            double a = z.strength * 20 * half * half / (r2 + half * half * 0.25) * DT * scale;
+            p.vx += dx / rr * a;
+            p.vy += dy / rr * a;
+        }
+        return false;
     }
 
     /** Tesla's lightning jumps to the opponent whenever it passes a metal object. */
@@ -572,11 +676,11 @@ public final class MatchSimulation implements MatchWorld {
                         z.dead = true;
                     }
                 }
-                case Zone.BLAST, Zone.BEAM, Zone.LEVER, Zone.FOCUS -> {
+                case Zone.BLAST, Zone.BEAM, Zone.LEVER, Zone.FOCUS, Zone.WAVE, Zone.BURST, Zone.BOOM -> {
                     boolean live = z.age > z.delay && z.age <= z.delay + z.active;
                     if (live && (z.hitMask & (1 << t.slot)) == 0 && t.invulnTicks == 0 && z.box().intersects(hurt)) {
                         z.hitMask |= 1 << t.slot;
-                        int dir = Zone.BEAM.equals(z.kind) ? z.dir : (t.x >= z.x ? 1 : -1);
+                        int dir = Zone.BEAM.equals(z.kind) || Zone.BOOM.equals(z.kind) ? z.dir : (t.x >= z.x ? 1 : -1);
                         hitFighter(src, t, z.damage, dir * z.impulseX, z.impulseY, z.hitstun, z.hitstop, z.move,
                             z.box().overlapCenter(hurt));
                     }
@@ -630,9 +734,79 @@ public final class MatchSimulation implements MatchWorld {
                         z.dead = true;
                     }
                 }
-                default -> { /* BUBBLE and PULL act elsewhere */ }
+                case Zone.CATBOX -> {
+                    if (z.age >= z.delay) openBox(z, t);
+                }
+                case Zone.CLOUD -> {
+                    if (z.age % z.interval == 0 && t.invulnTicks == 0 && z.box().intersects(hurt)) {
+                        int dir = t.x >= z.x ? 1 : -1;
+                        hitFighter(src, t, z.damage, dir * z.impulseX, z.impulseY, z.hitstun, z.hitstop, z.move,
+                            new double[] {t.x, t.y + t.def.body().height() * 0.6});
+                    }
+                }
+                case Zone.UNCERTAIN -> {
+                    // Whether it strikes this time is genuinely random: 50% every interval.
+                    if (z.age % z.interval == 0 && t.invulnTicks == 0 && random(2) == 0) {
+                        int dir = random(2) == 0 ? 1 : -1;
+                        hitFighter(src, t, z.damage, dir * z.impulseX, z.impulseY, z.hitstun, z.hitstop, z.move,
+                            new double[] {t.x, t.y + t.def.body().height() * 0.6});
+                    }
+                }
+                case Zone.SINGULARITY -> {
+                    double cy = t.y + t.def.body().height() / 2, dx = t.x - z.x, dy = cy - z.y;
+                    if (z.age % z.interval == 0 && t.invulnTicks == 0 && dx * dx + dy * dy < z.core * z.core * 4) {
+                        hitFighter(src, t, z.damage, (dx >= 0 ? 1 : -1) * z.impulseX, z.impulseY, z.hitstun, z.hitstop,
+                            z.move, new double[] {t.x, cy});
+                    }
+                }
+                default -> { /* BUBBLE, PULL and GHOST act elsewhere */ }
             }
             if (z.life <= 0) z.dead = true;
+        }
+        zones.addAll(pendingZones);
+        pendingZones.clear();
+    }
+
+    /**
+     * Schrödinger's box opens: until now the cat was alive AND dead. Observation picks one.
+     * Alive, it pounces at the opponent; dead, the poison flask has broken and vapour spreads.
+     */
+    private void openBox(Zone z, FighterState t) {
+        z.dead = true;
+        MoveDefinition m = z.source;
+        boolean alive = random(2) == 0;
+        events.add(new GameEvent(GameEvent.COLLAPSE, z.owner, -1, z.move, alive ? 1 : 0, r(z.x), r(z.y)));
+        if (alive) {
+            Projectile cat = new Projectile(nextId++, z.owner, "cat", z.move);
+            cat.dir = t.x >= z.x ? 1 : -1;
+            cat.x = z.x;
+            cat.y = z.y + z.h / 2;
+            cat.w = 64;
+            cat.h = 40;
+            cat.vx = cat.dir * m.param("catSpeed", 760);
+            cat.vy = m.param("catLeap", 900);
+            cat.ay = -arena.gravity();
+            cat.damage = z.damage;
+            cat.impulseX = z.impulseX;
+            cat.impulseY = z.impulseY;
+            cat.hitstun = z.hitstun;
+            cat.hitstop = z.hitstop;
+            cat.life = 90;
+            projectiles.add(cat);
+        } else {
+            Zone cloud = new Zone(nextId++, z.owner, Zone.CLOUD, z.move);
+            cloud.x = z.x;
+            cloud.w = m.param("cloudW", 300);
+            cloud.h = m.param("cloudH", 260);
+            cloud.y = cloud.h / 2;
+            cloud.life = (int) m.param("cloudLife", 200);
+            cloud.interval = (int) m.param("cloudInterval", 25);
+            cloud.damage = (int) m.param("cloudDamage", 26);
+            cloud.impulseX = 4000;
+            cloud.impulseY = 2000;
+            cloud.hitstun = 10;
+            cloud.hitstop = 2;
+            pendingZones.add(cloud);
         }
     }
 
@@ -663,6 +837,7 @@ public final class MatchSimulation implements MatchWorld {
         if (s.flipTicks > 0) s.flipTicks--;
         if (s.buoyTicks > 0) s.buoyTicks--;
         if (s.cageTicks > 0) s.cageTicks--;
+        if (s.scrambleTicks > 0) s.scrambleTicks--;
         if (s.reflectTicks > 0) s.reflectTicks--;
         if (s.invulnTicks > 0) s.invulnTicks--;
         if (s.cooldowns[0] > 0) s.cooldowns[0]--;
@@ -724,6 +899,16 @@ public final class MatchSimulation implements MatchWorld {
             o.owner = sourceSlot;
         }
         events.add(new GameEvent(GameEvent.SHATTER, sourceSlot, victimSlot, "ultimate", 0, r(x), r(y)));
+    }
+
+    @Override
+    public int random(int n) {
+        int x = rng;
+        x ^= x << 13;
+        x ^= x >>> 17;
+        x ^= x << 5;
+        rng = x;
+        return Integer.remainderUnsigned(x, n);
     }
 
     /** Faraday's cage stops electric zones. */

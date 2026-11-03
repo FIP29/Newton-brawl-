@@ -9,6 +9,10 @@ import galileo from '../../../../backend/src/main/resources/fighters/galileo.jso
 import archimedes from '../../../../backend/src/main/resources/fighters/archimedes.json';
 import faraday from '../../../../backend/src/main/resources/fighters/faraday.json';
 import hooke from '../../../../backend/src/main/resources/fighters/hooke.json';
+import schrodinger from '../../../../backend/src/main/resources/fighters/schrodinger.json';
+import heisenberg from '../../../../backend/src/main/resources/fighters/heisenberg.json';
+import hawking from '../../../../backend/src/main/resources/fighters/hawking.json';
+import doppler from '../../../../backend/src/main/resources/fighters/doppler.json';
 
 export const FIGHTERS: Record<string, FighterDefinition> = {
   newton: newton as FighterDefinition,
@@ -19,6 +23,10 @@ export const FIGHTERS: Record<string, FighterDefinition> = {
   archimedes: archimedes as FighterDefinition,
   faraday: faraday as FighterDefinition,
   hooke: hooke as FighterDefinition,
+  schrodinger: schrodinger as FighterDefinition,
+  heisenberg: heisenberg as FighterDefinition,
+  hawking: hawking as FighterDefinition,
+  doppler: doppler as FighterDefinition,
   prototype: prototype as FighterDefinition,
 };
 
@@ -26,7 +34,8 @@ export const FIGHTERS: Record<string, FighterDefinition> = {
 export const PLAYABLE = ['newton', 'tesla', 'curie', 'einstein'] as const;
 
 /** Every implemented fighter in roster order (unlockable ones need an unlock). */
-export const ROSTER = ['newton', 'tesla', 'curie', 'einstein', 'galileo', 'archimedes', 'faraday', 'hooke'] as const;
+export const ROSTER = ['newton', 'tesla', 'curie', 'einstein', 'galileo', 'archimedes', 'faraday', 'hooke',
+  'schrodinger', 'heisenberg', 'hawking', 'doppler'] as const;
 
 export function fighter(id: string): FighterDefinition {
   const def = FIGHTERS[id];

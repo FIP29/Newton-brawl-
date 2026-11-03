@@ -45,7 +45,10 @@ class ParityFixtureTest {
         List.of("newton", "tesla", "the-lab"), List.of("curie", "einstein", "the-lab"), List.of("tesla", "curie", "space-station"),
         List.of("einstein", "newton", "space-station"), List.of("galileo", "archimedes", "space-station"),
         List.of("faraday", "tesla", "the-lab"), List.of("hooke", "faraday", "space-station"), List.of("archimedes", "hooke", "the-lab"),
-        List.of("galileo", "curie", "the-lab"));
+        List.of("galileo", "curie", "the-lab"),
+        List.of("schrodinger", "heisenberg", "black-hole-edge"), List.of("hawking", "doppler", "black-hole-edge"),
+        List.of("schrodinger", "newton", "the-lab"), List.of("heisenberg", "hawking", "space-station"),
+        List.of("doppler", "schrodinger", "black-hole-edge"), List.of("hawking", "tesla", "black-hole-edge"));
 
     @Test
     void fixtureMatchesCurrentEngine() throws Exception {
@@ -68,7 +71,7 @@ class ParityFixtureTest {
                 inputs.add(a.held() | a.pressed() << 8 | b.held() << 16 | b.pressed() << 24);
                 sim.step(a, b);
                 MatchSnapshot s = sim.snapshot();
-                s.events().forEach(e -> { eventTypes.add(e.type()); if (e.move() != null) movesUsed.add(pair.get(e.attacker()) + "." + e.move()); });
+                s.events().forEach(e -> { eventTypes.add(e.type()); if (e.move() != null && e.attacker() >= 0) movesUsed.add(pair.get(e.attacker()) + "." + e.move()); });
                 // Any divergence propagates, so periodic checkpoints plus every hit-type event suffice.
                 boolean keyEvent = s.events().stream().anyMatch(e -> !e.type().equals(GameEvent.CAST) && !e.type().equals(GameEvent.CLANK));
                 if (t % CHECKPOINT_EVERY == 0 || keyEvent || sim.phase() == MatchPhase.FINISHED) {
@@ -89,8 +92,10 @@ class ParityFixtureTest {
         String json = mapper.writeValueAsString(Map.of("matches", matches)) + "\n";
 
         // Sanity: the bots must actually exercise the interesting mechanics.
-        assertThat(eventTypes).contains(GameEvent.HIT, GameEvent.CAST, GameEvent.ULTIMATE, GameEvent.CLANK);
-        for (String f : List.of("newton", "tesla", "curie", "einstein", "galileo", "archimedes", "faraday", "hooke")) {
+        assertThat(eventTypes).contains(GameEvent.HIT, GameEvent.CAST, GameEvent.ULTIMATE, GameEvent.CLANK,
+            GameEvent.COLLAPSE, GameEvent.SWALLOW);
+        for (String f : List.of("newton", "tesla", "curie", "einstein", "galileo", "archimedes", "faraday", "hooke",
+                "schrodinger", "heisenberg", "hawking", "doppler")) {
             assertThat(movesUsed).contains(f + ".special1", f + ".special2", f + ".ultimate");
         }
 

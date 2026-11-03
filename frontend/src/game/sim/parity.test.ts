@@ -12,8 +12,8 @@ interface FixtureMatch {
 }
 
 /**
- * The fixture is recorded by the Java engine (backend ParityFixtureTest): four matchups in The Lab
- * covering every special and ultimate. Replaying the same inputs through the TypeScript port must
+ * The fixture is recorded by the Java engine (backend ParityFixtureTest): matchups in all three
+ * arenas covering every special and ultimate. Replaying the same inputs through the TypeScript port must
  * reproduce every recorded snapshot exactly — this is what makes local play and client-side
  * prediction behave like the authoritative server.
  */
@@ -37,11 +37,11 @@ describe('TypeScript simulation matches the Java engine', () => {
     });
   }
 
-  it('covers specials, ultimates, reflects, lightning arcs, Faraday blocks, shatters and both arenas', () => {
-    expect(new Set(matches.map((m) => m.arena.id))).toEqual(new Set(['the-lab', 'space-station']));
+  it('covers specials, ultimates, reflects, arcs, blocks, shatters, collapses, black holes and every arena', () => {
+    expect(new Set(matches.map((m) => m.arena.id))).toEqual(new Set(['the-lab', 'space-station', 'black-hole-edge']));
     const snaps = matches.flatMap((m) => Object.values(m.checkpoints));
     const types = new Set(snaps.flatMap((s) => s.events.map((e) => e.type)));
-    for (const t of ['HIT', 'ULTIMATE', 'REFLECT', 'ARC', 'BLOCK', 'SHATTER'] as const) expect(types.has(t), t).toBe(true);
+    for (const t of ['HIT', 'ULTIMATE', 'REFLECT', 'ARC', 'BLOCK', 'SHATTER', 'COLLAPSE', 'SWALLOW'] as const) expect(types.has(t), t).toBe(true);
     expect(snaps.some((s) => s.projectiles.length > 0)).toBe(true);
     expect(snaps.some((s) => s.zones.length > 0)).toBe(true);
     expect(Math.max(...snaps.map((s) => s.round))).toBeGreaterThanOrEqual(2);

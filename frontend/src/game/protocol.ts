@@ -80,6 +80,8 @@ export interface FighterView {
   objHits: number;
   buoy: number;
   cage: number;
+  /** Ticks of swapped left/right controls left (Heisenberg). */
+  scramble: number;
 }
 
 export interface ProjectileView {
@@ -92,7 +94,8 @@ export interface ProjectileView {
 
 export interface ZoneView {
   id: number; owner: number;
-  kind: 'BUBBLE' | 'PULL' | 'TRAP' | 'BLAST' | 'BEAM' | 'FIELD' | 'LEVER' | 'FOCUS' | 'INDUCTION' | 'STORM' | 'SPRING';
+  kind: 'BUBBLE' | 'PULL' | 'TRAP' | 'BLAST' | 'BEAM' | 'FIELD' | 'LEVER' | 'FOCUS' | 'INDUCTION' | 'STORM' | 'SPRING'
+    | 'GHOST' | 'CATBOX' | 'CLOUD' | 'WAVE' | 'BURST' | 'UNCERTAIN' | 'SINGULARITY' | 'BOOM';
   move: string;
   x: number; y: number; w: number; h: number;
   age: number; life: number; delay: number; active: number; armed: boolean;
@@ -100,7 +103,7 @@ export interface ZoneView {
 
 export interface ObjectView { id: number; kind: string; x: number; y: number; vx: number; vy: number; w: number; h: number; owner: number }
 
-export type GameEventType = 'HIT' | 'REFLECT' | 'ULTIMATE' | 'CAST' | 'ARC' | 'CLANK' | 'BLOCK' | 'SHATTER';
+export type GameEventType = 'HIT' | 'REFLECT' | 'ULTIMATE' | 'CAST' | 'ARC' | 'CLANK' | 'BLOCK' | 'SHATTER' | 'COLLAPSE' | 'SWALLOW';
 
 /** Mirrors com.newtonbrawl.engine.sim.GameEvent. */
 export interface GameEvent { type: GameEventType; attacker: number; defender: number; move: string | null; damage: number; x: number; y: number }
@@ -114,10 +117,14 @@ export interface PlayerInfo {
 
 export interface ObjectSpawn { kind: string; x: number; y: number; vx: number; vy: number; w: number; h: number; metal: boolean }
 
+/** A black hole: props and projectiles accelerate toward it at GM / (r² + soft²); fighters drift toward it. */
+export interface Well { x: number; y: number; gm: number; soft: number; core: number; drift: number }
+
 /** Mirrors com.newtonbrawl.engine.sim.Arena. */
 export interface ArenaInfo {
   id: string; name: string; width: number; height: number; gravity: number;
   objectGravity: number; bounce: number; wallBounce: number; objects: ObjectSpawn[];
+  well?: Well | null;
 }
 
 export interface MatchRules { countdownTicks: number; roundTimeTicks: number; roundsToWin: number; maxRounds: number; roundEndTicks: number }
