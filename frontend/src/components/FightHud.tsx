@@ -63,7 +63,10 @@ export function useMatchPresentation() {
   return { hud, banner, push, reset };
 }
 
-export function HudBar({ hud, names, mySlot }: { hud: HudState | null; names: string[]; mySlot?: number }) {
+export function HudBar({ hud, names, mySlot, fighters, images }: {
+  hud: HudState | null; names: string[]; mySlot?: number;
+  fighters?: { name: string; id: string; color: string }[]; images?: Record<string, string>;
+}) {
   return (
     <div className="hud">
       {[0, 1].map((s) => {
@@ -71,9 +74,15 @@ export function HudBar({ hud, names, mySlot }: { hud: HudState | null; names: st
         const energy = hud ? hud.energy[s] / ENERGY_MAX * 100 : 0;
         const full = energy >= 100;
         return (
-          <div key={s} className={`hud-side side-${s}`}>
-            <div className="hud-name">
-              {names[s]} {s === mySlot && <span className="you-tag">YOU</span>}
+          <div key={s} className={`hud-side side-${s}`} style={fighters ? { '--accent': fighters[s].color } as React.CSSProperties : undefined}>
+            <div className="hud-id">
+              {fighters && (
+                <div className="hud-portrait" style={images?.[fighters[s].id] ? { backgroundImage: `url(${images[fighters[s].id]})` } : undefined} />
+              )}
+              <div>
+                <div className="hud-name">{fighters ? fighters[s].name : names[s]} {s === mySlot && <span className="you-tag">YOU</span>}</div>
+                {fighters && <div className="hud-player">{names[s]}</div>}
+              </div>
             </div>
             <div className="health" role="meter" aria-label={`${names[s]} health`} aria-valuenow={hud?.health[s]}>
               <div className="health-ghost" style={{ width: `${pct}%` }} />

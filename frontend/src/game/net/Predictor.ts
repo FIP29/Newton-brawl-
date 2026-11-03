@@ -1,6 +1,8 @@
 import type { ArenaInfo, FighterDefinition, FighterView, StateMessage } from '../protocol';
+import { CINEMATIC_TICKS } from '../sim/constants';
 import { FighterState } from '../sim/FighterState';
-import { advance, control, integrate, separate, type InputFrame } from '../sim/MatchSimulation';
+import { advance, clampToWalls, control, integrate, separate, tickStatuses, type InputFrame,
+         type StepHost } from '../sim/MatchSimulation';
 
 interface PendingInput { seq: number; bits: number }
 
@@ -14,15 +16,18 @@ interface PendingInput { seq: number; bits: number }
  * (the TS port is parity-tested against Java). If the result differs from what we were showing
  * (e.g. we got hit), the visual error is blended away over ~100 ms instead of snapping.
  *
- * Hits are never predicted: damage only ever comes from the server.
+ * Hits, projectiles and zones are never predicted: they only ever come from the server. Our own
+ * specials still animate (and Light Dash still blinks) instantly. Prediction pauses while we're
+ * under effects it can't model locally (flipped gravity, inside a time-dilation bubble).
  */
-export class Predictor {
+export class Predictor implements StepHost {
   private self: FighterState | null = null;
   private opponent: FighterState | null = null;
   private pending: PendingInput[] = [];
   private ackedBits = 0;
   private lastBits = 0;
   private hitstop = 0;
+  private cinematic = 0;
   private active = false;
   private err = { x: 0, y: 0 };
 
@@ -32,7 +37,7 @@ export class Predictor {
   private static readonly SNAP_DISTANCE = 220;
   private static readonly MAX_PENDING = 120;
 
-  constructor(private readonly arena: ArenaInfo, private readonly defs: FighterDefinition[],
+  constructor(readonly arena: ArenaInfo, private readonly defs: FighterDefinition[],
               private readonly slot: number) {}
 
   /** True while prediction is driving our fighter (only during FIGHTING). */
@@ -51,7 +56,10 @@ export class Predictor {
     const ack = msg.ack[this.slot];
     while (this.pending.length && this.pending[0].seq <= ack) this.ackedBits = this.pending.shift()!.bits;
 
-    this.active = msg.phase === 'FIGHTING' && msg.fighters[this.slot].action !== 'KO';
+    const me = msg.fighters[this.slot];
+    const inBubble = msg.zones.some((z) => z.kind === 'BUBBLE' && z.owner !== this.slot
+      && Math.abs(me.x - z.x) <= z.w / 2 + 60 && Math.abs(me.y + this.defs[this.slot].body.height / 2 - z.y) <= z.h / 2 + 60);
+    this.active = msg.phase === 'FIGHTING' && me.action !== 'KO' && me.flip === 0 && !inBubble;
     if (!this.active) {
       this.self = null;
       this.err.x = this.err.y = 0;
@@ -63,6 +71,7 @@ export class Predictor {
     this.self = FighterState.fromView(this.slot, this.defs[this.slot], msg.fighters[this.slot]);
     this.opponent = FighterState.fromView(other, this.defs[other], msg.fighters[other]);
     this.hitstop = msg.hitstop;
+    this.cinematic = msg.cinematic;
 
     // Replay everything the server hasn't applied yet.
     this.lastBits = this.ackedBits;
@@ -90,17 +99,35 @@ export class Predictor {
     const input: InputFrame = { held: bits, pressed: bits & ~this.lastBits };
     this.lastBits = bits;
     const s = this.self!, o = this.opponent!;
+    if (this.cinematic > 0) {
+      this.cinematic--;
+      s.bufferPresses(input.pressed);
+      return;
+    }
     if (this.hitstop > 0) {
       this.hitstop--;
       s.bufferPresses(input.pressed);
       return;
     }
-    control(s, input, o);
+    // Mirror the simulation's time slice at scale 1 (keeps timeAcc bit-identical).
+    s.timeAcc += 1.0;
+    if (s.timeAcc >= 1.0) s.timeAcc -= 1.0;
+    control(s, input, o, this);
     integrate(this.arena, s);
     // The opponent's position is authoritative; we only resolve our side of the push.
     const ox = o.x;
     separate(this.arena, s, o);
     o.x = ox;
-    advance(s);
+    advance(s, o, this);
+    tickStatuses(s);
   }
+
+  // StepHost: our own spawns/events are discarded — the server's versions arrive in snapshots.
+  nextId() { return 0; }
+  spawnProjectile() {}
+  spawnZone() {}
+  removeZones() {}
+  teleport(s: FighterState, x: number) { s.x = x; clampToWalls(this.arena, s); }
+  startUltimate() { this.cinematic = CINEMATIC_TICKS; }
+  event() {}
 }

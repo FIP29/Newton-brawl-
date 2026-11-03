@@ -41,6 +41,10 @@ final class Room {
         return seats[0] != null && seats[1] != null;
     }
 
+    boolean everyonePicked() {
+        return full() && seats[0].fighter != null && seats[1].fighter != null;
+    }
+
     boolean anyoneConnected() {
         for (Seat s : seats) if (s != null && s.connected()) return true;
         return false;
@@ -49,7 +53,9 @@ final class Room {
     List<PlayerInfo> players() {
         List<PlayerInfo> list = new ArrayList<>(2);
         for (Seat s : seats) {
-            if (s != null) list.add(new PlayerInfo(s.slot, s.playerId, s.username, s.displayName, s.elo, s.connected()));
+            if (s != null) {
+                list.add(new PlayerInfo(s.slot, s.playerId, s.username, s.displayName, s.elo, s.connected(), s.fighter));
+            }
         }
         return list;
     }

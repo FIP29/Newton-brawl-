@@ -12,6 +12,11 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.function.Function;
 
+import com.newtonbrawl.engine.fighter.roster.Curie;
+import com.newtonbrawl.engine.fighter.roster.Einstein;
+import com.newtonbrawl.engine.fighter.roster.Newton;
+import com.newtonbrawl.engine.fighter.roster.Tesla;
+
 /**
  * Registry of every fighter: the JSON definition plus the Java class that implements it.
  *
@@ -23,8 +28,16 @@ public final class FighterCatalog {
     /** id → constructor for that fighter's behaviour class. Order = roster order. */
     private static final Map<String, Function<FighterDefinition, Fighter>> FACTORIES = new LinkedHashMap<>();
     static {
+        FACTORIES.put(Newton.ID, Newton::new);
+        FACTORIES.put(Tesla.ID, Tesla::new);
+        FACTORIES.put(Curie.ID, Curie::new);
+        FACTORIES.put(Einstein.ID, Einstein::new);
+        // Training dummy with only light/heavy; used by tests, not selectable.
         FACTORIES.put(PrototypeFighter.ID, PrototypeFighter::new);
     }
+
+    /** Fighters players can pick, in roster order. */
+    public static final java.util.List<String> PLAYABLE = java.util.List.of(Newton.ID, Tesla.ID, Curie.ID, Einstein.ID);
 
     private final Map<String, FighterDefinition> definitions;
 

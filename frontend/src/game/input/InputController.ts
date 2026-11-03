@@ -3,27 +3,27 @@ import { Btn } from '../protocol';
 /** Physical key (`KeyboardEvent.code`) → button. */
 export type KeyMap = Record<string, number>;
 
-/** Online: WASD + J/K/L (Space also jumps). */
+/** Online: WASD + J/K/L, I = ULTIMATE (Space also jumps; K+L together also fires the ultimate). */
 export const KEYS_ONLINE: KeyMap = {
   KeyA: Btn.LEFT, KeyD: Btn.RIGHT, KeyW: Btn.UP, KeyS: Btn.DOWN, Space: Btn.UP,
-  KeyJ: Btn.LIGHT, KeyK: Btn.HEAVY, KeyL: Btn.SPECIAL,
+  KeyJ: Btn.LIGHT, KeyK: Btn.HEAVY, KeyL: Btn.SPECIAL, KeyI: Btn.ULTIMATE,
 };
 
 /** Local player 1: same as online. */
 export const KEYS_LOCAL_P1: KeyMap = { ...KEYS_ONLINE };
 
-/** Local player 2: arrows + numpad 1/2/3 (comma/period/slash for keyboards without a numpad). */
+/** Local player 2: arrows + numpad 1/2/3 (4 = ULTIMATE); comma/period/slash/quote without a numpad. */
 export const KEYS_LOCAL_P2: KeyMap = {
   ArrowLeft: Btn.LEFT, ArrowRight: Btn.RIGHT, ArrowUp: Btn.UP, ArrowDown: Btn.DOWN,
-  Numpad1: Btn.LIGHT, Numpad2: Btn.HEAVY, Numpad3: Btn.SPECIAL,
-  Comma: Btn.LIGHT, Period: Btn.HEAVY, Slash: Btn.SPECIAL,
+  Numpad1: Btn.LIGHT, Numpad2: Btn.HEAVY, Numpad3: Btn.SPECIAL, Numpad4: Btn.ULTIMATE,
+  Comma: Btn.LIGHT, Period: Btn.HEAVY, Slash: Btn.SPECIAL, Quote: Btn.ULTIMATE,
 };
 
 const STICK_DEADZONE = 0.45;
 
 /**
  * Samples one player's controls into a button bitmask: a keyboard map plus a gamepad
- * (standard mapping: stick/d-pad, A light, B heavy, X special, Y jump).
+ * (standard mapping: stick/d-pad, A light, B heavy, X special, Y jump, RB/RT ultimate).
  *
  * @param gamepad  which gamepad index this player uses, or 'any' to accept every pad (online).
  */
@@ -80,6 +80,7 @@ export class InputController {
       if (b(0)) bits |= Btn.LIGHT;
       if (b(1)) bits |= Btn.HEAVY;
       if (b(2)) bits |= Btn.SPECIAL;
+      if (b(5) || b(7)) bits |= Btn.ULTIMATE;
     });
     return bits;
   }

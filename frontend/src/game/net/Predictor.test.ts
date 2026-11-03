@@ -6,6 +6,8 @@ import { fighter } from '../data/fighters';
 import { Predictor } from './Predictor';
 
 const defs = [fighter('prototype'), fighter('prototype')] as [ReturnType<typeof fighter>, ReturnType<typeof fighter>];
+/** No beakers: these tests are about movement prediction. */
+const ARENA = { ...THE_LAB, objectSpawns: [] };
 
 /**
  * A miniature server: the TS simulation (parity-identical to Java) plus an input queue that, like
@@ -13,8 +15,8 @@ const defs = [fighter('prototype'), fighter('prototype')] as [ReturnType<typeof 
  * directions are delayed by `latency` ticks.
  */
 function runNetworked(latency: number, script: (t: number) => number, opponent: (t: number) => number, ticks: number) {
-  const server = new MatchSimulation(THE_LAB, defs, { ...STANDARD_RULES, countdownTicks: 0 });
-  const predictor = new Predictor(THE_LAB, defs, 0);
+  const server = new MatchSimulation(ARENA, defs, { ...STANDARD_RULES, countdownTicks: 0 });
+  const predictor = new Predictor(ARENA, defs, 0);
   const upstream: Array<{ at: number; seq: number; bits: number }> = [];
   const downstream: Array<{ at: number; msg: StateMessage }> = [];
   const queue: Array<{ seq: number; bits: number }> = [];

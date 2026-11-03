@@ -20,4 +20,17 @@ public final class EngineConstants {
     public static final int ENERGY_MAX = 1000;
     public static final double ENERGY_PER_DAMAGE_DEALT = 1.0;
     public static final double ENERGY_PER_DAMAGE_TAKEN = 0.6;
+
+    /** Real gravitational acceleration, 9.8 m/s², in world units (100 units = 1 m). Newton's apples use it. */
+    public static final double REAL_G = 980;
+    /** While gravity is flipped a fighter "falls" upwards at this fraction of normal gravity. */
+    public static final double FLIP_GRAVITY = -0.35;
+    /** World freeze while an ULTIMATE's cinematic plays. */
+    public static final int CINEMATIC_TICKS = 60;
+    /** Arena objects (lab beakers) respond to impulses as if they had this mass. */
+    public static final double OBJECT_MASS = 50;
+    /** A thrown/knocked object faster than this (|vx|+|vy|) hurts the opponent of whoever sent it flying. */
+    public static final double OBJECT_DANGER_SPEED = 500;
+    /** Final-KO slow motion: the first N ticks of the deciding round's end run at 1/3 speed. */
+    public static final int SLOWMO_TICKS = 90;
 }

@@ -1,0 +1,113 @@
+{
+  "id": "einstein",
+  "name": "Albert Einstein",
+  "title": "The Relative Trickster",
+  "fighterClass": "TRICKSTER",
+  "color": "#b57bff",
+  "mass": 75,
+  "maxHealth": 1000,
+  "walkSpeed": 410,
+  "jumpVelocity": 1150,
+  "airAcceleration": 1900,
+  "body": {
+    "width": 90,
+    "height": 190
+  },
+  "moves": {
+    "light": {
+      "name": "Thought Experiment",
+      "startup": 5,
+      "active": 3,
+      "recovery": 10,
+      "damage": 45,
+      "hitstun": 15,
+      "hitstop": 5,
+      "hitbox": {
+        "x": 72,
+        "y": 128,
+        "w": 84,
+        "h": 40
+      },
+      "impulse": {
+        "x": 22000,
+        "y": 0
+      }
+    },
+    "heavy": {
+      "name": "Photoelectric Punch",
+      "startup": 12,
+      "active": 4,
+      "recovery": 19,
+      "damage": 115,
+      "hitstun": 26,
+      "hitstop": 10,
+      "hitbox": {
+        "x": 94,
+        "y": 108,
+        "w": 120,
+        "h": 64
+      },
+      "impulse": {
+        "x": 56000,
+        "y": 36000
+      }
+    },
+    "special1": {
+      "name": "Light Dash",
+      "kind": "SPECIAL",
+      "equation": "c = 299 792 458 m/s",
+      "startup": 3,
+      "active": 1,
+      "recovery": 14,
+      "cooldown": 45,
+      "damage": 0,
+      "hitstun": 0,
+      "hitstop": 0,
+      "params": {
+        "distance": 320,
+        "invulnTicks": 12
+      }
+    },
+    "special2": {
+      "name": "Time Dilation Bubble",
+      "kind": "SPECIAL",
+      "equation": "Δt′ = Δt / √(1 − v²/c²)",
+      "startup": 10,
+      "active": 1,
+      "recovery": 18,
+      "cooldown": 360,
+      "damage": 0,
+      "hitstun": 0,
+      "hitstop": 0,
+      "params": {
+        "offset": 230,
+        "height": 150,
+        "w": 340,
+        "h": 320,
+        "life": 240,
+        "timeScale": 0.4
+      }
+    },
+    "ultimate": {
+      "name": "E = mc²",
+      "kind": "ULTIMATE",
+      "equation": "E = mc²",
+      "startup": 12,
+      "active": 1,
+      "recovery": 34,
+      "cooldown": 0,
+      "damage": 290,
+      "hitstun": 40,
+      "hitstop": 14,
+      "impulse": {
+        "x": 72000,
+        "y": 36000
+      },
+      "params": {
+        "height": 125,
+        "h": 120,
+        "active": 28
+      }
+    }
+  }
+}

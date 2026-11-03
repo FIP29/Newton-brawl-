@@ -1,0 +1,127 @@
+{
+  "id": "curie",
+  "name": "Marie Curie",
+  "title": "The Radiant Zoner",
+  "fighterClass": "ZONER",
+  "color": "#7cff6b",
+  "mass": 62,
+  "maxHealth": 900,
+  "walkSpeed": 390,
+  "jumpVelocity": 1160,
+  "airAcceleration": 1900,
+  "body": {
+    "width": 82,
+    "height": 185
+  },
+  "moves": {
+    "light": {
+      "name": "Polonium Poke",
+      "startup": 4,
+      "active": 3,
+      "recovery": 9,
+      "damage": 40,
+      "hitstun": 14,
+      "hitstop": 5,
+      "hitbox": {
+        "x": 68,
+        "y": 125,
+        "w": 80,
+        "h": 38
+      },
+      "impulse": {
+        "x": 20000,
+        "y": 0
+      }
+    },
+    "heavy": {
+      "name": "Radium Swing",
+      "startup": 12,
+      "active": 4,
+      "recovery": 18,
+      "damage": 105,
+      "hitstun": 25,
+      "hitstop": 9,
+      "hitbox": {
+        "x": 90,
+        "y": 105,
+        "w": 116,
+        "h": 60
+      },
+      "impulse": {
+        "x": 50000,
+        "y": 34000
+      }
+    },
+    "special1": {
+      "name": "Radioactive Orb",
+      "kind": "SPECIAL",
+      "equation": "N = N₀·(½)^(t / t½)",
+      "startup": 12,
+      "active": 1,
+      "recovery": 18,
+      "cooldown": 75,
+      "damage": 130,
+      "hitstun": 22,
+      "hitstop": 7,
+      "impulse": {
+        "x": 26000,
+        "y": 10000
+      },
+      "params": {
+        "speed": 360,
+        "life": 220,
+        "halfLife": 45,
+        "size": 46,
+        "offset": 70,
+        "height": 110
+      }
+    },
+    "special2": {
+      "name": "Glow Trap",
+      "kind": "SPECIAL",
+      "equation": "²²⁶Ra → ²²²Rn + α",
+      "startup": 10,
+      "active": 1,
+      "recovery": 16,
+      "cooldown": 180,
+      "damage": 50,
+      "hitstun": 70,
+      "hitstop": 8,
+      "impulse": {
+        "x": 0,
+        "y": 6000
+      },
+      "params": {
+        "arm": 30,
+        "life": 480,
+        "offset": 100,
+        "w": 110
+      }
+    },
+    "ultimate": {
+      "name": "Chain Reaction",
+      "kind": "ULTIMATE",
+      "equation": "n + ²³⁵U → Ba + Kr + 3n",
+      "startup": 12,
+      "active": 1,
+      "recovery": 36,
+      "cooldown": 0,
+      "damage": 75,
+      "hitstun": 26,
+      "hitstop": 6,
+      "impulse": {
+        "x": 30000,
+        "y": 30000
+      },
+      "params": {
+        "generations": 3,
+        "spacing": 170,
+        "stepTicks": 10,
+        "w": 200,
+        "h": 260,
+        "active": 10,
+        "offset": 150
+      }
+    }
+  }
+}

@@ -60,6 +60,10 @@ class MatchWebSocketIntegrationTest {
             synchronized (this) { session.sendMessage(new TextMessage(payload)); }
         }
 
+        void pick(String fighter) throws Exception {
+            send("{\"t\":\"pick\",\"f\":\"" + fighter + "\"}");
+        }
+
         void input(long seq, int bits) throws Exception {
             send("{\"t\":\"in\",\"s\":" + seq + ",\"b\":" + bits + "}");
         }
@@ -113,11 +117,23 @@ class MatchWebSocketIntegrationTest {
         String room = createRoom(newton);
 
         Client p1 = connect(newton, room);
-        assertThat(p1.awaitType("welcome").get("slot").asInt()).isZero();
+        JsonNode welcome = p1.awaitType("welcome");
+        assertThat(welcome.get("slot").asInt()).isZero();
+        assertThat(welcome.get("roster")).hasSize(4);
         Client p2 = connect(tesla, room);
         assertThat(p2.awaitType("welcome").get("slot").asInt()).isEqualTo(1);
 
+        // Character select: nothing starts until both have picked.
+        p1.pick("newton");
+        p1.await(n -> "lobby".equals(n.path("t").asText()) && "newton".equals(n.at("/players/0/fighter").asText()), Duration.ofSeconds(3));
+        assertThat(p1.inbox.stream().noneMatch(n -> "start".equals(n.path("t").asText()))).isTrue();
+        p2.pick("not-a-scientist"); // ignored
+        p2.pick("tesla");
+
         JsonNode start = p1.awaitType("start");
+        assertThat(start.at("/fighters/0/id").asText()).isEqualTo("newton");
+        assertThat(start.at("/fighters/1/id").asText()).isEqualTo("tesla");
+        assertThat(start.at("/arena/objectSpawns")).hasSize(3);
         assertThat(start.get("tickRate").asInt()).isEqualTo(60);
         assertThat(start.get("fighters")).hasSize(2);
         assertThat(start.at("/players/1/username").asText()).isEqualTo("tesla");
@@ -132,12 +148,17 @@ class MatchWebSocketIntegrationTest {
         assertThat(walked.at("/fighters/0/x").asDouble()).isGreaterThan(startX + 100);
         assertThat(walked.at("/ack/0").asLong()).isEqualTo(1);
 
-        // Light attack lands.
+        // Newton's light attack lands on Tesla (950 HP, jab 55).
         p1.input(2, InputBits.LIGHT);
-        JsonNode hit = p2.await(n -> n.path("events").size() > 0, Duration.ofSeconds(3));
-        assertThat(hit.at("/events/0/attacker").asInt()).isZero();
-        assertThat(hit.at("/events/0/move").asText()).isEqualTo("light");
-        assertThat(hit.at("/fighters/1/health").asInt()).isEqualTo(1000 - 45);
+        JsonNode hit = p2.await(n -> {
+            for (JsonNode e : n.path("events")) if ("HIT".equals(e.path("type").asText())) return true;
+            return false;
+        }, Duration.ofSeconds(3));
+        JsonNode ev = null;
+        for (JsonNode e : hit.path("events")) if ("HIT".equals(e.path("type").asText())) ev = e;
+        assertThat(ev.get("attacker").asInt()).isZero();
+        assertThat(ev.get("move").asText()).isEqualTo("light");
+        assertThat(hit.at("/fighters/1/health").asInt()).isEqualTo(950 - 55);
         assertThat(hit.at("/fighters/1/action").asText()).isEqualTo("HITSTUN");
 
         p1.session.close();
@@ -150,6 +171,10 @@ class MatchWebSocketIntegrationTest {
         String room = createRoom(curie);
         Client p1 = connect(curie, room);
         Client p2 = connect(einstein, room);
+        p1.awaitType("welcome");
+        p2.awaitType("welcome");
+        p1.pick("curie");
+        p2.pick("einstein");
         p1.awaitType("start");
 
         p2.session.close();
@@ -178,6 +203,10 @@ class MatchWebSocketIntegrationTest {
         String room = createRoom(a);
         Client p1 = connect(a, room);
         Client p2 = connect(b, room);
+        p1.awaitType("welcome");
+        p2.awaitType("welcome");
+        p1.pick("newton");
+        p2.pick("einstein");
         p1.awaitType("start");
 
         p2.session.close();

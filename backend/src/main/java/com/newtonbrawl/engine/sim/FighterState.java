@@ -34,6 +34,16 @@ public final class FighterState {
     int bufferedPresses;
     int bufferAge;
 
+    // Status effects and timers.
+    int flipTicks;
+    int reflectTicks;
+    int invulnTicks;
+    final int[] cooldowns = new int[2];
+    /** Time-dilation accumulator: the fighter only acts on ticks where this reaches 1. */
+    double timeAcc;
+    /** Arena objects the current move has already hit (bit per object index). */
+    int objHitMask;
+
     /** How long a press made while busy stays valid. Makes chaining attacks feel responsive. */
     static final int INPUT_BUFFER_TICKS = 6;
 
@@ -60,6 +70,13 @@ public final class FighterState {
         stunTicks = 0;
         bufferedPresses = 0;
         bufferAge = 0;
+        flipTicks = 0;
+        reflectTicks = 0;
+        invulnTicks = 0;
+        cooldowns[0] = 0;
+        cooldowns[1] = 0;
+        timeAcc = 0;
+        objHitMask = 0;
     }
 
     void addEnergy(double amount) {
@@ -78,7 +95,8 @@ public final class FighterState {
 
     /** The current move's hitbox in world space, or null if not in active frames. */
     Aabb activeHitbox() {
-        if (action != Action.ATTACK || move == null || moveConnected || !move.isActiveOn(moveFrame)) {
+        if (action != Action.ATTACK || move == null || move.hitbox() == null || moveConnected
+                || !move.isActiveOn(moveFrame)) {
             return null;
         }
         FighterDefinition.Box b = move.hitbox();
@@ -92,6 +110,7 @@ public final class FighterState {
         move = m;
         moveFrame = 0;
         moveConnected = false;
+        objHitMask = 0;
         action = Action.ATTACK;
     }
 
@@ -99,7 +118,8 @@ public final class FighterState {
     void bufferPresses(int pressed) {
         int attacks = pressed & (com.newtonbrawl.engine.input.InputBits.LIGHT
             | com.newtonbrawl.engine.input.InputBits.HEAVY
-            | com.newtonbrawl.engine.input.InputBits.SPECIAL);
+            | com.newtonbrawl.engine.input.InputBits.SPECIAL
+            | com.newtonbrawl.engine.input.InputBits.ULTIMATE);
         if (attacks != 0) {
             bufferedPresses = attacks;
             bufferAge = 0;
@@ -124,12 +144,21 @@ public final class FighterState {
 
     FighterView view() {
         return new FighterView(r(x), r(y), r(vx), r(vy), facing, health, energy, action, moveId, moveFrame,
-            grounded, stunTicks, moveConnected, bufferedPresses, bufferAge);
+            grounded, stunTicks, moveConnected, bufferedPresses, bufferAge,
+            flipTicks, reflectTicks, invulnTicks, cooldowns[0], cooldowns[1], r(timeAcc), objHitMask);
     }
 
     private static double r(double v) {
-        return Math.round(v * 10) / 10.0;
+        return MatchSimulation.r(v);
     }
+
+    // ---- API for fighter behaviour classes (engine.fighter.roster) ----
+
+    public int facing() { return facing; }
+    public double bodyHeight() { return def.body().height(); }
+    public FighterDefinition definition() { return def; }
+    public void setReflectTicks(int ticks) { reflectTicks = ticks; }
+    public void setInvulnTicks(int ticks) { invulnTicks = ticks; }
 
     public int slot() { return slot; }
     public int health() { return health; }

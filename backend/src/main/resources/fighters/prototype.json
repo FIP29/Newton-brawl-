@@ -1,6 +1,7 @@
 {
   "id": "prototype",
   "name": "Prototype",
+  "title": "Training Dummy",
   "fighterClass": "BRUISER",
   "color": "#e9ece4",
   "mass": 80,
@@ -8,19 +9,46 @@
   "walkSpeed": 420,
   "jumpVelocity": 1150,
   "airAcceleration": 1800,
-  "body": { "width": 90, "height": 190 },
+  "body": {
+    "width": 90,
+    "height": 190
+  },
   "moves": {
     "light": {
-      "startup": 4, "active": 3, "recovery": 9,
-      "damage": 45, "hitstun": 15, "hitstop": 5,
-      "hitbox": { "x": 72, "y": 125, "w": 84, "h": 40 },
-      "impulse": { "x": 22000, "y": 0 }
+      "startup": 4,
+      "active": 3,
+      "recovery": 9,
+      "damage": 45,
+      "hitstun": 15,
+      "hitstop": 5,
+      "hitbox": {
+        "x": 72,
+        "y": 125,
+        "w": 84,
+        "h": 40
+      },
+      "impulse": {
+        "x": 22000,
+        "y": 0
+      }
     },
     "heavy": {
-      "startup": 11, "active": 4, "recovery": 18,
-      "damage": 120, "hitstun": 26, "hitstop": 10,
-      "hitbox": { "x": 92, "y": 100, "w": 116, "h": 64 },
-      "impulse": { "x": 56000, "y": 38000 }
+      "startup": 11,
+      "active": 4,
+      "recovery": 18,
+      "damage": 120,
+      "hitstun": 26,
+      "hitstop": 10,
+      "hitbox": {
+        "x": 92,
+        "y": 100,
+        "w": 116,
+        "h": 64
+      },
+      "impulse": {
+        "x": 56000,
+        "y": 38000
+      }
     }
   }
 }

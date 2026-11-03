@@ -5,7 +5,6 @@ import com.newtonbrawl.config.MatchProperties;
 import com.newtonbrawl.engine.EngineConstants;
 import com.newtonbrawl.engine.fighter.Fighter;
 import com.newtonbrawl.engine.fighter.FighterCatalog;
-import com.newtonbrawl.engine.fighter.PrototypeFighter;
 import com.newtonbrawl.engine.runtime.MatchListener;
 import com.newtonbrawl.engine.runtime.MatchRunner;
 import com.newtonbrawl.engine.sim.Arena;
@@ -127,7 +126,6 @@ public class RoomService {
         }
 
         WebSocketSession replaced = null;
-        boolean start = false;
         int slot;
         synchronized (room) {
             if (room.status == RoomStatus.FINISHED) {
@@ -152,21 +150,33 @@ public class RoomService {
                 Player p = player.get();
                 slot = room.freeSlot();
                 room.seats[slot] = new Seat(slot, p.getId(), p.getUsername(), p.getDisplayName(), p.getElo(), session);
-                start = room.full() && room.status == RoomStatus.WAITING;
             }
             bySession.put(session.getId(), new SessionRef(room.code, slot));
             if (replaced != null) bySession.remove(replaced.getId());
 
-            messenger.send(session, new ServerMessages.Welcome(room.code, slot, room.players()));
-            if (start) {
-                startMatch(room);
-            } else {
-                broadcast(room, new ServerMessages.Lobby(room.players()));
-                if (room.status == RoomStatus.IN_PROGRESS) messenger.send(session, startMessage(room));
-            }
+            messenger.send(session, new ServerMessages.Welcome(room.code, slot, room.players(), roster()));
+            broadcast(room, new ServerMessages.Lobby(room.players()));
+            if (room.status == RoomStatus.IN_PROGRESS) messenger.send(session, startMessage(room));
         }
         if (replaced != null) messenger.close(replaced, new CloseStatus(4001, "Replaced by a new connection"));
         log.info("Player {} joined room {} as slot {}", who.id(), room.code, slot);
+    }
+
+    /** Character select: the match starts once both seated players have picked. Re-picking is allowed until then. */
+    public void pick(WebSocketSession session, String fighterId) {
+        SessionRef ref = bySession.get(session.getId());
+        Room room = ref == null ? null : rooms.get(ref.code);
+        if (room == null || fighterId == null || !FighterCatalog.PLAYABLE.contains(fighterId)) return;
+        synchronized (room) {
+            if (room.status != RoomStatus.WAITING || room.seats[ref.slot] == null) return;
+            room.seats[ref.slot].fighter = fighterId;
+            broadcast(room, new ServerMessages.Lobby(room.players()));
+            if (room.everyonePicked()) startMatch(room);
+        }
+    }
+
+    private List<com.newtonbrawl.engine.fighter.FighterDefinition> roster() {
+        return FighterCatalog.PLAYABLE.stream().map(catalog::definition).toList();
     }
 
     /** Client input packet. Lock-free: goes straight into the runner's queue. */
@@ -212,8 +222,8 @@ public class RoomService {
 
     /** Caller holds the room lock. */
     private void startMatch(Room room) {
-        Fighter p1 = catalog.create(PrototypeFighter.ID);
-        Fighter p2 = catalog.create(PrototypeFighter.ID);
+        Fighter p1 = catalog.create(room.seats[0].fighter);
+        Fighter p2 = catalog.create(room.seats[1].fighter);
         MatchSimulation sim = new MatchSimulation(Arena.THE_LAB, p1, p2, rules());
         room.fighterIds = List.of(p1.id(), p2.id());
         room.runner = new MatchRunner(room.code, sim, new RoomMatchListener(room));
@@ -233,7 +243,7 @@ public class RoomService {
         MatchRules r = rules();
         return new ServerMessages.Start(room.code, EngineConstants.TICK_RATE,
             new ServerMessages.RulesInfo(r.countdownTicks(), r.roundTimeTicks(), r.roundsToWin(), r.maxRounds(), r.roundEndTicks()),
-            new ServerMessages.ArenaInfo(a.id(), a.width(), a.gravity()), room.players(),
+            new ServerMessages.ArenaInfo(a.id(), a.width(), a.height(), a.gravity(), a.objectSpawns()), room.players(),
             room.fighterIds.stream().map(catalog::definition).toList());
     }
 

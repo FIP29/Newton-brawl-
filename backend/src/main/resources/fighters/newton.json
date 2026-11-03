@@ -1,0 +1,118 @@
+{
+  "id": "newton",
+  "name": "Isaac Newton",
+  "title": "The Gravitational Bruiser",
+  "fighterClass": "BRUISER",
+  "color": "#ffcc33",
+  "mass": 100,
+  "maxHealth": 1100,
+  "walkSpeed": 340,
+  "jumpVelocity": 1080,
+  "airAcceleration": 1500,
+  "body": {
+    "width": 100,
+    "height": 200
+  },
+  "moves": {
+    "light": {
+      "name": "Principia Jab",
+      "startup": 6,
+      "active": 3,
+      "recovery": 10,
+      "damage": 55,
+      "hitstun": 16,
+      "hitstop": 6,
+      "hitbox": {
+        "x": 78,
+        "y": 135,
+        "w": 90,
+        "h": 44
+      },
+      "impulse": {
+        "x": 26000,
+        "y": 0
+      }
+    },
+    "heavy": {
+      "name": "Momentum Haymaker",
+      "startup": 13,
+      "active": 5,
+      "recovery": 20,
+      "damage": 140,
+      "hitstun": 28,
+      "hitstop": 11,
+      "hitbox": {
+        "x": 100,
+        "y": 110,
+        "w": 128,
+        "h": 70
+      },
+      "impulse": {
+        "x": 68000,
+        "y": 40000
+      }
+    },
+    "special1": {
+      "name": "Apple Drop",
+      "kind": "SPECIAL",
+      "equation": "F = mg   (g = 9.8 m/s²)",
+      "startup": 14,
+      "active": 1,
+      "recovery": 20,
+      "cooldown": 90,
+      "damage": 85,
+      "hitstun": 24,
+      "hitstop": 7,
+      "impulse": {
+        "x": 14000,
+        "y": 6000
+      },
+      "params": {
+        "dropHeight": 760,
+        "size": 38,
+        "gravity": 980,
+        "life": 240
+      }
+    },
+    "special2": {
+      "name": "Gravity Flip",
+      "kind": "SPECIAL",
+      "equation": "F = G·m₁m₂ / r²",
+      "startup": 12,
+      "active": 1,
+      "recovery": 22,
+      "cooldown": 300,
+      "damage": 40,
+      "hitstun": 18,
+      "hitstop": 6,
+      "impulse": {
+        "x": 8000,
+        "y": 20000
+      },
+      "params": {
+        "speed": 900,
+        "life": 32,
+        "flipTicks": 180,
+        "offset": 80,
+        "height": 110,
+        "w": 60,
+        "h": 150
+      }
+    },
+    "ultimate": {
+      "name": "Third Law",
+      "kind": "ULTIMATE",
+      "equation": "F₁₂ = −F₂₁",
+      "startup": 10,
+      "active": 1,
+      "recovery": 20,
+      "cooldown": 0,
+      "damage": 0,
+      "hitstun": 0,
+      "hitstop": 0,
+      "params": {
+        "reflectTicks": 300
+      }
+    }
+  }
+}

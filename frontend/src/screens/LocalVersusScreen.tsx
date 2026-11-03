@@ -5,25 +5,115 @@ import { InputController, KEYS_LOCAL_P1, KEYS_LOCAL_P2 } from '../game/input/Inp
 import { lerpFighter } from '../game/net/SnapshotBuffer';
 import { MatchSimulation } from '../game/sim/MatchSimulation';
 import { STANDARD_RULES, THE_LAB } from '../game/sim/constants';
-import { fighter } from '../game/data/fighters';
-import { TICK_MS, type Snapshot } from '../game/protocol';
+import { FIGHTERS, PLAYABLE } from '../game/data/fighters';
+import { TICK_MS, type FighterDefinition, type GameEvent, type Snapshot } from '../game/protocol';
+import { lookFor } from '../game/render/characters/looks';
 import { sfx } from '../audio/sfx';
 import { Banner, HudBar, useMatchPresentation } from '../components/FightHud';
+import { CharacterSelect } from '../components/CharacterSelect';
+import { useFightOverlays } from '../components/FightOverlays';
+import { fighterPortraits } from '../components/portraits';
 
 const NAMES = ['Player 1', 'Player 2'];
+const ROSTER = PLAYABLE.map((id) => FIGHTERS[id]);
+const hex = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
 
 /**
- * Offline 2-player mode on one keyboard. Runs the TypeScript port of the server simulation
- * (parity-tested against Java) at a fixed 60 Hz in the browser; rendering interpolates between
- * the last two ticks so motion stays smooth on high-refresh displays.
+ * Offline 2-player mode on one keyboard: character select, then a match run entirely in the
+ * browser by the TypeScript port of the server simulation (parity-tested against Java) at a
+ * fixed 60 Hz. Rendering interpolates between the last two ticks for smooth high-refresh motion.
  */
 export function LocalVersusScreen() {
+  const [picks, setPicks] = useState<[string, string] | null>(null);
+  return picks
+    ? <LocalFight picks={picks} onChangeFighters={() => setPicks(null)} />
+    : <LocalSelect onDone={setPicks} />;
+}
+
+// ----------------------------------------------------------------------------- select
+
+function LocalSelect({ onDone }: { onDone: (picks: [string, string]) => void }) {
+  const [cursor, setCursor] = useState<[number, number]>([0, 1]);
+  const [locked, setLocked] = useState<[boolean, boolean]>([false, false]);
+  const state = useRef({ cursor, locked });
+  state.current = { cursor, locked };
+
+  useEffect(() => {
+    const move = (p: 0 | 1, d: number) => {
+      if (state.current.locked[p]) return;
+      sfx.hover();
+      setCursor((c) => { const n = [...c] as [number, number]; n[p] = (n[p] + d + ROSTER.length) % ROSTER.length; return n; });
+    };
+    const lock = (p: 0 | 1, v: boolean) => {
+      if (v) sfx.success(); else sfx.click();
+      setLocked((l) => { const n = [...l] as [boolean, boolean]; n[p] = v; return n; });
+    };
+    const onKey = (e: KeyboardEvent) => {
+      switch (e.code) {
+        case 'KeyA': move(0, -1); break;
+        case 'KeyD': move(0, 1); break;
+        case 'KeyJ': lock(0, true); break;
+        case 'KeyK': lock(0, false); break;
+        case 'ArrowLeft': e.preventDefault(); move(1, -1); break;
+        case 'ArrowRight': e.preventDefault(); move(1, 1); break;
+        case 'Numpad1': case 'Comma': lock(1, true); break;
+        case 'Numpad2': case 'Period': lock(1, false); break;
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  useEffect(() => {
+    if (!locked[0] || !locked[1]) return;
+    const t = window.setTimeout(() => onDone([ROSTER[cursor[0]].id, ROSTER[cursor[1]].id]), 700);
+    return () => window.clearTimeout(t);
+  }, [locked, cursor, onDone]);
+
+  const click = (id: string) => {
+    const idx = ROSTER.findIndex((d) => d.id === id);
+    const p: 0 | 1 = !locked[0] ? 0 : 1;
+    if (locked[p]) return;
+    setCursor((c) => { const n = [...c] as [number, number]; n[p] = idx; return n; });
+    setLocked((l) => { const n = [...l] as [boolean, boolean]; n[p] = true; return n; });
+    sfx.success();
+  };
+
+  return (
+    <div className="screen select-screen">
+      <CharacterSelect
+        roster={ROSTER}
+        onCardClick={click}
+        players={[
+          { label: 'P1', color: 'var(--newton)', cursor: ROSTER[cursor[0]].id, locked: locked[0] },
+          { label: 'P2', color: 'var(--tesla)', cursor: ROSTER[cursor[1]].id, locked: locked[1] },
+        ]}
+        footer={
+          <div className="cs-footer">
+            <span><b>P1</b> <kbd>A</kbd><kbd>D</kbd> choose · <kbd>J</kbd> lock · <kbd>K</kbd> back</span>
+            <span><b>P2</b> <kbd>←</kbd><kbd>→</kbd> choose · <kbd>1</kbd>/<kbd>,</kbd> lock · <kbd>2</kbd>/<kbd>.</kbd> back</span>
+            <Link className="btn-ghost" to="/">← Menu</Link>
+          </div>
+        }
+      />
+    </div>
+  );
+}
+
+// ------------------------------------------------------------------------------ fight
+
+function LocalFight({ picks, onChangeFighters }: { picks: [string, string]; onChangeFighters: () => void }) {
   const [host, setHost] = useState<HTMLDivElement | null>(null);
   const [paused, setPaused] = useState(false);
   const [result, setResult] = useState<{ winner: number; roundWins: number[] } | null>(null);
   const [game, setGame] = useState(0); // bump to restart
+  const [images, setImages] = useState<Record<string, string>>({});
   const { hud, banner, push, reset } = useMatchPresentation();
+  const overlays = useFightOverlays();
   const togglePause = useRef<() => void>(() => {});
+  const defs: [FighterDefinition, FighterDefinition] = [FIGHTERS[picks[0]], FIGHTERS[picks[1]]];
+
+  useEffect(() => { void fighterPortraits().then(setImages); }, []);
 
   useEffect(() => {
     if (!host) return;
@@ -31,11 +121,12 @@ export function LocalVersusScreen() {
     let ready = false;
     let isPaused = false;
     reset();
+    overlays.reset();
     setResult(null);
     setPaused(false);
 
-    const defs: [ReturnType<typeof fighter>, ReturnType<typeof fighter>] = [fighter('prototype'), fighter('prototype')];
     const sim = new MatchSimulation(THE_LAB, defs, STANDARD_RULES);
+    if (import.meta.env.DEV) (window as unknown as { __nbLocalSim: MatchSimulation }).__nbLocalSim = sim; // dev tooling hook
     const p1 = new InputController(KEYS_LOCAL_P1, 0).attach();
     const p2 = new InputController(KEYS_LOCAL_P2, 1).attach();
     const renderer = new FightRenderer();
@@ -45,6 +136,12 @@ export function LocalVersusScreen() {
     let acc = 0;
     let reported = false;
 
+    const handle = (e: GameEvent) => {
+      const combo = renderer.onEvent(e);
+      if (e.type === 'HIT' && e.move === 'ultimate' && defs[e.attacker].id === 'tesla') renderer.coilStrike(e.x, e.y);
+      overlays.onEvent(e, defs, combo);
+    };
+
     const tick = () => {
       const b0 = p1.sample(), b1 = p2.sample();
       sim.step({ held: b0, pressed: b0 & ~prevBits[0] }, { held: b1, pressed: b1 & ~prevBits[1] });
@@ -52,7 +149,7 @@ export function LocalVersusScreen() {
       prevBits[1] = b1;
       prev = curr;
       curr = sim.snapshot();
-      curr.events.forEach((e) => { renderer.onHit(e); if (e.damage >= 100) sfx.error(); else sfx.click(); });
+      curr.events.forEach(handle);
     };
 
     const frame = () => {
@@ -62,9 +159,12 @@ export function LocalVersusScreen() {
         while (acc >= TICK_MS) { tick(); acc -= TICK_MS; }
       }
       const alpha = isPaused ? 1 : acc / TICK_MS;
-      const fighters = curr.fighters.map((f, i) => lerpFighter(prev.fighters[i], f, alpha));
-      renderer.render(fighters, curr.hitstop, dt);
-      push(curr, defs.map((d) => d.maxHealth), STANDARD_RULES, NAMES);
+      renderer.render({
+        fighters: curr.fighters.map((f, i) => lerpFighter(prev.fighters[i], f, alpha)),
+        projectiles: curr.projectiles, zones: curr.zones, objects: curr.objects,
+        hitstop: curr.hitstop, cinematic: curr.cinematic,
+      }, isPaused ? 0 : dt);
+      push(curr, defs.map((d) => d.maxHealth), STANDARD_RULES, defs.map((d) => d.name));
       if (sim.phase === 'FINISHED' && sim.result && !reported) {
         reported = true;
         setResult({ winner: sim.result.winner, roundWins: sim.result.roundWins });
@@ -87,6 +187,7 @@ export function LocalVersusScreen() {
     renderer.init(host).then(() => {
       if (disposed) { renderer.destroy(); return; }
       ready = true;
+      if (import.meta.env.DEV) (window as unknown as { __nbRenderer: FightRenderer }).__nbRenderer = renderer;
       renderer.setup(THE_LAB, defs);
       renderer.app.ticker.add(frame);
     });
@@ -99,13 +200,18 @@ export function LocalVersusScreen() {
       document.removeEventListener('visibilitychange', onVisibility);
       if (ready) renderer.destroy();
     };
-  }, [host, game, push, reset]);
+    // defs derive from picks
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [host, game, picks, push, reset]);
+
+  const fighterInfo = defs.map((d) => ({ id: d.id, name: d.name, color: hex(lookFor(d.id).glow) }));
 
   return (
     <div className="fight-screen">
       <div className="fight-canvas" ref={setHost} />
-      <HudBar hud={hud} names={NAMES} />
+      <HudBar hud={hud} names={NAMES} fighters={fighterInfo} images={images} />
       {banner && !result && <Banner key={banner.key} text={banner.text} sub={banner.sub} />}
+      {overlays.element}
 
       {paused && !result && (
         <div className="fight-overlay">
@@ -113,6 +219,7 @@ export function LocalVersusScreen() {
             <div className="result-title small">Paused</div>
             <div className="overlay-actions">
               <button className="btn-neon" onClick={() => togglePause.current()}>Resume</button>
+              <button className="btn-ghost" onClick={onChangeFighters}>Change fighters</button>
               <Link className="btn-ghost" to="/">Quit to menu</Link>
             </div>
           </div>
@@ -122,10 +229,11 @@ export function LocalVersusScreen() {
       {result && (
         <div className="fight-overlay">
           <div className={`panel overlay-card ${result.winner === 1 ? 'result-p2' : result.winner === 0 ? 'result-victory' : 'result-draw'}`}>
-            <div className="result-title">{result.winner < 0 ? 'DRAW' : `${NAMES[result.winner].toUpperCase()} WINS`}</div>
+            <div className="result-title">{result.winner < 0 ? 'DRAW' : `${defs[result.winner].name.toUpperCase()} WINS`}</div>
             <div className="result-score">{result.roundWins[0]} – {result.roundWins[1]}</div>
             <div className="overlay-actions">
               <button className="btn-neon" onClick={() => { sfx.click(); setGame((g) => g + 1); }}>Rematch</button>
+              <button className="btn-ghost" onClick={onChangeFighters}>Change fighters</button>
               <Link className="btn-ghost" to="/">Main menu</Link>
             </div>
           </div>
@@ -134,13 +242,13 @@ export function LocalVersusScreen() {
 
       <div className="controls-help panel local-help">
         <b>Player 1</b>
-        <span><kbd>A</kbd><kbd>D</kbd> move · <kbd>W</kbd> jump · <kbd>S</kbd> crouch · <kbd>J</kbd><kbd>K</kbd><kbd>L</kbd></span>
+        <span><kbd>A</kbd><kbd>D</kbd><kbd>W</kbd><kbd>S</kbd> · <kbd>J</kbd> light <kbd>K</kbd> heavy <kbd>L</kbd> special (<kbd>S</kbd>+<kbd>L</kbd> special 2) · <kbd>I</kbd> ultimate</span>
       </div>
       <div className="controls-help panel local-help right">
         <b>Player 2</b>
-        <span><kbd>←</kbd><kbd>→</kbd> move · <kbd>↑</kbd> jump · <kbd>↓</kbd> crouch · <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> (or <kbd>,</kbd><kbd>.</kbd><kbd>/</kbd>)</span>
+        <span>Arrows · <kbd>1</kbd> light <kbd>2</kbd> heavy <kbd>3</kbd> special · <kbd>4</kbd> ultimate (or <kbd>,</kbd><kbd>.</kbd><kbd>/</kbd><kbd>'</kbd>)</span>
       </div>
-      <div className="net-stats">Esc pause · H hitboxes · gamepads 1 &amp; 2 supported</div>
+      <div className="net-stats">Esc pause · H hitboxes · gamepads 1 &amp; 2</div>
     </div>
   );
 }

@@ -15,12 +15,50 @@ The art direction is called Neon Chalkboard. Netcode is server-authoritative, an
 | 1 | Spring Boot + MySQL + JWT auth; frontend skeleton with login | ✅ done |
 | 2 | Java match engine + WebSocket, two players moving/hitting online (placeholder shapes) | ✅ done |
 | 3 | Prediction/interpolation, health, energy, rounds, timer, local 2-player | ✅ done |
-| 4 | Newton, Tesla, Curie, Einstein + The Lab with full VFX | next |
-| 5 | Matchmaking, ranked Elo, leaderboard, Codex, Lab Notes, unlocks | |
+| 4 | Newton, Tesla, Curie, Einstein + The Lab with full VFX | ✅ done |
+| 5 | Matchmaking, ranked Elo, leaderboard, Codex, Lab Notes, unlocks | next |
 | 6 | Galileo, Archimedes, Faraday, Hooke + Space Station | |
 | 7 | Schrödinger, Heisenberg, Hawking, Doppler + Black Hole Edge | |
 | 8 | Bernoulli, Edison, S.N. Bose, J.C. Bose + Curzon Hall + rivalries | |
 | 9 | Polish: shaders, cinematic ultimates, sound, balancing | |
+
+![The four starter scientists in idle, walk, heavy, special, ultimate and hit poses](docs/screenshots/characters.jpg)
+
+| Character select | The Lab |
+|---|---|
+| ![Character select](docs/screenshots/character-select.jpg) | ![The Lab arena](docs/screenshots/the-lab.jpg) |
+| **Specials: Apple Drop and Chain Lightning arcing through a beaker** | **ULTIMATE cinematic: Tesla Coil** |
+| ![Specials](docs/screenshots/specials.jpg) | ![Ultimate cinematic](docs/screenshots/ultimate-cinematic.jpg) |
+
+## The starter roster
+
+Every special is based on the real law printed next to it. When it lands, that equation writes itself on screen in glowing chalk.
+
+| Scientist | Class | Special 1 (`L`) | Special 2 (`S`+`L`) | ULTIMATE (`I` or `K`+`L`) |
+|---|---|---|---|---|
+| **Isaac Newton** (gold) | Bruiser, heavy (mass 100) | **Apple Drop**: an apple appears above the opponent and falls at real g = 9.8 m/s² (F = mg) | **Gravity Flip**: inverts the target's gravity for 3 s so they drift up (F = G·m₁m₂/r²) | **Third Law**: 5 s of reflection; every hit and projectile goes back to its source (F₁₂ = −F₂₁) |
+| **Nikola Tesla** (blue) | Zoner | **Chain Lightning**: arcs through metal beakers toward the opponent, +25% per jump (Coulomb) | **Magnetic Pull**: drags the opponent and the beakers toward him (F = q(v × B)) | **Tesla Coil**: an arena-wide electric field; the lab's coils strike every ⅓ s (f = 1/2π√(LC)) |
+| **Marie Curie** (green) | Zoner | **Radioactive Orb**: damage halves every half-life, so it hits hardest up close (N = N₀·½^(t/t½)) | **Glow Trap**: a radium trap that stuns whoever steps on it (²²⁶Ra → ²²²Rn + α) | **Chain Reaction**: fission blasts spreading outward in both directions (n + ²³⁵U → …) |
+| **Albert Einstein** (violet) | Trickster | **Light Dash**: a 320-unit blink with invulnerability that can pass through the opponent | **Time Dilation Bubble**: everything inside except him runs at 0.4× (Δt′ = Δt/√(1−v²/c²)) | **E = mc²**: his energy becomes a beam across the whole arena |
+
+**Shared:** the energy meter fills from dealing and taking damage, and a full meter unlocks the ULTIMATE. Specials have cooldowns. The metal beakers in The Lab can be hit or kicked into the opponent, magnetised by Tesla, and used as lightning conductors.
+
+**Look:** the scientists are stylised caricatures of their best-known portraits:
+- Newton: curled periwig, crimson frock coat, cravat and stockings.
+- Tesla: centre-parted slick hair, moustache and a dark three-piece suit.
+- Curie: hair in a bun, a high-collared Victorian dress and a glowing vial.
+- Einstein: wild white hair, moustache and a baggy cardigan.
+
+They're procedural vector art on a two-bone-IK rig (`frontend/src/game/render/characters`), with idle, walk, crouch, jump, attack, cast, hit and KO poses. Open `/dev/characters` in dev mode to see the gallery.
+
+**Swapping in real art:** add a spritesheet at `public/fighters/<id>/sheet.json` with animations named after the actions (`IDLE`, `WALK`, `light`, `special1`…) and register it in `ART_MANIFESTS` (`FighterVisual.ts`). The renderer only talks to the `FighterVisual` interface, so no gameplay or netcode changes are needed.
+
+**VFX** (`frontend/src/game/render`):
+- Lighting and post-processing: bloom, shockwave distortion on heavy hits, chromatic aberration plus darkening and speed lines during ULTIMATE cinematics, god rays through the lab window, dynamic additive lights cast by projectiles, beams, traps and coils.
+- Motion: afterimage trails, particle sparks and rings.
+- Camera and feel: hit-stop, screen shake, camera zoom that grows with combos, slow-motion on the deciding KO (simulated on the server, so both players see it).
+- Arena: multi-layer parallax with chalk dust, a flickering lamp, twinkling stars and sparking Tesla coils.
+- Performance: quality drops automatically (bloom, shockwaves and god rays turn off) if the frame rate can't keep up.
 
 ## Running locally
 
@@ -64,9 +102,10 @@ npm test                       # Java↔TS simulation parity + prediction tests
 1. Start the backend (`dev` profile) and the frontend as described above.
 2. Open http://localhost:5173 in two browser windows that don't share storage, for example a normal window and a private/incognito one. Register a different player in each.
 3. Player 1: **Play Online → Create room**. Player 2: **Play Online → Join with code**.
-4. Controls: `A`/`D` move, `W` jump, `S` crouch, `J` light, `K` heavy (`L` special comes in Phase 4). Gamepads work too. `H` toggles the hitbox overlay, `P` toggles client-side prediction (to feel the difference) and `/` toggles the controls help.
+4. Both players pick a scientist in the room. The match starts once both are locked in.
+5. Controls: `A`/`D` move, `W` jump, `S` crouch, `J` light, `K` heavy, `L` special 1, `S`+`L` special 2, `I` (or `K`+`L`) ULTIMATE. Gamepads work too (RB = ULTIMATE). `H` toggles the hitbox overlay, `P` toggles client-side prediction (to feel the difference) and `/` toggles the controls help.
 
-**Local Versus** (main menu) needs no second account or server round trip. P1 uses WASD + `J`/`K`/`L`. P2 uses the arrow keys + numpad `1`/`2`/`3`, or `,` `.` `/` on keyboards without a numpad. Gamepad 1 is P1 and gamepad 2 is P2. `Esc` pauses.
+**Local Versus** (main menu) needs no second account or server round trip. Both players pick on the same screen (P1 `A`/`D` + `J`; P2 `←`/`→` + `1`). P1 uses WASD + `J`/`K`/`L`/`I`. P2 uses the arrow keys + numpad `1`/`2`/`3`/`4`, or `,` `.` `/` `'` on keyboards without a numpad. Gamepad 1 is P1 and gamepad 2 is P2. `Esc` pauses.
 
 ## API
 
@@ -97,7 +136,9 @@ The engine (`com.newtonbrawl.engine`) has no Spring dependencies and is determin
 - **Physics:** gravity, semi-implicit Euler integration, floor and walls, body separation. 100 world units ≈ 1 m, y is up.
 - **Combat:** frame data (startup / active / recovery) loaded from `fighters/<id>.json`, AABB hitboxes against hurtboxes, simultaneous hits trade, hit-stop, hitstun, KO.
 - **Match format** (`MatchRules`): best of 3 rounds with a 99 s clock that pauses during hit-stop. At time-out the higher health percentage wins the round. Draw rounds are capped at 5 rounds in total.
-- **Energy:** fills by dealing damage (×1.0) and taking it (×0.6), up to 1000, and carries over between rounds. A full meter will power ULTIMATEs in Phase 4.
+- **Energy:** fills by dealing damage (×1.0) and taking it (×0.6), up to 1000, and carries over between rounds. A full meter powers the ULTIMATE. Starting one freezes the world for exactly 60 ticks while the cinematic plays.
+- **Specials:** each fighter's Java class (mirrored in `roster.ts`) spawns **projectiles** (with acceleration, half-life decay, chaining through metal, reflection), **zones** (time-dilation bubble, magnetic pull, trap, blast, beam, electric field) or sets **status effects** (flipped gravity, reflection, invulnerability). All numbers live in the fighter's JSON.
+- **Arena objects:** The Lab's metal beakers bounce, can be knocked into the opponent (60 damage), are pulled by magnetism, and conduct lightning.
 - **Knockback is momentum:** a move delivers an impulse *J*, and the defender's velocity becomes *J / m*. Heavier fighters fly less.
 - **Input buffer:** attack presses made up to 6 ticks before a fighter can act (including during hit-stop) still come out.
 - **Inputs, not state, go up the wire.** The client sends `{"t":"in","s":seq,"b":buttons}` 60 times a second. The server consumes one input per tick from a bounded queue (`InputQueue`) and acknowledges the last applied `seq` in every snapshot. Phase 3's prediction and reconciliation build on that acknowledgement.
@@ -110,9 +151,11 @@ Server → client message types: `welcome`, `lobby`, `start`, `state`, `end`, `p
 
 ### Adding a fighter
 
-1. `backend/src/main/resources/fighters/<id>.json`: stats, body size and moves with frame data, hitboxes and impulses. The frontend imports this same file (`game/data/fighters.ts`).
-2. A `Fighter` subclass in `engine/fighter/` for behaviour that can't be expressed as data.
-3. One line in `FighterCatalog.FACTORIES`.
+1. `backend/src/main/resources/fighters/<id>.json`: stats, body size and moves with frame data, hitboxes, impulses, equations and special `params`. The frontend imports this same file (`game/data/fighters.ts`).
+2. A `Fighter` subclass in `engine/fighter/roster/` whose `onTrigger` implements the specials, and the same logic in `frontend/src/game/sim/roster.ts`.
+3. One line in `FighterCatalog.FACTORIES` (plus `PLAYABLE` if selectable).
+4. A `Look` in `frontend/src/game/render/characters/looks.ts` (costume, hair, facial hair, colours) and, if needed, a cast pose in `rig.ts`.
+5. Add the fighter to a matchup in `ParityFixtureTest` and run `mvn test` and `npm test`.
 
 ## Backend layout
 
@@ -126,8 +169,8 @@ com.newtonbrawl
 ├── match/       rooms (REST), RoomService (match lifecycle), WebSocket handler + handshake auth, protocol
 └── engine/      Spring-free simulation
     ├── input/     InputBits, InputFrame, InputQueue
-    ├── fighter/   FighterDefinition (JSON), Fighter base class, FighterCatalog
-    ├── sim/       MatchSimulation, MatchRules, FighterState, Aabb, Arena, snapshots/events/results
+    ├── fighter/   FighterDefinition (JSON), Fighter base class, FighterCatalog, roster/ (Newton, Tesla, Curie, Einstein)
+    ├── sim/       MatchSimulation, MatchRules, FighterState, Projectile, Zone, ArenaObject, Arena, snapshots/events
     └── runtime/   MatchRunner (60 Hz thread), MatchListener
 ```
 
@@ -140,14 +183,15 @@ src/
 ├── api/        fetch client (JWT, typed ApiError), DTO types, auth endpoints
 ├── auth/       AuthProvider (restores the session via /players/me), RequireAuth route guard
 ├── screens/    LoginScreen, MainMenuScreen, PlayOnlineScreen, FightScreen, LocalVersusScreen
-├── components/ FightHud: health/energy bars, round pips, timer, round banners
+├── components/ FightHud, CharacterSelect, FightOverlays (equation flashes, combos, ULTIMATE cinematic), portraits
 ├── game/
 │   ├── protocol.ts          wire types mirroring the backend
 │   ├── sim/                 TypeScript port of the engine (+ Java parity fixture/test)
 │   ├── data/                fighter definitions (imported from the backend's JSON)
 │   ├── input/               keymaps (online / local P1 / local P2) + gamepads → button bitmask
 │   ├── net/                 MatchConnection (60 Hz input pump, ping), SnapshotBuffer (interpolation), Predictor
-│   └── render/              FightRenderer: camera follow/zoom, shake, sparks, shockwaves, hitbox overlay
+│   └── render/              FightRenderer (camera, filters), characters/ (rig, looks, draw, FighterVisual),
+│                            arena/TheLab, fx/ (particles, lightning, EntityLayer for projectiles/zones/objects)
 ├── fx/         PixiJS ChalkboardBackground (parallax stars, glowing equations, chalk dust), palette
 ├── audio/      Web Audio placeholder SFX (replaced by Howler assets later)
 └── styles/     Neon Chalkboard theme

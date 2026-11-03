@@ -1,4 +1,4 @@
-import { TICK_MS, type FighterView, type StateMessage } from '../protocol';
+import { TICK_MS, type FighterView, type ObjectView, type ProjectileView, type StateMessage } from '../protocol';
 
 /**
  * Buffers authoritative snapshots and samples them slightly in the past so motion is smooth
@@ -48,20 +48,44 @@ export class SnapshotBuffer {
   }
 
   /** Interpolated fighters at a fractional tick, plus the snapshot at or before it. */
-  sample(tick: number): { fighters: FighterView[]; base: StateMessage } | null {
+  sample(tick: number): Sample | null {
     const n = this.snaps.length;
     if (n === 0) return null;
-    if (tick <= this.snaps[0].tick) return { fighters: this.snaps[0].fighters, base: this.snaps[0] };
+    const hold = (s: StateMessage): Sample => ({ fighters: s.fighters, projectiles: s.projectiles, objects: s.objects, base: s });
+    if (tick <= this.snaps[0].tick) return hold(this.snaps[0]);
     for (let i = n - 1; i >= 0; i--) {
       const a = this.snaps[i];
       if (a.tick > tick) continue;
       const b = this.snaps[i + 1];
-      if (!b) return { fighters: a.fighters, base: a }; // no newer data: hold (no extrapolation)
+      if (!b) return hold(a); // no newer data: hold (no extrapolation)
       const t = (tick - a.tick) / (b.tick - a.tick);
-      return { fighters: a.fighters.map((fa, k) => lerpFighter(fa, b.fighters[k], t)), base: a };
+      return {
+        fighters: a.fighters.map((fa, k) => lerpFighter(fa, b.fighters[k], t)),
+        projectiles: lerpById(a.projectiles, b.projectiles, t),
+        objects: lerpById(a.objects, b.objects, t),
+        base: a,
+      };
     }
     return null;
   }
+}
+
+export interface Sample {
+  fighters: FighterView[];
+  projectiles: ProjectileView[];
+  objects: ObjectView[];
+  /** Snapshot at or before the sampled time (discrete state: zones, phase, hitstop…). */
+  base: StateMessage;
+}
+
+/** Interpolates entities that exist in both snapshots (matched by id); others are taken as-is. */
+function lerpById<T extends { id: number; x: number; y: number }>(a: T[], b: T[], t: number): T[] {
+  const next = new Map(b.map((e) => [e.id, e]));
+  return a.map((ea) => {
+    const eb = next.get(ea.id);
+    if (!eb || Math.abs(ea.x - eb.x) > 300) return ea;
+    return { ...ea, x: ea.x + (eb.x - ea.x) * t, y: ea.y + (eb.y - ea.y) * t };
+  });
 }
 
 export function lerpFighter(a: FighterView, b: FighterView, t: number): FighterView {

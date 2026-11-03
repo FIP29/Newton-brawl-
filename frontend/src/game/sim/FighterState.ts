@@ -32,6 +32,14 @@ export class FighterState {
   bufferedPresses = 0;
   bufferAge = 0;
 
+  // Status effects and timers.
+  flipTicks = 0;
+  reflectTicks = 0;
+  invulnTicks = 0;
+  cooldowns: [number, number] = [0, 0];
+  timeAcc = 0;
+  objHitMask = 0;
+
   constructor(readonly slot: number, readonly def: FighterDefinition, x: number, facing: number) {
     this.x = x;
     this.facing = facing;
@@ -51,6 +59,12 @@ export class FighterState {
     s.stunTicks = v.stun;
     s.bufferedPresses = v.buffered;
     s.bufferAge = v.bufferAge;
+    s.flipTicks = v.flip;
+    s.reflectTicks = v.reflect;
+    s.invulnTicks = v.invuln;
+    s.cooldowns = [v.cd1, v.cd2];
+    s.timeAcc = v.timeAcc;
+    s.objHitMask = v.objHits;
     return s;
   }
 
@@ -64,6 +78,13 @@ export class FighterState {
     this.stunTicks = 0;
     this.bufferedPresses = 0;
     this.bufferAge = 0;
+    this.flipTicks = 0;
+    this.reflectTicks = 0;
+    this.invulnTicks = 0;
+    this.cooldowns[0] = 0;
+    this.cooldowns[1] = 0;
+    this.timeAcc = 0;
+    this.objHitMask = 0;
   }
 
   addEnergy(amount: number) {
@@ -79,7 +100,7 @@ export class FighterState {
 
   activeHitbox(): Aabb | null {
     const m = this.move;
-    if (this.action !== 'ATTACK' || !m || this.moveConnected || !isActiveOn(m, this.moveFrame)) return null;
+    if (this.action !== 'ATTACK' || !m || !m.hitbox || this.moveConnected || !isActiveOn(m, this.moveFrame)) return null;
     const b = m.hitbox;
     return centered(this.x + this.facing * b.x, this.y + b.y, b.w, b.h);
   }
@@ -91,11 +112,12 @@ export class FighterState {
     this.move = m;
     this.moveFrame = 0;
     this.moveConnected = false;
+    this.objHitMask = 0;
     this.action = 'ATTACK';
   }
 
   bufferPresses(pressed: number) {
-    const attacks = pressed & (Btn.LIGHT | Btn.HEAVY | Btn.SPECIAL);
+    const attacks = pressed & (Btn.LIGHT | Btn.HEAVY | Btn.SPECIAL | Btn.ULTIMATE);
     if (attacks !== 0) {
       this.bufferedPresses = attacks;
       this.bufferAge = 0;
@@ -123,6 +145,8 @@ export class FighterState {
       health: this.health, energy: this.energy, action: this.action, move: this.moveId,
       moveFrame: this.moveFrame, grounded: this.grounded, stun: this.stunTicks,
       connected: this.moveConnected, buffered: this.bufferedPresses, bufferAge: this.bufferAge,
+      flip: this.flipTicks, reflect: this.reflectTicks, invuln: this.invulnTicks,
+      cd1: this.cooldowns[0], cd2: this.cooldowns[1], timeAcc: r(this.timeAcc), objHits: this.objHitMask,
     };
   }
 }

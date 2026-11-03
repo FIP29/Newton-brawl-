@@ -16,6 +16,7 @@ import java.util.Objects;
 public record FighterDefinition(
     String id,
     String name,
+    String title,
     FighterClass fighterClass,
     String color,
     double mass,
@@ -53,25 +54,47 @@ public record FighterDefinition(
     /**
      * Frame data for one move. Timeline (in ticks): startup → active → recovery.
      *
-     * @param hitstun ticks the defender can't act after being hit
-     * @param hitstop ticks the whole world freezes on impact (game "juice", applied server-side)
+     * <p>For SPECIAL/ULTIMATE moves the fighter's {@link Fighter#onTrigger} runs on the first active
+     * frame; damage/hitstun/hitstop/impulse then describe whatever it spawns (projectile, zone…),
+     * and {@code params} holds move-specific tuning (speeds, sizes, durations) so balance stays in JSON.
+     *
+     * @param hitbox   melee hitbox, or null for moves that only spawn things
+     * @param hitstun  ticks the defender can't act after being hit
+     * @param hitstop  ticks the whole world freezes on impact (game "juice", applied server-side)
+     * @param equation the real law behind the move, flashed on screen when it lands
+     * @param cooldown ticks before a special can be used again
      */
     public record MoveDefinition(
+        String name,
+        MoveKind kind,
+        String equation,
         int startup,
         int active,
         int recovery,
+        int cooldown,
         int damage,
         int hitstun,
         int hitstop,
         Box hitbox,
-        Impulse impulse) {
+        Impulse impulse,
+        Map<String, Double> params) {
 
         public MoveDefinition {
             if (startup < 0 || active <= 0 || recovery < 0) {
                 throw new IllegalArgumentException("invalid frame data");
             }
-            Objects.requireNonNull(hitbox, "hitbox");
+            kind = kind == null ? MoveKind.NORMAL : kind;
+            if (kind != MoveKind.NORMAL && startup < 1) {
+                throw new IllegalArgumentException("special moves need startup >= 1 (their trigger frame)");
+            }
             impulse = impulse == null ? new Impulse(0, 0) : impulse;
+            params = params == null ? Map.of() : Map.copyOf(params);
+        }
+
+        /** A tuning parameter from JSON, or the given default. */
+        public double param(String key, double fallback) {
+            Double v = params.get(key);
+            return v == null ? fallback : v;
         }
 
         public int totalFrames() {

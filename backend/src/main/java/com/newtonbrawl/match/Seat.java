@@ -14,6 +14,8 @@ final class Seat {
 
     /** Current connection, or null while disconnected. Thread-safe decorator around the raw session. */
     WebSocketSession session;
+    /** Picked fighter id, or null while still on character select. */
+    String fighter;
     /** Pending forfeit while disconnected mid-match. */
     ScheduledFuture<?> forfeitTimer;
 

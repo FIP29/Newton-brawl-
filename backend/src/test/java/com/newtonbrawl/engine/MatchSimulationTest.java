@@ -28,8 +28,11 @@ class MatchSimulationTest {
     private static final FighterDefinition PROTO = CATALOG.definition(PrototypeFighter.ID);
     private static final InputFrame NONE = InputFrame.NONE;
 
+    /** Same size/gravity as The Lab but with no props in the way. */
+    static final Arena EMPTY = new Arena("test", 1600, 900, 2600, List.of());
+
     private static MatchSimulation newSim(MatchRules rules) {
-        return new MatchSimulation(Arena.THE_LAB, CATALOG.create("prototype"), CATALOG.create("prototype"), rules);
+        return new MatchSimulation(EMPTY, CATALOG.create("prototype"), CATALOG.create("prototype"), rules);
     }
 
     private static MatchSimulation newSim() {
@@ -96,7 +99,7 @@ class MatchSimulationTest {
             airborneTicks++;
         }
         // Continuous: h = v²/2g, t = 2v/g. Semi-implicit Euler at 60 Hz lands at h ≈ v²/2g − v·Δt/2.
-        double v = PROTO.jumpVelocity(), g = Arena.THE_LAB.gravity();
+        double v = PROTO.jumpVelocity(), g = EMPTY.gravity();
         assertThat(apex).isCloseTo(v * v / (2 * g) - v * EngineConstants.DT / 2, within(1.5));
         assertThat(airborneTicks / 60.0).isCloseTo(2 * v / g, within(0.05));
         assertThat(view(sim, 0).y()).isZero();
@@ -155,17 +158,35 @@ class MatchSimulationTest {
 
     @Test
     void heavierFightersAreLaunchedLess() {
-        FighterDefinition heavyBody = new FighterDefinition("tank", "Tank", PROTO.fighterClass(), PROTO.color(),
+        FighterDefinition heavyBody = new FighterDefinition("tank", "Tank", "Heavy", PROTO.fighterClass(), PROTO.color(),
             PROTO.mass() * 2, PROTO.maxHealth(), PROTO.walkSpeed(), PROTO.jumpVelocity(),
             PROTO.airAcceleration(), PROTO.body(), PROTO.moves());
         var catalog = FighterCatalog.of(List.of(PROTO, heavyBody));
-        var sim = new MatchSimulation(Arena.THE_LAB, catalog.create("prototype"), catalog.create("tank"),
+        var sim = new MatchSimulation(EMPTY, catalog.create("prototype"), catalog.create("tank"),
             MatchRules.STANDARD.withCountdown(0));
         sim.place(0, 700, 0);
         sim.place(1, 820, 0);
         sim.step(press(InputBits.HEAVY), NONE);
         while (sim.snapshot().events().isEmpty()) sim.step(NONE, NONE);
         assertThat(view(sim, 1).vx()).isCloseTo(PROTO.move("heavy").impulse().x() / (PROTO.mass() * 2), within(0.1));
+    }
+
+    @Test
+    void simultaneousHitsTrade() {
+        var sim = newSim();
+        sim.place(0, 740, 0);
+        sim.place(1, 860, 0);
+        sim.step(press(InputBits.LIGHT), press(InputBits.LIGHT));
+        List<MatchSnapshot> hits = new ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            sim.step(NONE, NONE);
+            if (!sim.snapshot().events().isEmpty()) hits.add(sim.snapshot());
+        }
+        assertThat(hits).hasSize(1);
+        assertThat(hits.get(0).events()).hasSize(2);
+        int dmg = PROTO.move("light").damage();
+        assertThat(view(sim, 0).health()).isEqualTo(PROTO.maxHealth() - dmg);
+        assertThat(view(sim, 1).health()).isEqualTo(PROTO.maxHealth() - dmg);
     }
 
     @Test
@@ -203,7 +224,7 @@ class MatchSimulationTest {
         finishRoundEnd(sim);
         assertThat(sim.round()).isEqualTo(2);
         assertThat(view(sim, 1).health()).isEqualTo(PROTO.maxHealth());
-        assertThat(view(sim, 0).x()).isEqualTo(Arena.THE_LAB.width() * 0.35);
+        assertThat(view(sim, 0).x()).isEqualTo(EMPTY.width() * 0.35);
         assertThat(view(sim, 0).energy()).isEqualTo(energyBefore); // meter carries over
         assertThat(sim.timer()).isEqualTo(MatchRules.STANDARD.roundTimeTicks());
     }

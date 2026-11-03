@@ -6,6 +6,7 @@ import com.newtonbrawl.engine.fighter.FighterCatalog;
 import com.newtonbrawl.engine.input.InputBits;
 import com.newtonbrawl.engine.input.InputFrame;
 import com.newtonbrawl.engine.sim.Arena;
+import com.newtonbrawl.engine.sim.GameEvent;
 import com.newtonbrawl.engine.sim.MatchPhase;
 import com.newtonbrawl.engine.sim.MatchRules;
 import com.newtonbrawl.engine.sim.MatchSimulation;
@@ -37,43 +38,57 @@ class ParityFixtureTest {
 
     static final Path FIXTURE = Path.of("../frontend/src/game/sim/__fixtures__/parity.json");
     static final int TICKS = 2400;
-    static final int CHECKPOINT_EVERY = 20;
+    static final int CHECKPOINT_EVERY = 45;
     static final MatchRules RULES = MatchRules.STANDARD.withCountdown(30).withRoundTime(900);
+    /** Matchups covering every special and ultimate of the starter roster, in The Lab (with beakers). */
+    static final List<List<String>> MATCHUPS = List.of(
+        List.of("newton", "tesla"), List.of("curie", "einstein"), List.of("tesla", "curie"), List.of("einstein", "newton"));
 
     @Test
     void fixtureMatchesCurrentEngine() throws Exception {
         FighterCatalog catalog = FighterCatalog.loadFromClasspath();
-        MatchSimulation sim = new MatchSimulation(Arena.THE_LAB, catalog.create("prototype"), catalog.create("prototype"), RULES);
         Random rng = new Random(1905); // annus mirabilis
-        Bot[] bots = {new Bot(rng), new Bot(rng)};
+        List<Map<String, Object>> matches = new ArrayList<>();
+        java.util.Set<String> eventTypes = new java.util.TreeSet<>();
+        java.util.Set<String> movesUsed = new java.util.TreeSet<>();
 
-        List<int[]> inputs = new ArrayList<>(TICKS);
-        Map<String, MatchSnapshot> checkpoints = new LinkedHashMap<>();
-        for (int t = 1; t <= TICKS; t++) {
-            MatchSnapshot before = sim.snapshot();
-            InputFrame a = bots[0].next(before, 0), b = bots[1].next(before, 1);
-            inputs.add(new int[] {a.held(), a.pressed(), b.held(), b.pressed()});
-            sim.step(a, b);
-            MatchSnapshot s = sim.snapshot();
-            if (t % CHECKPOINT_EVERY == 0 || !s.events().isEmpty() || sim.phase() == MatchPhase.FINISHED) {
-                checkpoints.put(Long.toString(s.tick()), s);
+        for (List<String> pair : MATCHUPS) {
+            MatchSimulation sim = new MatchSimulation(Arena.THE_LAB, catalog.create(pair.get(0)), catalog.create(pair.get(1)), RULES);
+            Bot[] bots = {new Bot(rng), new Bot(rng)};
+            // One int per tick: held0 | pressed0 << 8 | held1 << 16 | pressed1 << 24.
+            List<Integer> inputs = new ArrayList<>(TICKS);
+            Map<String, MatchSnapshot> checkpoints = new LinkedHashMap<>();
+            for (int t = 1; t <= TICKS; t++) {
+                MatchSnapshot before = sim.snapshot();
+                InputFrame a = bots[0].next(before, 0), b = bots[1].next(before, 1);
+                inputs.add(a.held() | a.pressed() << 8 | b.held() << 16 | b.pressed() << 24);
+                sim.step(a, b);
+                MatchSnapshot s = sim.snapshot();
+                s.events().forEach(e -> { eventTypes.add(e.type()); if (e.move() != null) movesUsed.add(pair.get(e.attacker()) + "." + e.move()); });
+                // Any divergence propagates, so periodic checkpoints plus every hit-type event suffice.
+                boolean keyEvent = s.events().stream().anyMatch(e -> !e.type().equals(GameEvent.CAST) && !e.type().equals(GameEvent.CLANK));
+                if (t % CHECKPOINT_EVERY == 0 || keyEvent || sim.phase() == MatchPhase.FINISHED) {
+                    checkpoints.put(Long.toString(s.tick()), s);
+                }
+                if (sim.phase() == MatchPhase.FINISHED) break;
             }
-            if (sim.phase() == MatchPhase.FINISHED) break;
+            Map<String, Object> match = new LinkedHashMap<>();
+            match.put("arena", Arena.THE_LAB);
+            match.put("rules", RULES);
+            match.put("fighters", pair);
+            match.put("inputs", inputs);
+            match.put("checkpoints", checkpoints);
+            matches.add(match);
         }
 
-        Map<String, Object> fixture = new LinkedHashMap<>();
-        fixture.put("arena", Arena.THE_LAB);
-        fixture.put("rules", RULES);
-        fixture.put("fighters", List.of("prototype", "prototype"));
-        fixture.put("inputs", inputs);
-        fixture.put("checkpoints", checkpoints);
-
         ObjectMapper mapper = new ObjectMapper().disable(SerializationFeature.INDENT_OUTPUT);
-        String json = mapper.writeValueAsString(fixture) + "\n";
+        String json = mapper.writeValueAsString(Map.of("matches", matches)) + "\n";
 
-        // Sanity: the script must actually exercise hits and multiple rounds.
-        assertThat(checkpoints.values().stream().anyMatch(s -> !s.events().isEmpty())).isTrue();
-        assertThat(sim.round()).isGreaterThanOrEqualTo(2);
+        // Sanity: the bots must actually exercise the interesting mechanics.
+        assertThat(eventTypes).contains(GameEvent.HIT, GameEvent.CAST, GameEvent.ULTIMATE, GameEvent.CLANK);
+        for (String f : List.of("newton", "tesla", "curie", "einstein")) {
+            assertThat(movesUsed).contains(f + ".special1", f + ".special2", f + ".ultimate");
+        }
 
         String existing = Files.exists(FIXTURE) ? Files.readString(FIXTURE) : "";
         if (!existing.equals(json)) {
@@ -109,6 +124,10 @@ class ParityFixtureTest {
                 if (a < 0.08) bits |= InputBits.LIGHT;
                 else if (a < 0.12) bits |= InputBits.HEAVY;
             }
+            double sp = rng.nextDouble();
+            if (sp < 0.02) bits |= InputBits.SPECIAL;
+            else if (sp < 0.035) bits |= InputBits.SPECIAL | InputBits.DOWN;
+            if (me.energy() >= EngineConstants.ENERGY_MAX && rng.nextDouble() < 0.05) bits |= InputBits.ULTIMATE;
             InputFrame f = new InputFrame(bits, bits & ~prev);
             prev = bits;
             return f;

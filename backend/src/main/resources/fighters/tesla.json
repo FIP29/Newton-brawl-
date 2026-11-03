@@ -1,0 +1,118 @@
+{
+  "id": "tesla",
+  "name": "Nikola Tesla",
+  "title": "The Electric Zoner",
+  "fighterClass": "ZONER",
+  "color": "#33bbff",
+  "mass": 70,
+  "maxHealth": 950,
+  "walkSpeed": 400,
+  "jumpVelocity": 1180,
+  "airAcceleration": 1900,
+  "body": {
+    "width": 84,
+    "height": 205
+  },
+  "moves": {
+    "light": {
+      "name": "Spark Jab",
+      "startup": 4,
+      "active": 3,
+      "recovery": 9,
+      "damage": 40,
+      "hitstun": 14,
+      "hitstop": 5,
+      "hitbox": {
+        "x": 70,
+        "y": 135,
+        "w": 84,
+        "h": 38
+      },
+      "impulse": {
+        "x": 20000,
+        "y": 0
+      }
+    },
+    "heavy": {
+      "name": "Alternating Current",
+      "startup": 11,
+      "active": 4,
+      "recovery": 18,
+      "damage": 110,
+      "hitstun": 25,
+      "hitstop": 9,
+      "hitbox": {
+        "x": 92,
+        "y": 115,
+        "w": 118,
+        "h": 60
+      },
+      "impulse": {
+        "x": 52000,
+        "y": 34000
+      }
+    },
+    "special1": {
+      "name": "Chain Lightning",
+      "kind": "SPECIAL",
+      "equation": "F = k·q₁q₂ / r²",
+      "startup": 10,
+      "active": 1,
+      "recovery": 16,
+      "cooldown": 60,
+      "damage": 55,
+      "hitstun": 18,
+      "hitstop": 6,
+      "impulse": {
+        "x": 20000,
+        "y": 8000
+      },
+      "params": {
+        "speed": 1400,
+        "life": 70,
+        "maxChains": 3,
+        "offset": 60,
+        "height": 125,
+        "w": 54,
+        "h": 22
+      }
+    },
+    "special2": {
+      "name": "Magnetic Pull",
+      "kind": "SPECIAL",
+      "equation": "F = q(v × B)",
+      "startup": 8,
+      "active": 1,
+      "recovery": 24,
+      "cooldown": 240,
+      "damage": 0,
+      "hitstun": 0,
+      "hitstop": 0,
+      "params": {
+        "range": 1300,
+        "life": 40,
+        "strength": 380
+      }
+    },
+    "ultimate": {
+      "name": "Tesla Coil",
+      "kind": "ULTIMATE",
+      "equation": "f = 1 / 2π√(LC)",
+      "startup": 8,
+      "active": 1,
+      "recovery": 30,
+      "cooldown": 0,
+      "damage": 34,
+      "hitstun": 14,
+      "hitstop": 3,
+      "impulse": {
+        "x": 6000,
+        "y": 9000
+      },
+      "params": {
+        "life": 200,
+        "interval": 20
+      }
+    }
+  }
+}

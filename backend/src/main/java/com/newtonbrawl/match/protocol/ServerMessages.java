@@ -2,7 +2,10 @@ package com.newtonbrawl.match.protocol;
 
 import com.newtonbrawl.engine.fighter.FighterDefinition;
 import com.newtonbrawl.engine.sim.FighterView;
-import com.newtonbrawl.engine.sim.HitEvent;
+import com.newtonbrawl.engine.sim.GameEvent;
+import com.newtonbrawl.engine.sim.ObjectView;
+import com.newtonbrawl.engine.sim.ProjectileView;
+import com.newtonbrawl.engine.sim.ZoneView;
 import com.newtonbrawl.engine.sim.MatchPhase;
 import com.newtonbrawl.engine.sim.MatchResult;
 import com.newtonbrawl.engine.sim.MatchSnapshot;
@@ -18,13 +21,17 @@ public final class ServerMessages {
     private ServerMessages() {}
 
     /** Public info about someone in a room. */
-    public record PlayerInfo(int slot, long id, String username, String displayName, int elo, boolean connected) {}
+    /** @param fighter picked fighter id, or null while still choosing */
+    public record PlayerInfo(int slot, long id, String username, String displayName, int elo, boolean connected,
+                             String fighter) {}
 
-    public record ArenaInfo(String id, double width, double gravity) {}
+    public record ArenaInfo(String id, double width, double height, double gravity, List<Double> objectSpawns) {}
 
-    /** First message after joining: which slot you are and who's here. */
-    public record Welcome(String t, String room, int slot, List<PlayerInfo> players) {
-        public Welcome(String room, int slot, List<PlayerInfo> players) { this("welcome", room, slot, players); }
+    /** First message after joining: which slot you are, who's here, and who can be picked. */
+    public record Welcome(String t, String room, int slot, List<PlayerInfo> players, List<FighterDefinition> roster) {
+        public Welcome(String room, int slot, List<PlayerInfo> players, List<FighterDefinition> roster) {
+            this("welcome", room, slot, players, roster);
+        }
     }
 
     /** Room membership/connection changed. */
@@ -45,12 +52,13 @@ public final class ServerMessages {
     }
 
     /** Authoritative snapshot, sent every tick. {@code ack[slot]} = last input seq applied for that slot. */
-    public record State(String t, long tick, MatchPhase phase, int phaseTicks, int hitstop,
+    public record State(String t, long tick, MatchPhase phase, int phaseTicks, int hitstop, int cinematic,
                         int round, List<Integer> roundWins, int timer, RoundResult lastRound,
-                        List<FighterView> fighters, List<HitEvent> events, long[] ack) {
+                        List<FighterView> fighters, List<ProjectileView> projectiles, List<ZoneView> zones,
+                        List<ObjectView> objects, List<GameEvent> events, long[] ack) {
         public State(MatchSnapshot s, long[] ack) {
-            this("state", s.tick(), s.phase(), s.phaseTicks(), s.hitstop(), s.round(), s.roundWins(),
-                s.timer(), s.lastRound(), s.fighters(), s.events(), ack);
+            this("state", s.tick(), s.phase(), s.phaseTicks(), s.hitstop(), s.cinematic(), s.round(), s.roundWins(),
+                s.timer(), s.lastRound(), s.fighters(), s.projectiles(), s.zones(), s.objects(), s.events(), ack);
         }
     }
 

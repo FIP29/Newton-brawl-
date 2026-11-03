@@ -1,0 +1,348 @@
+import type { Graphics } from 'pixi.js';
+import type { Look } from './looks';
+import type { P, Pose } from './rig';
+
+/**
+ * Draws a scientist into a Graphics in character space (x forward, y down, feet at the origin).
+ * Every part is filled with a muted costume colour and outlined in the fighter's neon — the
+ * "Neon Chalkboard" look. Pure vector, so it stays crisp at any zoom (including portraits).
+ */
+export function drawCharacter(g: Graphics, pose: Pose, look: Look, H: number, time: number) {
+  const ow = Math.max(2, H * 0.016);           // outline width
+  const glow = look.glow;
+  const sw = look.shoulders * H;
+  const r = H * 0.105;                          // head radius (caricature proportions)
+
+  // ---------------------------------------------------------------- back layers
+  if (look.hairStyle === 'periwig') periwigBack(g, pose.head, r, look, ow, time);
+  if (look.hairStyle === 'wild') wildHairBack(g, pose.head, r, look, ow, time);
+
+  // back arm
+  arm(g, pose.shoulderB, pose.elbowB, pose.handB, look, H, ow, true, true);
+  if (look.prop === 'vial') vial(g, pose.handB, H, look, time);
+
+  // back leg + skirts/coat tails behind
+  if (look.outfit !== 'dress') leg(g, pose.hipB, pose.kneeB, pose.footB, look, H, ow, true);
+
+  // A long coat covers the front thigh; shorter garments sit behind the leg.
+  if (look.outfit === 'frockcoat') leg(g, pose.hipF, pose.kneeF, pose.footF, look, H, ow, false);
+  torso(g, pose, look, H, sw, ow);
+  if (look.outfit === 'suit' || look.outfit === 'cardigan') leg(g, pose.hipF, pose.kneeF, pose.footF, look, H, ow, false);
+  if (look.outfit === 'dress') shoe(g, pose.footF, H, look, ow);
+
+  // neck + head
+  const neckBase = { x: pose.chest.x + H * 0.01, y: pose.chest.y - H * 0.01 };
+  g.moveTo(neckBase.x, neckBase.y).lineTo(pose.head.x - r * 0.15, pose.head.y + r * 0.7)
+    .stroke({ width: H * 0.06 + ow * 2, color: glow, cap: 'round' })
+    .moveTo(neckBase.x, neckBase.y).lineTo(pose.head.x - r * 0.15, pose.head.y + r * 0.7)
+    .stroke({ width: H * 0.06, color: look.skin, cap: 'round' });
+  collar(g, pose, look, H, ow);
+  head(g, pose, look, r, ow, time);
+
+  // front arm last so punches read clearly
+  arm(g, pose.shoulderF, pose.elbowF, pose.handF, look, H, ow, false, pose.handFOpen);
+}
+
+// ------------------------------------------------------------------------ parts
+
+function outlined(g: Graphics, pts: P[], width: number, fill: number, outline: number, ow: number) {
+  const path = () => { g.moveTo(pts[0].x, pts[0].y); for (let i = 1; i < pts.length; i++) g.lineTo(pts[i].x, pts[i].y); };
+  path(); g.stroke({ width: width + ow * 2, color: outline, cap: 'round', join: 'round' });
+  path(); g.stroke({ width, color: fill, cap: 'round', join: 'round' });
+}
+
+function arm(g: Graphics, s: P, e: P, h: P, look: Look, H: number, ow: number, back: boolean, open: boolean) {
+  const sleeve = back ? look.coatShade : look.coat;
+  const thick = H * (look.outfit === 'cardigan' ? 0.078 : 0.068);
+  outlined(g, [s, e, h], thick, sleeve, look.glow, ow);
+  // cuff
+  const cx = e.x + (h.x - e.x) * 0.78, cy = e.y + (h.y - e.y) * 0.78;
+  if (look.outfit === 'frockcoat') {
+    g.circle(cx, cy, thick * 0.72).fill(look.trim).stroke({ width: ow * 0.6, color: look.glow });
+  } else {
+    g.circle(cx, cy, thick * 0.45).fill(look.shirt);
+  }
+  // hand
+  const hr = H * 0.036;
+  g.circle(h.x, h.y, hr).fill(look.skin).stroke({ width: ow, color: look.glow });
+  if (open) {
+    const ang = Math.atan2(h.y - e.y, h.x - e.x);
+    for (let i = -1; i <= 1; i++) {
+      const a = ang + i * 0.35;
+      g.moveTo(h.x, h.y).lineTo(h.x + Math.cos(a) * hr * 1.7, h.y + Math.sin(a) * hr * 1.7);
+    }
+    g.stroke({ width: ow * 0.9, color: look.skin, cap: 'round' });
+  }
+}
+
+function leg(g: Graphics, hip: P, knee: P, foot: P, look: Look, H: number, ow: number, back: boolean) {
+  const thick = H * 0.074;
+  const trousers = back ? shade(look.legs, 0.8) : look.legs;
+  if (look.outfit === 'frockcoat') {
+    // breeches to the knee, then white stockings
+    outlined(g, [hip, knee], thick, trousers, look.glow, ow);
+    outlined(g, [knee, foot], thick * 0.78, back ? 0xcfcabd : 0xe9e4d8, look.glow, ow);
+  } else {
+    outlined(g, [hip, knee, foot], thick, trousers, look.glow, ow);
+  }
+  shoe(g, foot, H, look, ow);
+}
+
+function shoe(g: Graphics, foot: P, H: number, look: Look, ow: number) {
+  g.roundRect(foot.x - H * 0.035, foot.y - H * 0.035, H * 0.105, H * 0.04, H * 0.017)
+    .fill(look.shoes).stroke({ width: ow * 0.8, color: look.glow });
+  if (look.outfit === 'frockcoat') g.rect(foot.x + H * 0.015, foot.y - H * 0.028, H * 0.02, H * 0.014).fill(look.trim); // buckle
+}
+
+function torso(g: Graphics, pose: Pose, look: Look, H: number, sw: number, ow: number) {
+  const { chest: c, hip } = pose;
+  const sway = pose.sway * H * 0.06;
+  const shF = { x: c.x + sw * 0.42, y: c.y }, shB = { x: c.x - sw * 0.52, y: c.y + H * 0.005 };
+  let shape: P[];
+  switch (look.outfit) {
+    case 'frockcoat':
+      // long coat flaring to the knees; tails trail behind when moving
+      shape = [shB, shF, { x: hip.x + sw * 0.38, y: hip.y - H * 0.02 }, { x: hip.x + sw * 0.5 + sway * 0.4, y: hip.y + H * 0.25 },
+               { x: hip.x - sw * 0.72 + sway, y: hip.y + H * 0.27 }, { x: hip.x - sw * 0.45, y: hip.y - H * 0.02 }];
+      break;
+    case 'suit':
+      shape = [shB, shF, { x: hip.x + sw * 0.36, y: hip.y + H * 0.06 }, { x: hip.x + sw * 0.1, y: hip.y + H * 0.09 },
+               { x: hip.x - sw * 0.5 + sway * 0.3, y: hip.y + H * 0.1 }, { x: hip.x - sw * 0.46, y: hip.y }];
+      break;
+    case 'dress': {
+      // fitted bodice, then a full skirt to the ankles that sways
+      const waistF = { x: hip.x + sw * 0.32, y: hip.y - H * 0.04 }, waistB = { x: hip.x - sw * 0.36, y: hip.y - H * 0.04 };
+      shape = [shB, shF, waistF, { x: hip.x + H * 0.2 + sway * 0.5, y: -H * 0.035 }, { x: hip.x - H * 0.22 + sway, y: -H * 0.035 }, waistB];
+      break;
+    }
+    case 'cardigan':
+      // baggy, slightly rumpled sweater
+      shape = [{ x: shB.x - sw * 0.06, y: shB.y + H * 0.01 }, { x: shF.x + sw * 0.05, y: shF.y + H * 0.01 },
+               { x: hip.x + sw * 0.48, y: hip.y + H * 0.05 }, { x: hip.x - sw * 0.6, y: hip.y + H * 0.06 }];
+      break;
+  }
+  const flat = shape.flatMap((p) => [p.x, p.y]);
+  g.poly(flat).fill(look.coat).stroke({ width: ow, color: look.glow, join: 'round' });
+
+  // details
+  if (look.outfit === 'frockcoat') {
+    // gold trimmed front edge + buttons, pocket flap
+    g.moveTo(c.x + sw * 0.3, c.y + H * 0.03).lineTo(hip.x + sw * 0.42 + sway * 0.4, hip.y + H * 0.24).stroke({ width: ow * 0.9, color: look.trim });
+    for (let i = 0; i < 5; i++) {
+      const t = 0.12 + i * 0.17;
+      g.circle(c.x + sw * 0.25 + (hip.x - c.x) * t, c.y + (hip.y + H * 0.1 - c.y) * t, H * 0.009).fill(look.trim);
+    }
+    g.moveTo(hip.x - sw * 0.1, hip.y + H * 0.05).lineTo(hip.x + sw * 0.25, hip.y + H * 0.05).stroke({ width: ow, color: look.trim });
+  } else if (look.outfit === 'suit') {
+    // lapels, shirt V, glowing tie, buttons
+    g.poly([c.x + sw * 0.05, c.y, c.x + sw * 0.36, c.y + H * 0.005, c.x + sw * 0.2, c.y + H * 0.13]).fill(look.shirt);
+    g.moveTo(c.x + sw * 0.22, c.y + H * 0.01).lineTo(c.x + sw * 0.21, c.y + H * 0.12).stroke({ width: H * 0.018, color: look.accent, cap: 'round' });
+    g.moveTo(c.x + sw * 0.02, c.y).lineTo(c.x + sw * 0.18, c.y + H * 0.15).moveTo(c.x + sw * 0.4, c.y).lineTo(c.x + sw * 0.24, c.y + H * 0.15)
+      .stroke({ width: ow * 0.8, color: look.trim });
+    for (let i = 0; i < 2; i++) g.circle(c.x + sw * 0.2, c.y + H * (0.19 + i * 0.06), H * 0.007).fill(look.trim);
+  } else if (look.outfit === 'dress') {
+    // skirt folds and a fitted waist band
+    for (let i = -2; i <= 2; i++) {
+      g.moveTo(hip.x + i * sw * 0.12, hip.y).lineTo(hip.x + i * H * 0.06 + pose.sway * H * 0.04, -H * 0.05);
+    }
+    g.stroke({ width: ow * 0.7, color: look.coatShade });
+    g.moveTo(hip.x - sw * 0.34, hip.y - H * 0.04).lineTo(hip.x + sw * 0.3, hip.y - H * 0.04).stroke({ width: ow * 1.2, color: look.trim });
+    for (let i = 0; i < 4; i++) g.circle(c.x + sw * 0.22, c.y + H * (0.03 + i * 0.04), H * 0.006).fill(look.trim);
+  } else {
+    // cardigan: V-neck showing shirt, buttons, pocket, knit ribbing
+    g.poly([c.x - sw * 0.05, c.y, c.x + sw * 0.38, c.y, c.x + sw * 0.18, c.y + H * 0.12]).fill(look.shirt);
+    for (let i = 0; i < 3; i++) g.circle(c.x + sw * 0.2 + (hip.x - c.x) * 0.1 * i, c.y + H * (0.15 + i * 0.06), H * 0.009).fill(look.trim);
+    g.roundRect(hip.x + sw * 0.05, hip.y - H * 0.02, sw * 0.3, H * 0.05, H * 0.01).stroke({ width: ow * 0.7, color: look.coatShade });
+    g.moveTo(hip.x - sw * 0.58, hip.y + H * 0.03).lineTo(hip.x + sw * 0.46, hip.y + H * 0.025).stroke({ width: ow * 1.4, color: look.coatShade });
+  }
+}
+
+function collar(g: Graphics, pose: Pose, look: Look, H: number, ow: number) {
+  const c = pose.chest;
+  if (look.outfit === 'frockcoat') {
+    // white lace cravat (jabot)
+    g.poly([c.x + H * 0.0, c.y - H * 0.02, c.x + H * 0.07, c.y - H * 0.02, c.x + H * 0.06, c.y + H * 0.07, c.x + H * 0.02, c.y + H * 0.09])
+      .fill(look.shirt).stroke({ width: ow * 0.6, color: look.glow });
+    g.moveTo(c.x + H * 0.02, c.y + H * 0.02).lineTo(c.x + H * 0.055, c.y + H * 0.03).moveTo(c.x + H * 0.02, c.y + H * 0.05).lineTo(c.x + H * 0.05, c.y + H * 0.06)
+      .stroke({ width: ow * 0.5, color: 0xcfc9bb });
+  } else if (look.outfit === 'dress') {
+    // high white collar
+    g.roundRect(c.x - H * 0.01, c.y - H * 0.04, H * 0.075, H * 0.04, H * 0.01).fill(look.shirt).stroke({ width: ow * 0.6, color: look.glow });
+  } else if (look.outfit === 'suit') {
+    // tall stiff collar
+    g.rect(c.x + H * 0.005, c.y - H * 0.035, H * 0.06, H * 0.035).fill(look.shirt).stroke({ width: ow * 0.5, color: look.glow });
+  }
+}
+
+function head(g: Graphics, pose: Pose, look: Look, r: number, ow: number, time: number) {
+  const h = pose.head;
+  const tilt = pose.headTilt;
+  const rot = (x: number, y: number): [number, number] => [h.x + x * Math.cos(tilt) - y * Math.sin(tilt), h.y + x * Math.sin(tilt) + y * Math.cos(tilt)];
+
+  // skull + slightly elongated jaw
+  g.ellipse(h.x, h.y, r, r * 1.08).fill(look.skin).stroke({ width: ow, color: look.glow });
+  // ear
+  const [ex, ey] = rot(-r * 0.12, r * 0.05);
+  g.ellipse(ex, ey, r * 0.16, r * 0.24).fill(shade(look.skin, 0.88)).stroke({ width: ow * 0.5, color: look.glow });
+
+  // nose (Newton's is famously long and straight)
+  const noseLen = look.hairStyle === 'periwig' ? 1.22 : look.hairStyle === 'wild' ? 1.14 : 1.08;
+  const n1 = rot(r * 0.78, -r * 0.2), n2 = rot(r * noseLen, r * 0.2), n3 = rot(r * 0.8, r * 0.28);
+  g.poly([...n1, ...n2, ...n3]).fill(shade(look.skin, 0.94)).stroke({ width: ow * 0.6, color: look.glow, join: 'round' });
+
+  // eye
+  const [eyx, eyy] = rot(r * 0.42, -r * 0.12);
+  if (pose.expression === 'ko') {
+    const k = r * 0.13;
+    g.moveTo(eyx - k, eyy - k).lineTo(eyx + k, eyy + k).moveTo(eyx + k, eyy - k).lineTo(eyx - k, eyy + k).stroke({ width: ow * 0.8, color: 0x1a1a1a });
+  } else if (pose.expression === 'hurt') {
+    g.moveTo(eyx - r * 0.14, eyy - r * 0.04).lineTo(eyx + r * 0.14, eyy + r * 0.04).stroke({ width: ow * 0.8, color: 0x1a1a1a, cap: 'round' });
+  } else {
+    const open = pose.expression === 'shout' ? 1.3 : 1;
+    const blink = Math.sin(time * 1.7) > 0.985 ? 0.15 : 1;
+    g.ellipse(eyx, eyy, r * 0.17, r * 0.12 * open * blink).fill(0xf8f6f0);
+    g.circle(eyx + r * 0.05, eyy, r * 0.075 * Math.min(1, blink * 2)).fill(0x1d1b1a);
+    if (pose.power > 0.5) g.circle(eyx + r * 0.05, eyy, r * 0.05).fill(look.glow); // eyes glow when powered up
+  }
+
+  // brows
+  const b1 = rot(r * 0.22, -r * 0.34), b2 = rot(r * 0.62, look.brows === 'stern' || pose.expression === 'focus' ? -r * 0.26 : -r * 0.34);
+  const browColor = look.hairStyle === 'wild' ? look.hair : shade(look.hair, look.hairStyle === 'periwig' ? 0.6 : 1);
+  const browW = look.brows === 'bushy' ? r * 0.16 : look.brows === 'fine' ? r * 0.05 : r * 0.08;
+  g.moveTo(b1[0], b1[1]).lineTo(b2[0], b2[1]).stroke({ width: browW, color: browColor, cap: 'round' });
+
+  // mouth
+  const m1 = rot(r * 0.42, r * 0.52), m2 = rot(r * 0.74, r * 0.48);
+  if (pose.expression === 'shout' || pose.expression === 'hurt') {
+    const [mx, my] = rot(r * 0.6, r * 0.55);
+    g.ellipse(mx, my, r * 0.14, r * 0.11).fill(0x3a1612);
+  } else {
+    g.moveTo(m1[0], m1[1]).lineTo(m2[0], m2[1]).stroke({ width: ow * 0.6, color: 0x5a2a22, cap: 'round' });
+  }
+
+  // facial hair
+  if (look.moustache === 'thin') {
+    const a = rot(r * 0.48, r * 0.36), bb = rot(r * 0.98, r * 0.33), cc = rot(r * 0.4, r * 0.44);
+    g.moveTo(cc[0], cc[1]).quadraticCurveTo(a[0], a[1], bb[0], bb[1]).stroke({ width: r * 0.08, color: look.hair, cap: 'round' });
+  } else if (look.moustache === 'bushy') {
+    const pts = [rot(r * 0.3, r * 0.3), rot(r * 0.7, r * 0.24), rot(r * 1.05, r * 0.3), rot(r * 0.98, r * 0.5), rot(r * 0.62, r * 0.48), rot(r * 0.32, r * 0.55)];
+    g.poly(pts.flat()).fill(look.hair).stroke({ width: ow * 0.5, color: look.hairShade, join: 'round' });
+  }
+
+  // hair (front layers)
+  switch (look.hairStyle) {
+    case 'periwig': periwigFront(g, h, r, look, ow, rot); break;
+    case 'slick': slickHair(g, r, look, ow, rot); break;
+    case 'bun': bunHair(g, h, r, look, ow, rot); break;
+    case 'wild': wildHairFront(g, r, look, ow, rot, time); break;
+  }
+}
+
+type Rot = (x: number, y: number) => [number, number];
+
+/** Newton: voluminous shoulder-length curled periwig. */
+function periwigBack(g: Graphics, h: P, r: number, look: Look, ow: number, time: number) {
+  const curls: Array<[number, number, number]> = [];
+  for (let i = 0; i < 7; i++) {
+    const t = i / 6;
+    curls.push([-r * 0.55 - t * r * 0.35, -r * 0.6 + t * r * 2.2, r * (0.42 - t * 0.06)]);
+    curls.push([-r * 0.1 - t * r * 0.15, -r * 0.2 + t * r * 2.1, r * 0.36]);
+  }
+  for (const [x, y, cr] of curls) {
+    const bob = Math.sin(time * 2 + y * 0.05) * r * 0.03;
+    g.circle(h.x + x, h.y + y + bob, cr).fill(look.hairShade).stroke({ width: ow * 0.7, color: look.glow });
+  }
+}
+
+function periwigFront(g: Graphics, h: P, r: number, look: Look, ow: number, rot: Rot) {
+  // crown with a centre part, then ringlets framing the face from the temple, behind the ear,
+  // down over the shoulder — the silhouette of Kneller's 1689 portrait.
+  const crown = [rot(r * 0.62, -r * 0.5), rot(r * 0.3, -r * 1.12), rot(-r * 0.4, -r * 1.14), rot(-r * 0.98, -r * 0.6), rot(-r * 0.72, -r * 0.05), rot(-r * 0.05, -r * 0.48)];
+  g.poly(crown.flat()).fill(look.hair).stroke({ width: ow * 0.8, color: look.glow, join: 'round' });
+  const ringlets: Array<[number, number, number]> = [
+    [-0.22, -0.42, 0.26], [-0.4, -0.05, 0.27], [-0.48, 0.38, 0.27], [-0.5, 0.82, 0.27], [-0.42, 1.22, 0.25], [-0.25, 1.55, 0.23],
+  ];
+  for (const [cx, cy, cr] of ringlets) {
+    const [x, y] = rot(r * cx, r * cy);
+    g.circle(x, y, r * cr).fill(look.hair).stroke({ width: ow * 0.55, color: look.hairShade });
+    const a0 = 0.6;
+    g.moveTo(x + Math.cos(a0) * r * cr * 0.5, y + Math.sin(a0) * r * cr * 0.5)
+      .arc(x, y, r * cr * 0.5, a0, a0 + 3.4).stroke({ width: ow * 0.45, color: look.hairShade });
+  }
+  void h;
+}
+
+/** Tesla: centre-parted, slicked-back black hair with volume on top. */
+function slickHair(g: Graphics, r: number, look: Look, ow: number, rot: Rot) {
+  const pts = [rot(r * 0.72, -r * 0.45), rot(r * 0.55, -r * 1.05), rot(r * 0.05, -r * 1.22), rot(-r * 0.6, -r * 1.05),
+               rot(-r * 1.02, -r * 0.5), rot(-r * 0.92, r * 0.15), rot(-r * 0.55, r * 0.1), rot(-r * 0.2, -r * 0.45), rot(r * 0.35, -r * 0.55)];
+  g.poly(pts.flat()).fill(look.hair).stroke({ width: ow * 0.8, color: look.glow, join: 'round' });
+  const p1 = rot(r * 0.28, -r * 1.14), p2 = rot(r * 0.05, -r * 0.62);
+  g.moveTo(p1[0], p1[1]).lineTo(p2[0], p2[1]).stroke({ width: ow * 0.6, color: look.hairShade });
+  // comb lines catching the light
+  for (let i = 0; i < 3; i++) {
+    const a = rot(-r * (0.1 + i * 0.25), -r * (1.05 - i * 0.12)), b = rot(-r * (0.45 + i * 0.22), -r * (0.55 - i * 0.12));
+    g.moveTo(a[0], a[1]).lineTo(b[0], b[1]);
+  }
+  g.stroke({ width: ow * 0.4, color: 0x4a5266 });
+}
+
+/** Curie: dark hair swept up into a bun, soft frizzy fringe. */
+function bunHair(g: Graphics, h: P, r: number, look: Look, ow: number, rot: Rot) {
+  const [bx, by] = rot(-r * 0.62, -r * 0.92);
+  g.circle(bx, by, r * 0.42).fill(look.hair).stroke({ width: ow * 0.8, color: look.glow });
+  g.moveTo(bx + r * 0.22, by).arc(bx, by, r * 0.22, 0, 4.5).stroke({ width: ow * 0.5, color: look.hairShade });
+  const cap = [rot(r * 0.62, -r * 0.42), rot(r * 0.4, -r * 1.0), rot(-r * 0.3, -r * 1.12), rot(-r * 0.98, -r * 0.55),
+               rot(-r * 0.85, r * 0.2), rot(-r * 0.5, r * 0.05), rot(-r * 0.15, -r * 0.45), rot(r * 0.3, -r * 0.5)];
+  g.poly(cap.flat()).fill(look.hair).stroke({ width: ow * 0.8, color: look.glow, join: 'round' });
+  for (let i = 0; i < 4; i++) {
+    const [x, y] = rot(r * (0.5 - i * 0.18), -r * (0.55 + i * 0.1));
+    g.circle(x, y, r * 0.13).fill(look.hair);
+  }
+  void h;
+}
+
+/** Einstein: the famous untamed white halo. */
+function wildHairBack(g: Graphics, h: P, r: number, look: Look, ow: number, time: number) {
+  const spikes = 15;
+  const pts: number[] = [];
+  for (let i = 0; i <= spikes; i++) {
+    const a = Math.PI * 0.55 + (i / spikes) * Math.PI * 1.45;
+    const jitter = Math.sin(i * 12.9898 + 1.3) * 0.18 + Math.sin(time * 3 + i) * 0.04;
+    const rad = r * ((i % 2 === 0 ? 1.65 : 1.25) + jitter);
+    pts.push(h.x - r * 0.15 + Math.cos(a) * rad, h.y - r * 0.15 + Math.sin(a) * rad);
+  }
+  g.poly(pts).fill(look.hair).stroke({ width: ow * 0.8, color: look.glow, join: 'round' });
+}
+
+function wildHairFront(g: Graphics, r: number, look: Look, ow: number, rot: Rot, time: number) {
+  // receding hairline: a few tufts flying off the temples and crown
+  for (let i = 0; i < 5; i++) {
+    const base = rot(-r * (0.1 + i * 0.18), -r * (0.95 - i * 0.12));
+    const tip = rot(-r * (0.3 + i * 0.3) + Math.sin(time * 4 + i) * r * 0.04, -r * (1.45 - i * 0.05));
+    g.moveTo(base[0], base[1]).quadraticCurveTo(base[0] + r * 0.2, tip[1], tip[0], tip[1]);
+  }
+  g.stroke({ width: r * 0.16, color: look.hair, cap: 'round' });
+  const sideA = rot(-r * 0.2, -r * 0.5), sideB = rot(-r * 0.95, r * 0.25);
+  g.moveTo(sideA[0], sideA[1]).quadraticCurveTo(-r * 0.6 + sideA[0], sideB[1] - r * 0.3, sideB[0], sideB[1])
+    .stroke({ width: r * 0.3, color: look.hair, cap: 'round' });
+  void ow;
+}
+
+/** Curie's glowing radium vial. */
+function vial(g: Graphics, hand: P, H: number, look: Look, time: number) {
+  const w = H * 0.03, h = H * 0.09;
+  const x = hand.x - w / 2, y = hand.y - h * 0.9;
+  const pulse = 0.6 + 0.4 * Math.sin(time * 4);
+  g.roundRect(x, y, w, h, w * 0.4).fill({ color: 0xcfe9d0, alpha: 0.35 }).stroke({ width: H * 0.006, color: look.glow });
+  g.roundRect(x + w * 0.15, y + h * 0.45, w * 0.7, h * 0.5, w * 0.3).fill({ color: look.glow, alpha: 0.6 + 0.4 * pulse });
+  g.rect(x - w * 0.1, y - h * 0.08, w * 1.2, h * 0.1).fill(0x8a7a64);
+}
+
+/** Multiply a colour's channels (0..1) to darken it. */
+export function shade(color: number, k: number): number {
+  const rr = Math.min(255, Math.round(((color >> 16) & 0xff) * k));
+  const gg = Math.min(255, Math.round(((color >> 8) & 0xff) * k));
+  const bb = Math.min(255, Math.round((color & 0xff) * k));
+  return (rr << 16) | (gg << 8) | bb;
+}

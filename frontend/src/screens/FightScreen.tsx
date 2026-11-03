@@ -1,25 +1,31 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { FightRenderer } from '../game/render/FightRenderer';
 import { MatchConnection } from '../game/net/MatchConnection';
 import { SnapshotBuffer } from '../game/net/SnapshotBuffer';
 import { Predictor } from '../game/net/Predictor';
 import { InputController, KEYS_ONLINE } from '../game/input/InputController';
-import type { EndMessage, PlayerInfo, StartMessage, StateMessage } from '../game/protocol';
+import type { EndMessage, FighterDefinition, GameEvent, PlayerInfo, StartMessage, StateMessage } from '../game/protocol';
+import { lookFor } from '../game/render/characters/looks';
 import { roomsApi } from '../api/rooms';
 import { useAuth } from '../auth/AuthContext';
 import { sfx } from '../audio/sfx';
 import { Banner, HudBar, useMatchPresentation } from '../components/FightHud';
+import { CharacterSelect } from '../components/CharacterSelect';
+import { useFightOverlays } from '../components/FightOverlays';
+import { fighterPortraits } from '../components/portraits';
 
-type Status = 'connecting' | 'waiting' | 'live' | 'ended' | 'error';
+type Status = 'connecting' | 'select' | 'live' | 'ended' | 'error';
+const hex = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
 
 /**
  * Online fight. Data flow per display frame:
  *   input → MatchConnection (60 Hz packets) → server
  *                         ↘ Predictor (our fighter, instantly)
- *   server snapshots → SnapshotBuffer (opponent, interpolated ~50 ms in the past)
+ *   server snapshots → SnapshotBuffer (opponent + entities, interpolated ~50 ms in the past)
  *                    → Predictor.onServerState (rewind + replay unacked inputs)
- *   renderer draws predicted-us + interpolated-them; HUD reads the newest snapshot.
+ *   renderer draws predicted-us + interpolated-everything-else; HUD reads the newest snapshot.
+ * Before the match: character select inside the room (both players must pick).
  */
 export function FightScreen() {
   const { code = '' } = useParams();
@@ -31,34 +37,51 @@ export function FightScreen() {
   const [error, setError] = useState<string | null>(null);
   const [slot, setSlot] = useState<number>(-1);
   const [players, setPlayers] = useState<PlayerInfo[]>([]);
+  const [roster, setRoster] = useState<FighterDefinition[]>([]);
+  const [hover, setHover] = useState(0);
+  const [defs, setDefs] = useState<FighterDefinition[]>([]);
   const [end, setEnd] = useState<EndMessage | null>(null);
   const [ping, setPing] = useState(0);
   const [predicting, setPredicting] = useState(true);
   const [attempt, setAttempt] = useState(0);
   const [showHelp, setShowHelp] = useState(true);
+  const [images, setImages] = useState<Record<string, string>>({});
   const { hud, banner, push, reset } = useMatchPresentation();
+  const overlays = useFightOverlays();
+  const connRef = useRef<MatchConnection | null>(null);
+  const selectRef = useRef({ hover: 0, roster: [] as FighterDefinition[], status: 'connecting' as Status });
+  selectRef.current = { hover, roster, status };
+
+  useEffect(() => { void fighterPortraits().then(setImages); }, []);
 
   useEffect(() => {
     if (!host) return;
     let disposed = false;
-    let ready = false;                         // renderer initialised
-    let start: StartMessage | null = null;     // match config (fighters, arena, rules)
+    let ready = false;
+    let start: StartMessage | null = null;
     let mySlot = -1;
-    let names: string[] = ['P1', 'P2'];
     let predictor: Predictor | null = null;
     let predictionOn = true;
     let latest: StateMessage | null = null;
     let lastEventTick = 0;
     let ended = false;
     reset();
+    overlays.reset();
 
     const renderer = new FightRenderer();
     const buffer = new SnapshotBuffer();
     const input = new InputController(KEYS_ONLINE, 'any').attach();
 
+    const handle = (e: GameEvent) => {
+      if (!ready || !start) return;
+      const combo = renderer.onEvent(e);
+      if (e.type === 'HIT' && e.move === 'ultimate' && start.fighters[e.attacker].id === 'tesla') renderer.coilStrike(e.x, e.y);
+      overlays.onEvent(e, start.fighters, combo);
+    };
+
     const onStart = (msg: StartMessage) => {
       start = msg;
-      names = [0, 1].map((s) => msg.players.find((p) => p.slot === s)?.displayName ?? `P${s + 1}`);
+      setDefs(msg.fighters);
       if (mySlot >= 0) predictor = new Predictor(msg.arena, msg.fighters, mySlot);
       if (ready) renderer.setup(msg.arena, msg.fighters);
     };
@@ -70,7 +93,8 @@ export function FightScreen() {
             mySlot = msg.slot;
             setSlot(msg.slot);
             setPlayers(msg.players);
-            setStatus((s) => (s === 'live' ? s : 'waiting'));
+            setRoster(msg.roster);
+            setStatus((s) => (s === 'live' ? s : 'select'));
             break;
           case 'lobby':
             setPlayers(msg.players);
@@ -84,13 +108,13 @@ export function FightScreen() {
             buffer.push(msg, performance.now());
             predictor?.onServerState(msg);
             latest = msg;
-            // Our own hits get feedback the moment the server confirms them.
-            msg.events.forEach((e) => { if (e.attacker === mySlot && ready) hitFx(e); });
+            // Our own actions (and every ULTIMATE cinematic) get feedback the moment the server confirms them.
+            msg.events.forEach((e) => { if (e.attacker === mySlot || e.type === 'ULTIMATE') handle(e); });
             break;
           case 'end':
             ended = true;
             setEnd(msg);
-            window.setTimeout(() => !disposed && setStatus('ended'), 900);
+            window.setTimeout(() => !disposed && setStatus('ended'), 1200);
             break;
           case 'error':
             setError(msg.message);
@@ -107,35 +131,42 @@ export function FightScreen() {
         setError((e) => e ?? (closeCode === 1006 ? 'Connection lost.' : 'Disconnected from the match.'));
       },
     });
-
-    const hitFx = (e: StateMessage['events'][number]) => {
-      renderer.onHit(e);
-      if (e.damage >= 100) sfx.error(); else sfx.click();
-    };
+    connRef.current = conn;
 
     const frame = () => {
       const now = performance.now();
-      conn.pump(now, () => input.sample());
       const dt = renderer.app.ticker.deltaMS;
+      // Inputs only flow once the match is on (keys are used for character select before that).
+      if (start) conn.pump(now, () => input.sample()); else input.sample();
       const tick = buffer.renderTick(now);
       const sample = buffer.sample(tick);
       if (!sample || !latest || !start) return;
 
-      // Opponent's hits fire when the interpolated view reaches the tick they happened on.
+      // Everyone else's events fire when the interpolated view reaches their tick.
       for (const s of buffer.between(lastEventTick, Math.floor(tick))) {
-        s.events.forEach((e) => { if (e.attacker !== mySlot) hitFx(e); });
+        s.events.forEach((e) => { if (e.attacker !== mySlot && e.type !== 'ULTIMATE') handle(e); });
         lastEventTick = s.tick;
       }
 
       const fighters = sample.fighters.slice();
       const mine = predictionOn ? predictor?.view(dt) : null;
       if (mine && mySlot >= 0) fighters[mySlot] = mine;
-      renderer.render(fighters, latest.hitstop, dt);
-      push(latest, start.fighters.map((f) => f.maxHealth), start.rules, names);
+      renderer.render({
+        fighters, projectiles: sample.projectiles, zones: sample.base.zones, objects: sample.objects,
+        hitstop: latest.hitstop, cinematic: latest.cinematic,
+      }, dt);
+      push(latest, start.fighters.map((f) => f.maxHealth), start.rules, start.fighters.map((f) => f.name));
     };
 
     const onVisibility = () => { if (document.hidden) conn.releaseAll(); };
     const onKey = (e: KeyboardEvent) => {
+      const sel = selectRef.current;
+      if (sel.status === 'select' && sel.roster.length) {
+        if (e.code === 'KeyA' || e.code === 'ArrowLeft') { sfx.hover(); setHover((h) => (h + sel.roster.length - 1) % sel.roster.length); }
+        if (e.code === 'KeyD' || e.code === 'ArrowRight') { sfx.hover(); setHover((h) => (h + 1) % sel.roster.length); }
+        if (e.code === 'KeyJ' || e.code === 'Enter') { sfx.success(); conn.pick(sel.roster[sel.hover].id); }
+        return;
+      }
       if (e.code === 'KeyH') renderer.showHitboxes = !renderer.showHitboxes;
       if (e.code === 'KeyP') { predictionOn = !predictionOn; setPredicting(predictionOn); }
       if (e.code === 'Slash' || e.code === 'F1') { e.preventDefault(); setShowHelp((v) => !v); }
@@ -155,16 +186,28 @@ export function FightScreen() {
     return () => {
       disposed = true;
       conn.close();
+      connRef.current = null;
       input.detach();
       document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('keydown', onKey);
       window.clearInterval(pingTimer);
       if (ready) renderer.destroy();
     };
+    // overlays.* are stable callbacks
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code, attempt, host, push, reset]);
 
   const names = [0, 1].map((s) => players.find((p) => p.slot === s)?.displayName ?? (s === slot ? me?.displayName ?? 'You' : '???'));
   const result = end && (end.winner < 0 ? 'DRAW' : end.winner === slot ? 'VICTORY' : 'DEFEAT');
+  const mine = players.find((p) => p.slot === slot);
+  const theirs = players.find((p) => p.slot !== slot);
+  const fighterInfo = defs.length === 2 ? defs.map((d) => ({ id: d.id, name: d.name, color: hex(lookFor(d.id).glow) })) : undefined;
+
+  const pick = (id: string) => {
+    sfx.success();
+    setHover(roster.findIndex((d) => d.id === id));
+    connRef.current?.pick(id);
+  };
 
   const newRoom = async () => {
     sfx.click();
@@ -178,20 +221,33 @@ export function FightScreen() {
     <div className="fight-screen">
       <div className="fight-canvas" ref={setHost} />
 
-      {(status === 'live' || status === 'ended') && <HudBar hud={hud} names={names} mySlot={slot} />}
+      {(status === 'live' || status === 'ended') && <HudBar hud={hud} names={names} mySlot={slot} fighters={fighterInfo} images={images} />}
       {banner && status === 'live' && <Banner key={banner.key} text={banner.text} sub={banner.sub} />}
+      {status === 'live' && overlays.element}
 
-      {(status === 'connecting' || status === 'waiting') && (
-        <div className="fight-overlay">
-          <div className="panel overlay-card">
-            <p className="chalk-note">{status === 'connecting' ? 'Connecting to the lab…' : 'Waiting for an opponent'}</p>
-            <div className="room-code" aria-label="Room code">{code}</div>
-            <p className="overlay-hint">Share this code. Your friend joins from <b>Play Online → Join with code</b>.</p>
-            <div className="overlay-actions">
-              <button className="btn-ghost" onClick={() => { void navigator.clipboard?.writeText(code); sfx.success(); }}>Copy code</button>
-              <Link className="btn-ghost" to="/play">Leave</Link>
-            </div>
-          </div>
+      {status === 'connecting' && (
+        <div className="fight-overlay"><div className="panel overlay-card"><p className="chalk-note">Connecting to the lab…</p></div></div>
+      )}
+
+      {status === 'select' && roster.length > 0 && (
+        <div className="fight-overlay select-overlay">
+          <CharacterSelect
+            roster={roster}
+            onCardClick={pick}
+            players={[
+              { label: 'YOU', color: 'var(--newton)', cursor: mine?.fighter ?? roster[hover]?.id ?? null, locked: !!mine?.fighter },
+              ...(theirs ? [{ label: theirs.displayName, color: 'var(--tesla)', cursor: theirs.fighter, locked: !!theirs.fighter }] : []),
+            ]}
+            footer={
+              <div className="cs-footer">
+                <span className="room-line">Room <b className="room-code-inline">{code}</b>
+                  <button className="btn-ghost small" onClick={() => { void navigator.clipboard?.writeText(code); sfx.success(); }}>Copy</button></span>
+                <span>{!theirs ? 'Waiting for an opponent to join…' : theirs.fighter ? `${theirs.displayName} is ready` : `${theirs.displayName} is choosing…`}</span>
+                <span><kbd>A</kbd><kbd>D</kbd> choose · <kbd>J</kbd> lock in (you can change until both are locked)</span>
+                <Link className="btn-ghost" to="/play">Leave</Link>
+              </div>
+            }
+          />
         </div>
       )}
 
@@ -235,8 +291,9 @@ export function FightScreen() {
             <div className="controls-help panel">
               <b>Controls</b>
               <span><kbd>A</kbd><kbd>D</kbd> move · <kbd>W</kbd> jump · <kbd>S</kbd> crouch</span>
-              <span><kbd>J</kbd> light · <kbd>K</kbd> heavy · <kbd>L</kbd> special</span>
-              <span>Gamepad: stick · A / B / X · Y jump</span>
+              <span><kbd>J</kbd> light · <kbd>K</kbd> heavy · <kbd>L</kbd> special · <kbd>S</kbd>+<kbd>L</kbd> special 2</span>
+              <span><kbd>I</kbd> (or <kbd>K</kbd>+<kbd>L</kbd>) ULTIMATE when energy is full</span>
+              <span>Gamepad: stick · A / B / X · Y jump · RB ultimate</span>
             </div>
           )}
         </>

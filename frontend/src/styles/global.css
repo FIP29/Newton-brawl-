@@ -263,3 +263,90 @@ a.btn-ghost { text-decoration: none; display: inline-block; }
 .controls-help b { color: var(--chalk); font-family: var(--font-display); letter-spacing: 0.1em; font-size: 0.7rem; text-transform: uppercase; }
 kbd { display: inline-block; min-width: 1.5em; padding: 1px 5px; margin: 0 1px; border-radius: 4px; text-align: center; font-family: var(--font-ui); font-size: 0.75rem; color: var(--chalk); background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18); }
 @media (max-width: 720px) { .controls-help { display: none; } .hud { padding: 12px 16px; } }
+
+/* ----- HUD identity ------------------------------------------------------ */
+.hud-id { display: flex; align-items: center; gap: 10px; }
+.side-1 .hud-id { flex-direction: row-reverse; text-align: right; }
+.hud-portrait {
+  width: 46px; height: 46px; border-radius: 50%; flex: none;
+  background-color: rgba(0,0,0,0.5); background-repeat: no-repeat; background-size: cover; background-position: center;
+  border: 2px solid var(--accent, var(--chalk)); box-shadow: 0 0 14px var(--accent, transparent);
+}
+.side-1 .hud-portrait { transform: scaleX(-1); }
+.hud-player { font-size: 0.72rem; color: var(--chalk-dim); letter-spacing: 0.06em; }
+.hud-side .hud-name { color: var(--accent, var(--chalk)); text-shadow: 0 0 10px var(--accent, transparent); }
+
+/* ----- Character select -------------------------------------------------- */
+.select-screen { justify-content: flex-start; padding-top: 28px; }
+.select-overlay { place-items: start center; overflow-y: auto; padding-top: 24px; background: rgba(5,7,9,0.82); }
+.cs { width: min(1180px, 100%); display: flex; flex-direction: column; align-items: center; gap: 18px; }
+.cs-title { margin: 0; font-family: var(--font-display); font-weight: 900; letter-spacing: 0.18em; font-size: clamp(1.2rem, 3.4vw, 2rem); text-shadow: 0 0 14px rgba(255,255,255,0.3); }
+.cs-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; width: 100%; }
+.cs-card {
+  position: relative; display: flex; flex-direction: column; gap: 8px; padding: 14px 14px 16px; text-align: left; cursor: pointer;
+  color: var(--chalk); font: inherit;
+  background: linear-gradient(170deg, rgba(28,34,40,0.92), rgba(10,12,15,0.95));
+  border: 1px solid rgba(233,236,228,0.12); border-top: 3px solid var(--accent); border-radius: 16px;
+  transition: translate 0.2s, box-shadow 0.25s, border-color 0.25s;
+}
+.cs-card:hover { translate: 0 -4px; box-shadow: 0 10px 40px -10px var(--accent); }
+.cs-card.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 0 40px -6px var(--accent); }
+.cs-card.locked { box-shadow: 0 0 0 2px var(--accent), 0 0 60px -4px var(--accent); }
+.cs-tags { position: absolute; top: 10px; right: 10px; display: flex; gap: 6px; z-index: 2; }
+.cs-tag { font-family: var(--font-display); font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em; padding: 3px 7px; border-radius: 6px; color: #111; }
+.cs-art { height: 210px; display: flex; align-items: flex-end; justify-content: center; overflow: hidden; border-radius: 10px;
+  background: radial-gradient(ellipse at 50% 85%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 65%); }
+.cs-art img { height: 100%; max-height: 210px; width: auto; max-width: 100%; object-fit: contain; animation: idle-breathe 2.8s ease-in-out infinite; transform-origin: 50% 100%; filter: drop-shadow(0 0 6px var(--accent)); }
+.cs-card.active .cs-art img { animation-duration: 1.3s; }
+.cs-art-loading { width: 60%; height: 80%; border-radius: 40% 40% 8px 8px; background: rgba(255,255,255,0.04); }
+@keyframes idle-breathe { 0%, 100% { scale: 1 1; } 50% { scale: 1.015 1.03; } }
+.cs-name { font-family: var(--font-display); font-weight: 700; font-size: 1.05rem; letter-spacing: 0.06em; color: var(--accent); text-shadow: 0 0 12px var(--accent); }
+.cs-class { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--chalk-dim); }
+.cs-class svg { color: var(--accent); }
+.cs-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 2px 0; }
+.cs-stats dt { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--chalk-dim); }
+.cs-stats dd { margin: 3px 0 0; display: flex; gap: 2px; }
+.cs-stats i { width: 9px; height: 5px; border-radius: 2px; background: rgba(255,255,255,0.12); }
+.cs-stats i.on { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+.cs-moves { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.cs-moves li { display: flex; flex-direction: column; font-size: 0.75rem; }
+.cs-moves b { font-weight: 600; color: var(--chalk); }
+.cs-moves span { font-family: var(--font-chalk); font-size: 1.1rem; color: var(--accent); line-height: 1.1; }
+.cs-footer { display: flex; flex-wrap: wrap; gap: 14px 24px; align-items: center; justify-content: center; color: var(--chalk-dim); font-size: 0.85rem; }
+.room-line { display: inline-flex; align-items: center; gap: 8px; }
+.room-code-inline { font-family: var(--font-display); color: var(--newton); letter-spacing: 0.25em; font-size: 1.2rem; text-shadow: 0 0 10px var(--newton); }
+.btn-ghost.small { padding: 4px 10px; font-size: 0.8rem; }
+@media (max-width: 980px) { .cs-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .cs-grid { grid-template-columns: 1fr; } .cs-art { height: 160px; } .cs-art img { max-height: 160px; } }
+
+/* ----- Equation flash, combos, cinematic -------------------------------- */
+.chalk-eq { display: block; max-width: 92vw; height: auto; filter: drop-shadow(0 0 8px currentColor) drop-shadow(0 0 22px currentColor); overflow: visible; }
+.eq-flash { position: absolute; top: 108px; left: 50%; translate: -50% 0; display: flex; flex-direction: column; align-items: center; pointer-events: none; }
+.eq-name { font-family: var(--font-display); font-size: 0.75rem; letter-spacing: 0.3em; text-transform: uppercase; color: var(--accent); text-shadow: 0 0 10px var(--accent); margin-top: -6px; }
+.combo { position: absolute; top: 34%; pointer-events: none; font-family: var(--font-display); font-weight: 900; font-size: 1.3rem; letter-spacing: 0.1em; color: #fff; text-shadow: 0 0 12px var(--accent), 0 0 30px var(--accent); }
+.combo.side-0 { left: 6%; }
+.combo.side-1 { right: 6%; }
+.combo-n { font-size: 3.4rem; color: var(--accent); margin-right: 6px; }
+.cinematic { position: absolute; inset: 0; pointer-events: none; display: grid; align-items: center; overflow: hidden; }
+.cine-band {
+  display: flex; align-items: center; gap: clamp(12px, 3vw, 40px); padding: 18px clamp(16px, 5vw, 80px);
+  background: linear-gradient(90deg, transparent, rgba(5,7,9,0.92) 15%, rgba(5,7,9,0.92) 85%, transparent);
+  border-top: 2px solid var(--accent); border-bottom: 2px solid var(--accent);
+  box-shadow: 0 0 60px -10px var(--accent), inset 0 0 80px -30px var(--accent);
+  transform: skewY(-4deg);
+}
+.cinematic.side-1 .cine-band { flex-direction: row-reverse; text-align: right; transform: skewY(4deg); }
+.cine-portrait {
+  width: clamp(110px, 18vw, 220px); aspect-ratio: 1; flex: none; border-radius: 50%;
+  background-color: rgba(0,0,0,0.6); background-repeat: no-repeat; background-size: cover; background-position: center;
+  border: 3px solid var(--accent); box-shadow: 0 0 40px var(--accent);
+}
+.cinematic.side-1 .cine-portrait { transform: scaleX(-1); }
+.cine-text { display: flex; flex-direction: column; }
+.cinematic.side-1 .cine-text { align-items: flex-end; }
+.cine-name { font-family: var(--font-display); font-weight: 900; font-size: clamp(1.4rem, 4.5vw, 3.2rem); letter-spacing: 0.06em; color: #fff; text-shadow: 0 0 18px var(--accent); }
+.cine-ult { font-family: var(--font-display); font-size: clamp(0.7rem, 1.6vw, 1rem); letter-spacing: 0.3em; color: var(--accent); }
+
+/* Fighter-coloured HUD (set via --accent on each side) */
+.hud-side[style] .health-fill { background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 50%, #000), var(--accent)); box-shadow: 0 0 16px var(--accent); }
+.hud-side[style] .pip.won { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 12px var(--accent); }

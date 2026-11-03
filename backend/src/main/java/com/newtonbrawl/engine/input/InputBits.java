@@ -14,9 +14,11 @@ public final class InputBits {
     public static final int LIGHT = 1 << 4;
     public static final int HEAVY = 1 << 5;
     public static final int SPECIAL = 1 << 6;
+    /** Dedicated ULTIMATE button (HEAVY + SPECIAL together also works). */
+    public static final int ULTIMATE = 1 << 7;
 
     /** All defined bits; anything else a client sends is masked off. */
-    public static final int ALL = (1 << 7) - 1;
+    public static final int ALL = (1 << 8) - 1;
 
     public static boolean has(int bits, int button) {
         return (bits & button) != 0;

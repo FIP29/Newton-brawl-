@@ -1,8 +1,11 @@
-import { Btn, type ArenaInfo, type FighterDefinition, type HitEvent, type MatchPhase, type MatchRules,
-         type RoundResult, type Snapshot } from '../protocol';
-import { intersects, overlapCenter } from './aabb';
-import { DT, ENERGY_PER_DAMAGE_DEALT, ENERGY_PER_DAMAGE_TAKEN, GROUND_FRICTION } from './constants';
-import { FighterState, isFree, r as round1, totalFrames } from './FighterState';
+import { Btn, type ArenaInfo, type FighterDefinition, type GameEvent, type GameEventType, type MatchPhase,
+         type MatchRules, type MoveDefinition, type RoundResult, type Snapshot } from '../protocol';
+import { intersects, overlapCenter, type Aabb } from './aabb';
+import { CINEMATIC_TICKS, DT, ENERGY_MAX, ENERGY_PER_DAMAGE_DEALT, ENERGY_PER_DAMAGE_TAKEN, FLIP_GRAVITY,
+         GROUND_FRICTION, OBJECT_DANGER_SPEED, OBJECT_MASS, SLOWMO_TICKS } from './constants';
+import { ArenaObject, Projectile, Zone, type ZoneKind } from './entities';
+import { FighterState, isFree, r, totalFrames } from './FighterState';
+import { onTrigger } from './roster';
 
 /** Input for one fighter for one tick. Mirrors engine.input.InputFrame. */
 export interface InputFrame { held: number; pressed: number }
@@ -10,23 +13,42 @@ export const NO_INPUT: InputFrame = { held: 0, pressed: 0 };
 
 export interface MatchOutcome { winner: number; reason: 'DECISION'; ticks: number; roundWins: number[] }
 
-/**
- * TypeScript port of com.newtonbrawl.engine.sim.MatchSimulation. Used for:
- *  - offline local 2-player matches (runs the whole game in the browser)
- *  - client-side prediction of your own fighter online (via the shared step functions below)
- *
- * It must stay a line-for-line mirror of the Java version; `parity.test.ts` replays a fixture
- * recorded by the Java engine and requires identical snapshots.
- */
-export class MatchSimulation {
-  private readonly f: [FighterState, FighterState];
-  private events: HitEvent[] = [];
-  private readonly roundWins = [0, 0];
+/** What fighter behaviours may do to the world (mirrors engine.sim.MatchWorld). */
+export interface MatchWorld {
+  readonly arena: ArenaInfo;
+  nextId(): number;
+  spawnProjectile(p: Projectile): void;
+  spawnZone(z: Zone): void;
+  removeZones(owner: number, kind: ZoneKind): void;
+  teleport(s: FighterState, x: number): void;
+}
 
+/** Hooks the per-fighter step functions need (implemented by the simulation and by the Predictor). */
+export interface StepHost extends MatchWorld {
+  startUltimate(s: FighterState): void;
+  event(type: GameEventType, attacker: number, defender: number, move: string | null, damage: number, x: number, y: number): void;
+}
+
+/**
+ * TypeScript port of com.newtonbrawl.engine.sim.MatchSimulation, used for offline local matches
+ * and (via the exported step functions) client-side prediction. It must stay a method-for-method
+ * mirror of the Java version; parity.test.ts replays fixtures recorded by the Java engine and
+ * requires identical snapshots.
+ */
+export class MatchSimulation implements StepHost {
+  private readonly f: [FighterState, FighterState];
+  private events: GameEvent[] = [];
+  private readonly roundWins = [0, 0];
+  private projectiles: Projectile[] = [];
+  private zones: Zone[] = [];
+  private objects: ArenaObject[] = [];
+
+  private idSeq = 1;
   tick = 0;
   phase: MatchPhase = 'ROUND_START';
   phaseTicks = 0;
   hitstop = 0;
+  cinematic = 0;
   round = 1;
   timer = 0;
   lastRound: RoundResult | null = null;
@@ -50,19 +72,21 @@ export class MatchSimulation {
         if (--this.phaseTicks <= 0) this.phase = 'FIGHTING';
         break;
       case 'FIGHTING': {
-        const frozen = this.hitstop > 0;
+        const frozen = this.hitstop > 0 || this.cinematic > 0;
         this.physics(in0, in1);
         if (!frozen) this.timer--;
         this.checkRoundOver();
         break;
       }
-      case 'ROUND_END':
-        this.physics(NO_INPUT, NO_INPUT);
+      case 'ROUND_END': {
+        const slowmo = this.result !== null && this.phaseTicks > this.rules.roundEndTicks - SLOWMO_TICKS;
+        if (!slowmo || this.phaseTicks % 3 === 0) this.physics(NO_INPUT, NO_INPUT);
         if (--this.phaseTicks <= 0) {
           if (this.result) this.phase = 'FINISHED';
           else { this.round++; this.beginRound(); }
         }
         break;
+      }
       case 'FINISHED':
         break;
     }
@@ -71,7 +95,11 @@ export class MatchSimulation {
   private beginRound() {
     this.f[0].resetForRound(this.startX(0), +1);
     this.f[1].resetForRound(this.startX(1), -1);
+    this.projectiles = [];
+    this.zones = [];
+    this.objects = this.arena.objectSpawns.map((x) => new ArenaObject(this.idSeq++, 'beaker', true, x, 36, 56));
     this.hitstop = 0;
+    this.cinematic = 0;
     this.timer = this.rules.roundTimeTicks;
     this.phaseTicks = this.rules.countdownTicks;
     this.phase = this.phaseTicks > 0 ? 'ROUND_START' : 'FIGHTING';
@@ -79,51 +107,268 @@ export class MatchSimulation {
 
   private physics(in0: InputFrame, in1: InputFrame) {
     const [a, b] = this.f;
+    if (this.cinematic > 0) {
+      this.cinematic--;
+      a.bufferPresses(in0.pressed);
+      b.bufferPresses(in1.pressed);
+      return;
+    }
     if (this.hitstop > 0) {
       this.hitstop--;
       a.bufferPresses(in0.pressed);
       b.bufferPresses(in1.pressed);
       return;
     }
-    control(a, in0, b);
-    control(b, in1, a);
-    integrate(this.arena, a);
-    integrate(this.arena, b);
+    const actA = this.takeTimeSlice(a), actB = this.takeTimeSlice(b);
+    if (actA) control(a, in0, b, this); else a.bufferPresses(in0.pressed);
+    if (actB) control(b, in1, a, this); else b.bufferPresses(in1.pressed);
+    if (actA) integrate(this.arena, a);
+    if (actB) integrate(this.arena, b);
     separate(this.arena, a, b);
-    this.resolveHits();
-    advance(a);
-    advance(b);
+    this.applyZoneForces();
+    this.updateObjects();
+    this.resolveMelee();
+    this.updateProjectiles();
+    this.updateZones();
+    if (actA) advance(a, b, this);
+    if (actB) advance(b, a, this);
+    tickStatuses(a);
+    tickStatuses(b);
+    this.projectiles = this.projectiles.filter((p) => !p.dead);
+    this.zones = this.zones.filter((z) => !z.dead);
   }
 
-  private resolveHits() {
+  // ---------------------------------------------------------------- time dilation
+
+  private timeScaleAt(px: number, py: number, slot: number): number {
+    let scale = 1.0;
+    for (const z of this.zones) {
+      if (!z.dead && z.kind === 'BUBBLE' && z.owner !== slot && z.contains(px, py)) scale = Math.min(scale, z.timeScale);
+    }
+    return scale;
+  }
+
+  private takeTimeSlice(s: FighterState): boolean {
+    s.timeAcc += this.timeScaleAt(s.x, s.y + s.def.body.height / 2, s.slot);
+    if (s.timeAcc >= 1.0) {
+      s.timeAcc -= 1.0;
+      return true;
+    }
+    return false;
+  }
+
+  // ------------------------------------------------------------------ zone forces
+
+  private applyZoneForces() {
+    for (const z of this.zones) {
+      if (z.dead || z.kind !== 'PULL') continue;
+      const src = this.f[z.owner], t = this.f[1 - z.owner];
+      const dx = src.x - t.x;
+      if (Math.abs(dx) <= z.w / 2 && Math.abs(dx) > 110 && t.invulnTicks === 0) {
+        t.x += Math.sign(dx) * z.strength * DT;
+        clampToWalls(this.arena, t);
+      }
+      for (const o of this.objects) {
+        const dxo = src.x - o.x;
+        if (o.metal && Math.abs(dxo) <= z.w / 2 && Math.abs(dxo) > 60) {
+          o.vx = Math.sign(dxo) * z.strength * 1.6;
+          o.owner = z.owner;
+        }
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------- objects
+
+  private updateObjects() {
+    for (const o of this.objects) {
+      o.vy -= this.arena.gravity * DT;
+      o.x += o.vx * DT;
+      o.y += o.vy * DT;
+      if (o.y <= 0) {
+        o.y = 0;
+        if (o.vy < -150) o.vy = -o.vy * 0.45; else o.vy = 0;
+        o.vx *= 0.9;
+        if (Math.abs(o.vx) < 5) o.vx = 0;
+      }
+      const half = o.w / 2;
+      if (o.x < half) { o.x = half; o.vx = -o.vx * 0.6; }
+      if (o.x > this.arena.width - half) { o.x = this.arena.width - half; o.vx = -o.vx * 0.6; }
+
+      if (o.owner >= 0) {
+        const speed = Math.abs(o.vx) + Math.abs(o.vy);
+        const t = this.f[1 - o.owner];
+        const ob = o.box(), hurt = t.hurtbox();
+        if (speed > OBJECT_DANGER_SPEED && t.invulnTicks === 0 && intersects(ob, hurt)) {
+          const pt = overlapCenter(ob, hurt);
+          this.hitFighter(this.f[o.owner], t, 60, Math.sign(o.vx) * 26000, 14000, 16, 5, 'object', pt);
+          o.vx = -o.vx * 0.3;
+          o.owner = -1;
+        } else if (speed < 200) {
+          o.owner = -1;
+        }
+      }
+    }
+  }
+
+  // ------------------------------------------------------------------------- hits
+
+  private resolveMelee() {
     const [f0, f1] = this.f;
     const hit0 = f0.activeHitbox(), hit1 = f1.activeHitbox();
     const hurt0 = f0.hurtbox(), hurt1 = f1.hurtbox();
-    const zeroHitsOne = hit0 !== null && intersects(hit0, hurt1);
-    const oneHitsZero = hit1 !== null && intersects(hit1, hurt0);
-    if (zeroHitsOne) this.applyHit(f0, f1, overlapCenter(hit0!, hurt1));
-    if (oneHitsZero) this.applyHit(f1, f0, overlapCenter(hit1!, hurt0));
+    const zeroHitsOne = hit0 !== null && f1.invulnTicks === 0 && intersects(hit0, hurt1);
+    const oneHitsZero = hit1 !== null && f0.invulnTicks === 0 && intersects(hit1, hurt0);
+    const m0 = f0.move, m1 = f1.move;
+    const id0 = f0.moveId, id1 = f1.moveId;
+    if (zeroHitsOne) this.meleeHit(f0, f1, m0!, id0!, overlapCenter(hit0!, hurt1));
+    if (oneHitsZero) this.meleeHit(f1, f0, m1!, id1!, overlapCenter(hit1!, hurt0));
+
+    for (const s of this.f) {
+      const hb = s.activeHitbox();
+      if (hb === null) continue;
+      for (let i = 0; i < this.objects.length; i++) {
+        const o = this.objects[i];
+        if ((s.objHitMask & (1 << i)) !== 0 || !intersects(hb, o.interactBox())) continue;
+        s.objHitMask |= 1 << i;
+        const imp = s.move!.impulse ?? { x: 0, y: 0 };
+        o.vx = s.facing * imp.x / OBJECT_MASS;
+        o.vy = Math.max(0, imp.y / OBJECT_MASS) + 380;
+        o.owner = s.slot;
+        const pt = overlapCenter(hb, o.interactBox());
+        this.event('CLANK', s.slot, -1, s.moveId, 0, r(pt[0]), r(pt[1]));
+      }
+    }
   }
 
-  /** Knockback = momentum transfer: defender velocity = impulse / mass. */
-  private applyHit(atk: FighterState, def: FighterState, point: [number, number]) {
-    const m = atk.move!;
-    const moveId = atk.moveId!;
+  private meleeHit(atk: FighterState, def: FighterState, m: MoveDefinition, moveId: string, point: [number, number]) {
     atk.moveConnected = true;
+    const imp = m.impulse ?? { x: 0, y: 0 };
+    this.hitFighter(atk, def, m.damage, atk.facing * imp.x, imp.y, m.hitstun, m.hitstop, moveId, point);
+  }
 
-    def.health = Math.max(0, def.health - m.damage);
-    atk.addEnergy(m.damage * ENERGY_PER_DAMAGE_DEALT);
-    def.addEnergy(m.damage * ENERGY_PER_DAMAGE_TAKEN);
-    def.clearMove();
-    def.action = 'HITSTUN';
-    def.stunTicks = m.hitstun;
-    def.vx = atk.facing * m.impulse.x / def.def.mass;
-    def.vy = m.impulse.y / def.def.mass;
-    if (def.vy > 0) def.grounded = false;
+  /** Knockback = momentum transfer (J / m). Third Law: a reflecting target bounces the hit back. */
+  private hitFighter(src: FighterState, target: FighterState, damage: number, ix: number, iy: number,
+                     hitstun: number, stop: number, move: string, point: [number, number]) {
+    if (target.reflectTicks > 0 && src !== target) {
+      applyDamage(target, src, damage, -ix, iy, hitstun);
+      this.hitstop = Math.max(this.hitstop, stop);
+      this.event('REFLECT', target.slot, src.slot, move, damage, r(point[0]), r(point[1]));
+      return;
+    }
+    applyDamage(src, target, damage, ix, iy, hitstun);
+    this.hitstop = Math.max(this.hitstop, stop);
+    this.event('HIT', src.slot, target.slot, move, damage, r(point[0]), r(point[1]));
+  }
 
-    this.hitstop = Math.max(this.hitstop, m.hitstop);
-    this.events.push({ attacker: atk.slot, defender: def.slot, move: moveId, damage: m.damage,
-                       x: round1(point[0]), y: round1(point[1]) });
+  // ------------------------------------------------------------------ projectiles
+
+  private updateProjectiles() {
+    for (const p of this.projectiles) {
+      if (p.dead) continue;
+      const scale = this.timeScaleAt(p.x, p.y, p.owner);
+      p.age++;
+      p.life--;
+      p.vx += p.ax * DT * scale;
+      p.vy += p.ay * DT * scale;
+      p.x += p.vx * DT * scale;
+      p.y += p.vy * DT * scale;
+      if (p.electric && p.chains < p.maxChains) this.chainThroughMetal(p);
+
+      const target = this.f[1 - p.owner];
+      const box = p.box(), hurt = target.hurtbox();
+      if (target.invulnTicks === 0 && intersects(box, hurt)) {
+        const pt = overlapCenter(box, hurt);
+        if (target.reflectTicks > 0 && !p.reflected) {
+          p.owner = target.slot;
+          p.vx = -p.vx;
+          p.ax = -p.ax;
+          p.dir = -p.dir;
+          p.reflected = true;
+          this.event('REFLECT', target.slot, 1 - target.slot, p.move, 0, r(pt[0]), r(pt[1]));
+        } else {
+          if (p.effect === 'GRAVITY_FLIP' && target.reflectTicks === 0) target.flipTicks = p.effectTicks;
+          this.hitFighter(this.f[p.owner], target, p.currentDamage(), p.dir * p.impulseX, p.impulseY,
+            p.hitstun, p.hitstop, p.move, pt);
+          p.dead = true;
+          continue;
+        }
+      }
+      const hitFloor = p.y - p.h / 2 <= 0 && p.vy < 0;
+      const outside = p.x < -100 || p.x > this.arena.width + 100 || p.y > this.arena.height + 200;
+      if (p.life <= 0 || hitFloor || outside) p.dead = true;
+    }
+  }
+
+  private chainThroughMetal(p: Projectile) {
+    for (const o of this.objects) {
+      if (!o.metal || o.id === p.lastChainObject) continue;
+      if (Math.abs(o.x - p.x) < 50 && Math.abs(o.centerY() - p.y) < 110) {
+        const t = this.f[1 - p.owner];
+        const dx = t.x - o.x;
+        const dy = (t.y + t.def.body.height / 2) - o.centerY();
+        let dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 1) dist = 1;
+        const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+        p.x = o.x;
+        p.y = o.centerY();
+        p.vx = dx / dist * speed;
+        p.vy = dy / dist * speed;
+        p.ax = 0;
+        p.ay = 0;
+        p.dir = dx >= 0 ? 1 : -1;
+        p.chains++;
+        p.damage = Math.round(p.damage * 1.25);
+        p.life = Math.max(p.life, 50);
+        p.lastChainObject = o.id;
+        this.event('ARC', p.owner, -1, p.move, 0, r(o.x), r(o.centerY()));
+        return;
+      }
+    }
+  }
+
+  // ------------------------------------------------------------------------ zones
+
+  private updateZones() {
+    for (const z of this.zones) {
+      if (z.dead) continue;
+      z.age++;
+      z.life--;
+      const src = this.f[z.owner], t = this.f[1 - z.owner];
+      const hurt = t.hurtbox();
+      switch (z.kind) {
+        case 'TRAP':
+          if (z.arm > 0) {
+            z.arm--;
+          } else if (t.invulnTicks === 0 && t.grounded && intersects(z.box(), hurt)) {
+            this.hitFighter(src, t, z.damage, 0, z.impulseY, z.hitstun, z.hitstop, z.move, overlapCenter(z.box(), hurt));
+            z.dead = true;
+          }
+          break;
+        case 'BLAST':
+        case 'BEAM': {
+          const live = z.age > z.delay && z.age <= z.delay + z.active;
+          if (live && (z.hitMask & (1 << t.slot)) === 0 && t.invulnTicks === 0 && intersects(z.box(), hurt)) {
+            z.hitMask |= 1 << t.slot;
+            const dir = z.kind === 'BEAM' ? z.dir : (t.x >= z.x ? 1 : -1);
+            this.hitFighter(src, t, z.damage, dir * z.impulseX, z.impulseY, z.hitstun, z.hitstop, z.move,
+              overlapCenter(z.box(), hurt));
+          }
+          if (z.age > z.delay + z.active) z.dead = true;
+          break;
+        }
+        case 'FIELD':
+          if (z.age % z.interval === 0 && t.invulnTicks === 0) {
+            const dir = t.x >= src.x ? 1 : -1;
+            this.hitFighter(src, t, z.damage, dir * z.impulseX, z.impulseY, z.hitstun, z.hitstop, z.move,
+              [t.x, t.y + t.def.body.height * 0.6]);
+          }
+          break;
+        default:
+          break;
+      }
+      if (z.life <= 0) z.dead = true;
+    }
   }
 
   private checkRoundOver() {
@@ -151,22 +396,49 @@ export class MatchSimulation {
     }
   }
 
+  // ------------------------------------------------------------- MatchWorld/StepHost
+
+  nextId() { return this.idSeq++; }
+  spawnProjectile(p: Projectile) { this.projectiles.push(p); }
+  spawnZone(z: Zone) { this.zones.push(z); }
+  removeZones(owner: number, kind: ZoneKind) {
+    for (const z of this.zones) if (z.owner === owner && z.kind === kind) z.dead = true;
+  }
+  teleport(s: FighterState, x: number) {
+    s.x = x;
+    clampToWalls(this.arena, s);
+  }
+  startUltimate(s: FighterState) {
+    this.cinematic = CINEMATIC_TICKS;
+    this.event('ULTIMATE', s.slot, -1, 'ultimate', 0, r(s.x), r(s.y + s.def.body.height / 2));
+  }
+  event(type: GameEventType, attacker: number, defender: number, move: string | null, damage: number, x: number, y: number) {
+    this.events.push({ type, attacker, defender, move, damage, x, y });
+  }
+
   snapshot(): Snapshot {
     const timed = this.phase === 'ROUND_START' || this.phase === 'ROUND_END' ? this.phaseTicks : 0;
     return {
-      tick: this.tick, phase: this.phase, phaseTicks: timed, hitstop: this.hitstop,
+      tick: this.tick, phase: this.phase, phaseTicks: timed, hitstop: this.hitstop, cinematic: this.cinematic,
       round: this.round, roundWins: [...this.roundWins], timer: this.timer, lastRound: this.lastRound,
-      fighters: [this.f[0].view(), this.f[1].view()], events: [...this.events],
+      fighters: [this.f[0].view(), this.f[1].view()],
+      projectiles: this.projectiles.map((p) => p.view()),
+      zones: this.zones.map((z) => z.view()),
+      objects: this.objects.map((o) => o.view()),
+      events: [...this.events],
     };
   }
 
   fighter(slot: number) { return this.f[slot]; }
+
+  /** Test/tooling hook (mirrors Java setEnergy). */
+  setEnergy(slot: number, energy: number) { this.f[slot].energy = energy; }
 }
 
 // ---------------------------------------------------------------------------------------------
 // Per-fighter step functions, shared by the full simulation and by the online Predictor.
 
-export function control(s: FighterState, raw: InputFrame, opponent: FighterState) {
+export function control(s: FighterState, raw: InputFrame, opponent: FighterState, host: StepHost) {
   if (!isFree(s.action)) {
     s.bufferPresses(raw.pressed);
     return;
@@ -176,7 +448,7 @@ export function control(s: FighterState, raw: InputFrame, opponent: FighterState
 
   if (s.grounded) {
     s.facing = opponent.x >= s.x ? 1 : -1;
-    if (tryAttack(s, inp)) {
+    if (tryAttack(s, inp, host)) {
       s.vx *= 0.3;
       return;
     }
@@ -193,13 +465,32 @@ export function control(s: FighterState, raw: InputFrame, opponent: FighterState
       s.action = dir === 0 ? 'IDLE' : 'WALK';
     }
   } else {
-    if (tryAttack(s, inp)) return;
+    if (tryAttack(s, inp, host)) return;
     const max = s.def.walkSpeed;
     s.vx = clamp(s.vx + dir * s.def.airAcceleration * DT, -max, max);
   }
 }
 
-function tryAttack(s: FighterState, inp: InputFrame): boolean {
+function tryAttack(s: FighterState, inp: InputFrame, host: StepHost): boolean {
+  const ultPress = (inp.pressed & Btn.ULTIMATE) !== 0
+    || ((inp.pressed & Btn.SPECIAL) !== 0 && (inp.held & Btn.HEAVY) !== 0)
+    || ((inp.pressed & Btn.HEAVY) !== 0 && (inp.held & Btn.SPECIAL) !== 0);
+  if (ultPress && s.energy >= ENERGY_MAX && s.def.moves.ultimate) {
+    s.startMove('ultimate');
+    s.energy = 0;
+    host.startUltimate(s);
+    return true;
+  }
+  if (inp.pressed & Btn.SPECIAL) {
+    const idx = (inp.held & Btn.DOWN) ? 1 : 0;
+    const id = idx === 0 ? 'special1' : 'special2';
+    const m = s.def.moves[id];
+    if (m && s.cooldowns[idx] === 0) {
+      s.startMove(id);
+      s.cooldowns[idx] = m.cooldown ?? 0;
+      return true;
+    }
+  }
   const move = (inp.pressed & Btn.HEAVY) ? 'heavy' : (inp.pressed & Btn.LIGHT) ? 'light' : null;
   if (move === null || !s.def.moves[move]) return false;
   s.startMove(move);
@@ -207,11 +498,20 @@ function tryAttack(s: FighterState, inp: InputFrame): boolean {
 }
 
 export function integrate(arena: ArenaInfo, s: FighterState) {
-  s.vy -= arena.gravity * DT;
+  const flipped = s.flipTicks > 0;
+  const g = arena.gravity * (flipped ? FLIP_GRAVITY : 1.0);
+  s.vy -= g * DT;
   s.x += s.vx * DT;
   s.y += s.vy * DT;
 
-  if (s.y <= 0) {
+  if (flipped) {
+    s.grounded = false;
+    if (s.action === 'IDLE' || s.action === 'WALK' || s.action === 'CROUCH') s.action = 'AIRBORNE';
+    if (s.y < 0) {
+      s.y = 0;
+      if (s.vy < 0) s.vy = 0;
+    }
+  } else if (s.y <= 0) {
     s.y = 0;
     if (s.vy < 0) s.vy = 0;
     if (!s.grounded) {
@@ -221,13 +521,18 @@ export function integrate(arena: ArenaInfo, s: FighterState) {
   } else {
     s.grounded = false;
   }
+  const top = arena.height - s.def.body.height;
+  if (s.y > top) {
+    s.y = top;
+    if (s.vy > 0) s.vy = 0;
+  }
   if (s.grounded && (s.action === 'ATTACK' || s.action === 'HITSTUN' || s.action === 'KO')) {
     s.vx *= GROUND_FRICTION;
   }
   clampToWalls(arena, s);
 }
 
-function clampToWalls(arena: ArenaInfo, s: FighterState) {
+export function clampToWalls(arena: ArenaInfo, s: FighterState) {
   const min = s.halfWidth(), max = arena.width - s.halfWidth();
   if (s.x < min) { s.x = min; s.vx = Math.max(0, s.vx); }
   if (s.x > max) { s.x = max; s.vx = Math.min(0, s.vx); }
@@ -255,10 +560,15 @@ export function separate(arena: ArenaInfo, a: FighterState, b: FighterState) {
   }
 }
 
-export function advance(s: FighterState) {
+export function advance(s: FighterState, opponent: FighterState, host: StepHost) {
   if (s.action === 'ATTACK') {
     s.moveFrame++;
-    if (s.moveFrame >= totalFrames(s.move!)) {
+    const m = s.move!;
+    if ((m.kind ?? 'NORMAL') !== 'NORMAL' && s.moveFrame === m.startup) {
+      onTrigger(host, s, opponent, s.moveId!, m);
+      host.event('CAST', s.slot, -1, s.moveId, 0, r(s.x), r(s.y + s.def.body.height / 2));
+    }
+    if (s.move && s.moveFrame >= totalFrames(s.move)) {
       s.clearMove();
       s.action = s.grounded ? 'IDLE' : 'AIRBORNE';
     }
@@ -267,4 +577,26 @@ export function advance(s: FighterState) {
   }
 }
 
+export function tickStatuses(s: FighterState) {
+  if (s.flipTicks > 0) s.flipTicks--;
+  if (s.reflectTicks > 0) s.reflectTicks--;
+  if (s.invulnTicks > 0) s.invulnTicks--;
+  if (s.cooldowns[0] > 0) s.cooldowns[0]--;
+  if (s.cooldowns[1] > 0) s.cooldowns[1]--;
+}
+
+function applyDamage(src: FighterState, target: FighterState, damage: number, ix: number, iy: number, hitstun: number) {
+  target.health = Math.max(0, target.health - damage);
+  src.addEnergy(damage * ENERGY_PER_DAMAGE_DEALT);
+  target.addEnergy(damage * ENERGY_PER_DAMAGE_TAKEN);
+  target.clearMove();
+  target.action = 'HITSTUN';
+  target.stunTicks = hitstun;
+  target.vx = ix / target.def.mass;
+  target.vy = iy / target.def.mass;
+  if (target.vy > 0) target.grounded = false;
+}
+
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+
+export type { Aabb };

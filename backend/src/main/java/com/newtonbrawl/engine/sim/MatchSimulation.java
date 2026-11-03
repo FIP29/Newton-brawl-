@@ -3,6 +3,7 @@ package com.newtonbrawl.engine.sim;
 import com.newtonbrawl.engine.EngineConstants;
 import com.newtonbrawl.engine.fighter.Fighter;
 import com.newtonbrawl.engine.fighter.FighterDefinition.MoveDefinition;
+import com.newtonbrawl.engine.fighter.MoveKind;
 import com.newtonbrawl.engine.input.InputBits;
 import com.newtonbrawl.engine.input.InputFrame;
 
@@ -15,30 +16,40 @@ import static com.newtonbrawl.engine.EngineConstants.DT;
  * Deterministic 1v1 fighting simulation. Pure logic: no threads, clocks or I/O, so the same inputs
  * always produce the same states (a requirement for client-side prediction and for tests).
  *
+ * <p>The TypeScript port in {@code frontend/src/game/sim/MatchSimulation.ts} mirrors this file
+ * method-for-method; {@code ParityFixtureTest} + {@code parity.test.ts} keep them identical.
+ *
  * <p>Format: best of 3 rounds ({@link MatchRules}), 99 s round clock, KO or time-out decides a round.
  *
  * <p>Order of operations per tick:
  * <ol>
- *   <li>hit-stop: if the world is frozen from a recent impact, count down and stop</li>
- *   <li>control: turn inputs into intent (walk, jump, crouch, start an attack)</li>
- *   <li>integrate: gravity, velocity, floor and walls</li>
- *   <li>separate: fighters' bodies can't overlap</li>
- *   <li>hits: active hitboxes vs. hurtboxes, resolved simultaneously so trades are possible</li>
- *   <li>advance: move frames, hitstun timers, KO checks</li>
+ *   <li>freezes: ULTIMATE cinematic, then impact hit-stop (inputs are buffered meanwhile)</li>
+ *   <li>time dilation: fighters inside an opponent's bubble only act on some ticks</li>
+ *   <li>control → integrate (gravity, flipped gravity, floor/ceiling/walls) → separate bodies</li>
+ *   <li>zone forces (magnetic pull), arena objects (bounce, thrown-object hits)</li>
+ *   <li>melee hits (simultaneous, so trades happen), melee vs objects</li>
+ *   <li>projectiles (accelerate, decay, chain through metal, reflect, hit)</li>
+ *   <li>zones (traps, blasts, beams, fields)</li>
+ *   <li>advance move frames (special triggers fire here) and status timers</li>
  * </ol>
  */
-public final class MatchSimulation {
+public final class MatchSimulation implements MatchWorld {
 
     private final Arena arena;
     private final MatchRules rules;
     private final FighterState[] f = new FighterState[2];
-    private final List<HitEvent> events = new ArrayList<>();
+    private final List<GameEvent> events = new ArrayList<>();
     private final int[] roundWins = new int[2];
+    private final List<Projectile> projectiles = new ArrayList<>();
+    private final List<Zone> zones = new ArrayList<>();
+    private final List<ArenaObject> objects = new ArrayList<>();
 
+    private int nextId = 1;
     private long tick;
     private MatchPhase phase;
     private int phaseTicks;
     private int hitstop;
+    private int cinematic;
     private int round = 1;
     private int timer;
     private RoundResult lastRound;
@@ -70,13 +81,15 @@ public final class MatchSimulation {
                 if (--phaseTicks <= 0) phase = MatchPhase.FIGHTING;
             }
             case FIGHTING -> {
-                boolean frozen = hitstop > 0;
+                boolean frozen = hitstop > 0 || cinematic > 0;
                 physics(in0, in1);
                 if (!frozen) timer--;
                 checkRoundOver();
             }
             case ROUND_END -> {
-                physics(InputFrame.NONE, InputFrame.NONE);
+                // The deciding KO plays in slow motion: physics runs on every third tick at first.
+                boolean slowmo = result != null && phaseTicks > rules.roundEndTicks() - EngineConstants.SLOWMO_TICKS;
+                if (!slowmo || phaseTicks % 3 == 0) physics(InputFrame.NONE, InputFrame.NONE);
                 if (--phaseTicks <= 0) {
                     if (result != null) phase = MatchPhase.FINISHED;
                     else {
@@ -92,28 +105,74 @@ public final class MatchSimulation {
     private void beginRound() {
         f[0].resetForRound(startX(0), +1);
         f[1].resetForRound(startX(1), -1);
+        projectiles.clear();
+        zones.clear();
+        objects.clear();
+        for (double x : arena.objectSpawns()) {
+            objects.add(new ArenaObject(nextId++, "beaker", true, x, 36, 56));
+        }
         hitstop = 0;
+        cinematic = 0;
         timer = rules.roundTimeTicks();
         phaseTicks = rules.countdownTicks();
         phase = phaseTicks > 0 ? MatchPhase.ROUND_START : MatchPhase.FIGHTING;
     }
 
     private void physics(InputFrame in0, InputFrame in1) {
+        FighterState a = f[0], b = f[1];
+        if (cinematic > 0) {
+            cinematic--;
+            a.bufferPresses(in0.pressed());
+            b.bufferPresses(in1.pressed());
+            return;
+        }
         if (hitstop > 0) {
             // World frozen on impact; remember presses so they come out right after.
             hitstop--;
-            f[0].bufferPresses(in0.pressed());
-            f[1].bufferPresses(in1.pressed());
+            a.bufferPresses(in0.pressed());
+            b.bufferPresses(in1.pressed());
             return;
         }
-        control(f[0], in0, f[1]);
-        control(f[1], in1, f[0]);
-        integrate(f[0]);
-        integrate(f[1]);
-        separate(f[0], f[1]);
-        resolveHits();
-        advance(f[0]);
-        advance(f[1]);
+        boolean actA = takeTimeSlice(a), actB = takeTimeSlice(b);
+        if (actA) control(a, in0, b); else a.bufferPresses(in0.pressed());
+        if (actB) control(b, in1, a); else b.bufferPresses(in1.pressed());
+        if (actA) integrate(a);
+        if (actB) integrate(b);
+        separate(a, b);
+        applyZoneForces();
+        updateObjects();
+        resolveMelee();
+        updateProjectiles();
+        updateZones();
+        if (actA) advance(a, b);
+        if (actB) advance(b, a);
+        tickStatuses(a);
+        tickStatuses(b);
+        projectiles.removeIf(p -> p.dead);
+        zones.removeIf(z -> z.dead);
+    }
+
+    // ------------------------------------------------------------ time dilation
+
+    /** Lowest time scale of any opponent-owned bubble containing the point. */
+    private double timeScaleAt(double px, double py, int slot) {
+        double scale = 1.0;
+        for (Zone z : zones) {
+            if (!z.dead && Zone.BUBBLE.equals(z.kind) && z.owner != slot && z.contains(px, py)) {
+                scale = Math.min(scale, z.timeScale);
+            }
+        }
+        return scale;
+    }
+
+    /** Inside a bubble at scale 0.4 a fighter acts on 2 ticks out of 5: Δt′ = γΔt, played as a fighting game. */
+    private boolean takeTimeSlice(FighterState s) {
+        s.timeAcc += timeScaleAt(s.x, s.y + s.def.body().height() / 2, s.slot);
+        if (s.timeAcc >= 1.0) {
+            s.timeAcc -= 1.0;
+            return true;
+        }
+        return false;
     }
 
     // ---------------------------------------------------------------- control
@@ -151,7 +210,31 @@ public final class MatchSimulation {
         }
     }
 
+    /**
+     * Button mapping: ULTIMATE (or HEAVY+SPECIAL together) with a full meter → ultimate;
+     * SPECIAL → special1, DOWN+SPECIAL → special2 (each with its own cooldown); then heavy, light.
+     */
     private boolean tryAttack(FighterState s, InputFrame in) {
+        boolean ultPress = in.wasPressed(InputBits.ULTIMATE)
+            || (in.wasPressed(InputBits.SPECIAL) && in.isHeld(InputBits.HEAVY))
+            || (in.wasPressed(InputBits.HEAVY) && in.isHeld(InputBits.SPECIAL));
+        if (ultPress && s.energy >= EngineConstants.ENERGY_MAX && s.def.move("ultimate") != null) {
+            s.startMove("ultimate");
+            s.energy = 0;
+            cinematic = EngineConstants.CINEMATIC_TICKS;
+            events.add(new GameEvent(GameEvent.ULTIMATE, s.slot, -1, "ultimate", 0, r(s.x), r(s.y + s.def.body().height() / 2)));
+            return true;
+        }
+        if (in.wasPressed(InputBits.SPECIAL)) {
+            int idx = in.isHeld(InputBits.DOWN) ? 1 : 0;
+            String id = idx == 0 ? "special1" : "special2";
+            MoveDefinition m = s.def.move(id);
+            if (m != null && s.cooldowns[idx] == 0) {
+                s.startMove(id);
+                s.cooldowns[idx] = m.cooldown();
+                return true;
+            }
+        }
         String move = in.wasPressed(InputBits.HEAVY) ? "heavy" : in.wasPressed(InputBits.LIGHT) ? "light" : null;
         if (move == null || s.def.move(move) == null) return false;
         s.startMove(move);
@@ -161,11 +244,21 @@ public final class MatchSimulation {
     // -------------------------------------------------------------- integrate
 
     private void integrate(FighterState s) {
-        s.vy -= arena.gravity() * DT;
+        boolean flipped = s.flipTicks > 0;
+        double g = arena.gravity() * (flipped ? EngineConstants.FLIP_GRAVITY : 1.0);
+        s.vy -= g * DT;
         s.x += s.vx * DT;
         s.y += s.vy * DT;
 
-        if (s.y <= 0) {
+        if (flipped) {
+            // Gravity points up: the fighter drifts helplessly toward the ceiling.
+            s.grounded = false;
+            if (s.action == Action.IDLE || s.action == Action.WALK || s.action == Action.CROUCH) s.action = Action.AIRBORNE;
+            if (s.y < 0) {
+                s.y = 0;
+                if (s.vy < 0) s.vy = 0;
+            }
+        } else if (s.y <= 0) {
             s.y = 0;
             if (s.vy < 0) s.vy = 0;
             if (!s.grounded) {
@@ -174,6 +267,11 @@ public final class MatchSimulation {
             }
         } else {
             s.grounded = false;
+        }
+        double top = arena.height() - s.def.body().height();
+        if (s.y > top) {
+            s.y = top;
+            if (s.vy > 0) s.vy = 0;
         }
 
         // Fighters that aren't actively walking slide to a stop.
@@ -203,7 +301,6 @@ public final class MatchSimulation {
         b.x += sign * overlap / 2;
         clampToWalls(a);
         clampToWalls(b);
-        // Second pass: whoever wasn't stopped by a wall takes the remaining push.
         double remaining = minDist - Math.abs(b.x - a.x);
         if (remaining > 1e-9) {
             boolean aPinned = a.x <= a.halfWidth() + 1e-9 || a.x >= arena.width() - a.halfWidth() - 1e-9;
@@ -213,48 +310,252 @@ public final class MatchSimulation {
         }
     }
 
+    // ------------------------------------------------------------ zone forces
+
+    /** Magnetic pull: the opponent and metal objects slide toward the zone's owner. */
+    private void applyZoneForces() {
+        for (Zone z : zones) {
+            if (z.dead || !Zone.PULL.equals(z.kind)) continue;
+            FighterState src = f[z.owner], t = f[1 - z.owner];
+            double dx = src.x - t.x;
+            if (Math.abs(dx) <= z.w / 2 && Math.abs(dx) > 110 && t.invulnTicks == 0) {
+                t.x += Math.signum(dx) * z.strength * DT;
+                clampToWalls(t);
+            }
+            for (ArenaObject o : objects) {
+                double dxo = src.x - o.x;
+                if (o.metal && Math.abs(dxo) <= z.w / 2 && Math.abs(dxo) > 60) {
+                    o.vx = Math.signum(dxo) * z.strength * 1.6;
+                    o.owner = z.owner;
+                }
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------- objects
+
+    private void updateObjects() {
+        for (ArenaObject o : objects) {
+            o.vy -= arena.gravity() * DT;
+            o.x += o.vx * DT;
+            o.y += o.vy * DT;
+            if (o.y <= 0) {
+                o.y = 0;
+                if (o.vy < -150) o.vy = -o.vy * 0.45; else o.vy = 0;
+                o.vx *= 0.9;
+                if (Math.abs(o.vx) < 5) o.vx = 0;
+            }
+            double half = o.w / 2;
+            if (o.x < half) { o.x = half; o.vx = -o.vx * 0.6; }
+            if (o.x > arena.width() - half) { o.x = arena.width() - half; o.vx = -o.vx * 0.6; }
+
+            if (o.owner >= 0) {
+                double speed = Math.abs(o.vx) + Math.abs(o.vy);
+                FighterState t = f[1 - o.owner];
+                Aabb ob = o.box(), hurt = t.hurtbox();
+                if (speed > EngineConstants.OBJECT_DANGER_SPEED && t.invulnTicks == 0 && ob.intersects(hurt)) {
+                    double[] pt = ob.overlapCenter(hurt);
+                    hitFighter(f[o.owner], t, 60, Math.signum(o.vx) * 26000, 14000, 16, 5, "object", pt);
+                    o.vx = -o.vx * 0.3;
+                    o.owner = -1;
+                } else if (speed < 200) {
+                    o.owner = -1;
+                }
+            }
+        }
+    }
+
     // ------------------------------------------------------------------- hits
 
-    private void resolveHits() {
+    private void resolveMelee() {
         Aabb hit0 = f[0].activeHitbox(), hit1 = f[1].activeHitbox();
         Aabb hurt0 = f[0].hurtbox(), hurt1 = f[1].hurtbox();
-        boolean zeroHitsOne = hit0 != null && hit0.intersects(hurt1);
-        boolean oneHitsZero = hit1 != null && hit1.intersects(hurt0);
-        // Evaluate both before applying either so simultaneous hits trade.
-        if (zeroHitsOne) applyHit(f[0], f[1], hit0.overlapCenter(hurt1));
-        if (oneHitsZero) applyHit(f[1], f[0], hit1.overlapCenter(hurt0));
+        boolean zeroHitsOne = hit0 != null && f[1].invulnTicks == 0 && hit0.intersects(hurt1);
+        boolean oneHitsZero = hit1 != null && f[0].invulnTicks == 0 && hit1.intersects(hurt0);
+        // Evaluate both before applying either so simultaneous hits trade. Capture the moves first:
+        // applying the first hit clears the second attacker's move.
+        MoveDefinition m0 = f[0].move, m1 = f[1].move;
+        String id0 = f[0].moveId, id1 = f[1].moveId;
+        if (zeroHitsOne) meleeHit(f[0], f[1], m0, id0, hit0.overlapCenter(hurt1));
+        if (oneHitsZero) meleeHit(f[1], f[0], m1, id1, hit1.overlapCenter(hurt0));
+
+        for (FighterState s : f) {
+            Aabb hb = s.activeHitbox();
+            if (hb == null) continue;
+            for (int i = 0; i < objects.size(); i++) {
+                ArenaObject o = objects.get(i);
+                if ((s.objHitMask & (1 << i)) != 0 || !hb.intersects(o.interactBox())) continue;
+                s.objHitMask |= 1 << i;
+                o.vx = s.facing * s.move.impulse().x() / EngineConstants.OBJECT_MASS;
+                o.vy = Math.max(0, s.move.impulse().y() / EngineConstants.OBJECT_MASS) + 380;
+                o.owner = s.slot;
+                double[] pt = hb.overlapCenter(o.interactBox());
+                events.add(new GameEvent(GameEvent.CLANK, s.slot, -1, s.moveId, 0, r(pt[0]), r(pt[1])));
+            }
+        }
+    }
+
+    private void meleeHit(FighterState atk, FighterState def, MoveDefinition m, String moveId, double[] point) {
+        atk.moveConnected = true;
+        hitFighter(atk, def, m.damage(), atk.facing * m.impulse().x(), m.impulse().y(), m.hitstun(), m.hitstop(),
+            moveId, point);
     }
 
     /**
-     * Knockback is momentum transfer: the move delivers an impulse J, and the defender's new
-     * velocity is J / m. Heavier fighters (Bruisers) are launched less by the same hit.
+     * Applies a hit from {@code src} to {@code target}. Knockback is momentum transfer: the hit
+     * delivers impulse J and the target's velocity becomes J / m.
+     *
+     * <p>Newton's Third Law: if the target is reflecting, the attacker receives the hit instead, with
+     * the impulse reversed ("every action has an equal and opposite reaction").
      */
-    private void applyHit(FighterState atk, FighterState def, double[] point) {
-        MoveDefinition m = atk.move;
-        String moveId = atk.moveId;
-        atk.moveConnected = true;
+    private void hitFighter(FighterState src, FighterState target, int damage, double ix, double iy,
+                            int hitstun, int stop, String move, double[] point) {
+        if (target.reflectTicks > 0 && src != target) {
+            applyDamage(target, src, damage, -ix, iy, hitstun);
+            hitstop = Math.max(hitstop, stop);
+            events.add(new GameEvent(GameEvent.REFLECT, target.slot, src.slot, move, damage, r(point[0]), r(point[1])));
+            return;
+        }
+        applyDamage(src, target, damage, ix, iy, hitstun);
+        hitstop = Math.max(hitstop, stop);
+        events.add(new GameEvent(GameEvent.HIT, src.slot, target.slot, move, damage, r(point[0]), r(point[1])));
+    }
 
-        def.health = Math.max(0, def.health - m.damage());
-        atk.addEnergy(m.damage() * EngineConstants.ENERGY_PER_DAMAGE_DEALT);
-        def.addEnergy(m.damage() * EngineConstants.ENERGY_PER_DAMAGE_TAKEN);
-        def.clearMove();
-        def.action = Action.HITSTUN;
-        def.stunTicks = m.hitstun();
-        def.vx = atk.facing * m.impulse().x() / def.def.mass();
-        def.vy = m.impulse().y() / def.def.mass();
-        if (def.vy > 0) def.grounded = false;
+    private void applyDamage(FighterState src, FighterState target, int damage, double ix, double iy, int hitstun) {
+        target.health = Math.max(0, target.health - damage);
+        src.addEnergy(damage * EngineConstants.ENERGY_PER_DAMAGE_DEALT);
+        target.addEnergy(damage * EngineConstants.ENERGY_PER_DAMAGE_TAKEN);
+        target.clearMove();
+        target.action = Action.HITSTUN;
+        target.stunTicks = hitstun;
+        target.vx = ix / target.def.mass();
+        target.vy = iy / target.def.mass();
+        if (target.vy > 0) target.grounded = false;
+    }
 
-        hitstop = Math.max(hitstop, m.hitstop());
-        events.add(new HitEvent(atk.slot, def.slot, moveId, m.damage(), round(point[0]), round(point[1])));
+    // ------------------------------------------------------------ projectiles
+
+    private void updateProjectiles() {
+        for (Projectile p : projectiles) {
+            if (p.dead) continue;
+            double scale = timeScaleAt(p.x, p.y, p.owner);
+            p.age++;
+            p.life--;
+            p.vx += p.ax * DT * scale;
+            p.vy += p.ay * DT * scale;
+            p.x += p.vx * DT * scale;
+            p.y += p.vy * DT * scale;
+            if (p.electric && p.chains < p.maxChains) chainThroughMetal(p);
+
+            FighterState target = f[1 - p.owner];
+            Aabb box = p.box(), hurt = target.hurtbox();
+            if (target.invulnTicks == 0 && box.intersects(hurt)) {
+                double[] pt = box.overlapCenter(hurt);
+                if (target.reflectTicks > 0 && !p.reflected) {
+                    // Third Law: the projectile comes straight back at whoever threw it.
+                    p.owner = target.slot;
+                    p.vx = -p.vx;
+                    p.ax = -p.ax;
+                    p.dir = -p.dir;
+                    p.reflected = true;
+                    events.add(new GameEvent(GameEvent.REFLECT, target.slot, 1 - target.slot, p.move, 0, r(pt[0]), r(pt[1])));
+                } else {
+                    if (p.effect == Projectile.Effect.GRAVITY_FLIP && target.reflectTicks == 0) {
+                        target.flipTicks = p.effectTicks;
+                    }
+                    hitFighter(f[p.owner], target, p.currentDamage(), p.dir * p.impulseX, p.impulseY,
+                        p.hitstun, p.hitstop, p.move, pt);
+                    p.dead = true;
+                    continue;
+                }
+            }
+            boolean hitFloor = p.y - p.h / 2 <= 0 && p.vy < 0;
+            boolean outside = p.x < -100 || p.x > arena.width() + 100 || p.y > arena.height() + 200;
+            if (p.life <= 0 || hitFloor || outside) p.dead = true;
+        }
+    }
+
+    /** Tesla's lightning jumps to the opponent whenever it passes a metal object. */
+    private void chainThroughMetal(Projectile p) {
+        for (ArenaObject o : objects) {
+            if (!o.metal || o.id == p.lastChainObject) continue;
+            if (Math.abs(o.x - p.x) < 50 && Math.abs(o.centerY() - p.y) < 110) {
+                FighterState t = f[1 - p.owner];
+                double dx = t.x - o.x;
+                double dy = (t.y + t.def.body().height() / 2) - o.centerY();
+                double dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 1) dist = 1;
+                double speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+                p.x = o.x;
+                p.y = o.centerY();
+                p.vx = dx / dist * speed;
+                p.vy = dy / dist * speed;
+                p.ax = 0;
+                p.ay = 0;
+                p.dir = dx >= 0 ? 1 : -1;
+                p.chains++;
+                p.damage = (int) Math.round(p.damage * 1.25);
+                p.life = Math.max(p.life, 50);
+                p.lastChainObject = o.id;
+                events.add(new GameEvent(GameEvent.ARC, p.owner, -1, p.move, 0, r(o.x), r(o.centerY())));
+                return;
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------ zones
+
+    private void updateZones() {
+        for (Zone z : zones) {
+            if (z.dead) continue;
+            z.age++;
+            z.life--;
+            FighterState src = f[z.owner], t = f[1 - z.owner];
+            Aabb hurt = t.hurtbox();
+            switch (z.kind) {
+                case Zone.TRAP -> {
+                    if (z.arm > 0) {
+                        z.arm--;
+                    } else if (t.invulnTicks == 0 && t.grounded && z.box().intersects(hurt)) {
+                        hitFighter(src, t, z.damage, 0, z.impulseY, z.hitstun, z.hitstop, z.move, z.box().overlapCenter(hurt));
+                        z.dead = true;
+                    }
+                }
+                case Zone.BLAST, Zone.BEAM -> {
+                    boolean live = z.age > z.delay && z.age <= z.delay + z.active;
+                    if (live && (z.hitMask & (1 << t.slot)) == 0 && t.invulnTicks == 0 && z.box().intersects(hurt)) {
+                        z.hitMask |= 1 << t.slot;
+                        int dir = Zone.BEAM.equals(z.kind) ? z.dir : (t.x >= z.x ? 1 : -1);
+                        hitFighter(src, t, z.damage, dir * z.impulseX, z.impulseY, z.hitstun, z.hitstop, z.move,
+                            z.box().overlapCenter(hurt));
+                    }
+                    if (z.age > z.delay + z.active) z.dead = true;
+                }
+                case Zone.FIELD -> {
+                    if (z.age % z.interval == 0 && t.invulnTicks == 0) {
+                        int dir = t.x >= src.x ? 1 : -1;
+                        hitFighter(src, t, z.damage, dir * z.impulseX, z.impulseY, z.hitstun, z.hitstop, z.move,
+                            new double[] {t.x, t.y + t.def.body().height() * 0.6});
+                    }
+                }
+                default -> { /* BUBBLE and PULL act elsewhere */ }
+            }
+            if (z.life <= 0) z.dead = true;
+        }
     }
 
     // ---------------------------------------------------------------- advance
 
-    private void advance(FighterState s) {
+    private void advance(FighterState s, FighterState opponent) {
         switch (s.action) {
             case ATTACK -> {
                 s.moveFrame++;
-                if (s.moveFrame >= s.move.totalFrames()) {
+                MoveDefinition m = s.move;
+                if (m.kind() != MoveKind.NORMAL && s.moveFrame == m.startup()) {
+                    s.fighter.onTrigger(this, s, opponent, s.moveId, m);
+                    events.add(new GameEvent(GameEvent.CAST, s.slot, -1, s.moveId, 0, r(s.x), r(s.y + s.def.body().height() / 2)));
+                }
+                if (s.move != null && s.moveFrame >= s.move.totalFrames()) {
                     s.clearMove();
                     s.action = s.grounded ? Action.IDLE : Action.AIRBORNE;
                 }
@@ -264,6 +565,14 @@ public final class MatchSimulation {
             }
             default -> { }
         }
+    }
+
+    private void tickStatuses(FighterState s) {
+        if (s.flipTicks > 0) s.flipTicks--;
+        if (s.reflectTicks > 0) s.reflectTicks--;
+        if (s.invulnTicks > 0) s.invulnTicks--;
+        if (s.cooldowns[0] > 0) s.cooldowns[0]--;
+        if (s.cooldowns[1] > 0) s.cooldowns[1]--;
     }
 
     private void checkRoundOver() {
@@ -293,12 +602,39 @@ public final class MatchSimulation {
         }
     }
 
+    // -------------------------------------------------------------- MatchWorld
+
+    @Override public Arena arena() { return arena; }
+
+    @Override public int nextId() { return nextId++; }
+
+    @Override public void spawn(Projectile p) { projectiles.add(p); }
+
+    @Override public void spawn(Zone z) { zones.add(z); }
+
+    @Override
+    public void removeZones(int owner, String kind) {
+        for (Zone z : zones) if (z.owner == owner && z.kind.equals(kind)) z.dead = true;
+    }
+
+    @Override
+    public void teleport(FighterState s, double x) {
+        s.x = x;
+        clampToWalls(s);
+    }
+
     // ---------------------------------------------------------------- queries
 
     public MatchSnapshot snapshot() {
         int timed = (phase == MatchPhase.ROUND_START || phase == MatchPhase.ROUND_END) ? phaseTicks : 0;
-        return new MatchSnapshot(tick, phase, timed, hitstop, round, roundWinsList(), timer, lastRound,
-            List.of(f[0].view(), f[1].view()), List.copyOf(events));
+        List<ProjectileView> pv = new ArrayList<>(projectiles.size());
+        for (Projectile p : projectiles) pv.add(p.view());
+        List<ZoneView> zv = new ArrayList<>(zones.size());
+        for (Zone z : zones) zv.add(z.view());
+        List<ObjectView> ov = new ArrayList<>(objects.size());
+        for (ArenaObject o : objects) ov.add(o.view());
+        return new MatchSnapshot(tick, phase, timed, hitstop, cinematic, round, roundWinsList(), timer, lastRound,
+            List.of(f[0].view(), f[1].view()), pv, zv, ov, List.copyOf(events));
     }
 
     public List<Integer> roundWinsList() {
@@ -309,7 +645,6 @@ public final class MatchSimulation {
     public long tick() { return tick; }
     public int round() { return round; }
     public int timer() { return timer; }
-    public Arena arena() { return arena; }
     public MatchRules rules() { return rules; }
     /** Non-null once the match is decided (the final ROUND_END may still be playing). */
     public MatchResult result() { return result; }
@@ -323,11 +658,17 @@ public final class MatchSimulation {
         f[slot].grounded = y <= 0;
     }
 
+    /** Test/tooling hook: set a fighter's energy. */
+    public void setEnergy(int slot, int energy) {
+        f[slot].energy = energy;
+    }
+
     private static double clamp(double v, double lo, double hi) {
         return Math.max(lo, Math.min(hi, v));
     }
 
-    private static double round(double v) {
+    /** Network rounding to 0.1 units (the TS port mirrors this exactly, including never producing -0). */
+    static double r(double v) {
         return Math.round(v * 10) / 10.0;
     }
 }

@@ -73,6 +73,11 @@ export class MatchConnection {
     this.handlers.onInputSent?.(seq, bits);
   }
 
+  /** Character select (before the match starts). */
+  pick(fighterId: string) {
+    if (this.ws.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify({ t: 'pick', f: fighterId }));
+  }
+
   private ping() {
     if (this.ws.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify({ t: 'ping', c: performance.now() }));
   }

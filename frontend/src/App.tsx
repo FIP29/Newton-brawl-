@@ -6,6 +6,7 @@ import { MainMenuScreen } from './screens/MainMenuScreen';
 import { PlayOnlineScreen } from './screens/PlayOnlineScreen';
 import { FightScreen } from './screens/FightScreen';
 import { LocalVersusScreen } from './screens/LocalVersusScreen';
+import { CharacterPreview } from './dev/CharacterPreview';
 
 /**
  * Screen flow: Login → Main menu → Play Online (room code) → Fight, or Local Versus (offline).
@@ -14,7 +15,7 @@ import { LocalVersusScreen } from './screens/LocalVersusScreen';
  */
 export function App() {
   const path = useLocation().pathname;
-  const inFight = path.startsWith('/fight') || path === '/local';
+  const inFight = path.startsWith('/fight') || path === '/local' || path.startsWith('/dev');
   return (
     <>
       {!inFight && <ChalkboardBackground />}
@@ -24,6 +25,7 @@ export function App() {
         <Route path="/play" element={<RequireAuth><PlayOnlineScreen /></RequireAuth>} />
         <Route path="/fight/:code" element={<RequireAuth><FightScreen /></RequireAuth>} />
         <Route path="/local" element={<RequireAuth><LocalVersusScreen /></RequireAuth>} />
+        {import.meta.env.DEV && <Route path="/dev/characters" element={<CharacterPreview />} />}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>
