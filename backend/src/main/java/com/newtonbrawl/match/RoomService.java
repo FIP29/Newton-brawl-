@@ -12,7 +12,9 @@ import com.newtonbrawl.engine.sim.MatchResult;
 import com.newtonbrawl.engine.sim.MatchRules;
 import com.newtonbrawl.engine.sim.MatchSimulation;
 import com.newtonbrawl.engine.sim.MatchSnapshot;
+import com.newtonbrawl.history.MatchMode;
 import com.newtonbrawl.match.dto.RoomDto;
+import com.newtonbrawl.unlock.UnlockService;
 import com.newtonbrawl.match.protocol.ServerMessages;
 import com.newtonbrawl.player.Player;
 import com.newtonbrawl.player.PlayerRepository;
@@ -69,9 +71,11 @@ public class RoomService {
     private final MatchResultService results;
     private final MatchMessenger messenger;
     private final MatchProperties props;
+    private final UnlockService unlocks;
 
     public RoomService(RoomCodeGenerator codes, PlayerRepository players, FighterCatalog catalog,
-                       MatchResultService results, MatchMessenger messenger, MatchProperties props) {
+                       MatchResultService results, MatchMessenger messenger, MatchProperties props, UnlockService unlocks) {
+        this.unlocks = unlocks;
         this.codes = codes;
         this.players = players;
         this.catalog = catalog;
@@ -82,12 +86,22 @@ public class RoomService {
 
     // ------------------------------------------------------------------ REST
 
+    /** A private room: share the code with a friend. */
     public RoomDto create(long ownerId) {
+        return toDto(allocate(ownerId, MatchMode.PRIVATE, null));
+    }
+
+    /** A room for two matchmade players; only they may join, in the given slots. */
+    public String createReserved(MatchMode mode, long p1, long p2) {
+        return allocate(p1, mode, new long[] {p1, p2}).code;
+    }
+
+    private Room allocate(long ownerId, MatchMode mode, long[] reserved) {
         for (int attempt = 0; attempt < 20; attempt++) {
-            Room room = new Room(codes.next(), ownerId);
+            Room room = new Room(codes.next(), ownerId, mode, reserved);
             if (rooms.putIfAbsent(room.code, room) == null) {
-                log.info("Room {} created by player {}", room.code, ownerId);
-                return toDto(room);
+                log.info("Room {} ({}) created for player {}", room.code, mode, ownerId);
+                return room;
             }
         }
         throw new IllegalStateException("Could not allocate a room code");
@@ -102,7 +116,7 @@ public class RoomService {
     private static RoomDto toDto(Room room) {
         synchronized (room) {
             int count = (room.seats[0] != null ? 1 : 0) + (room.seats[1] != null ? 1 : 0);
-            return new RoomDto(room.code, room.status, count);
+            return new RoomDto(room.code, room.status, count, room.mode);
         }
     }
 
@@ -143,18 +157,22 @@ public class RoomService {
                 }
                 if (room.runner != null) room.runner.resetInput(seat.slot);
                 slot = seat.slot;
+            } else if (room.reserved != null && room.reservedSlot(who.id()) < 0) {
+                reject(session, "ROOM_RESERVED", "This match was arranged for two other players.");
+                return;
             } else if (room.full()) {
                 reject(session, "ROOM_FULL", "This room already has two scientists.");
                 return;
             } else {
                 Player p = player.get();
-                slot = room.freeSlot();
+                slot = room.reserved != null ? room.reservedSlot(who.id()) : room.freeSlot();
                 room.seats[slot] = new Seat(slot, p.getId(), p.getUsername(), p.getDisplayName(), p.getElo(), session);
             }
             bySession.put(session.getId(), new SessionRef(room.code, slot));
             if (replaced != null) bySession.remove(replaced.getId());
 
-            messenger.send(session, new ServerMessages.Welcome(room.code, slot, room.players(), roster()));
+            messenger.send(session, new ServerMessages.Welcome(room.code, slot, room.mode, room.players(), roster(),
+                unlocks.usable(who.id())));
             broadcast(room, new ServerMessages.Lobby(room.players()));
             if (room.status == RoomStatus.IN_PROGRESS) messenger.send(session, startMessage(room));
         }
@@ -162,21 +180,34 @@ public class RoomService {
         log.info("Player {} joined room {} as slot {}", who.id(), room.code, slot);
     }
 
-    /** Character select: the match starts once both seated players have picked. Re-picking is allowed until then. */
-    public void pick(WebSocketSession session, String fighterId) {
+    /**
+     * Character select: the match starts once both seated players have picked. Re-picking is allowed
+     * until then. Fighters and skins must be unlocked by that player.
+     */
+    public void pick(WebSocketSession session, String fighterId, String skin) {
         SessionRef ref = bySession.get(session.getId());
         Room room = ref == null ? null : rooms.get(ref.code);
-        if (room == null || fighterId == null || !FighterCatalog.PLAYABLE.contains(fighterId)) return;
+        if (room == null || fighterId == null) return;
+        Seat seat;
+        synchronized (room) { seat = room.seats[ref.slot]; }
+        if (seat == null || !unlocks.canUse(seat.playerId, fighterId, skin)) {
+            messenger.send(session, new ServerMessages.Error("LOCKED", "You haven't unlocked that yet."));
+            return;
+        }
         synchronized (room) {
             if (room.status != RoomStatus.WAITING || room.seats[ref.slot] == null) return;
             room.seats[ref.slot].fighter = fighterId;
+            room.seats[ref.slot].skin = skin == null || skin.isBlank() ? UnlockService.CLASSIC_SKIN : skin;
             broadcast(room, new ServerMessages.Lobby(room.players()));
             if (room.everyonePicked()) startMatch(room);
         }
     }
 
+    /** Every implemented, selectable fighter (locked ones are shown greyed out on the client). */
     private List<com.newtonbrawl.engine.fighter.FighterDefinition> roster() {
-        return FighterCatalog.PLAYABLE.stream().map(catalog::definition).toList();
+        List<com.newtonbrawl.engine.fighter.FighterDefinition> list = new ArrayList<>();
+        for (var d : catalog.all()) if (!"prototype".equals(d.id())) list.add(d);
+        return list;
     }
 
     /** Client input packet. Lock-free: goes straight into the runner's queue. */
@@ -226,6 +257,7 @@ public class RoomService {
         Fighter p2 = catalog.create(room.seats[1].fighter);
         MatchSimulation sim = new MatchSimulation(Arena.THE_LAB, p1, p2, rules());
         room.fighterIds = List.of(p1.id(), p2.id());
+        room.stats = new MatchStats(p1.definition(), p2.definition());
         room.runner = new MatchRunner(room.code, sim, new RoomMatchListener(room));
         room.status = RoomStatus.IN_PROGRESS;
         broadcast(room, startMessage(room));
@@ -241,7 +273,7 @@ public class RoomService {
     private ServerMessages.Start startMessage(Room room) {
         Arena a = Arena.THE_LAB;
         MatchRules r = rules();
-        return new ServerMessages.Start(room.code, EngineConstants.TICK_RATE,
+        return new ServerMessages.Start(room.code, room.mode, EngineConstants.TICK_RATE,
             new ServerMessages.RulesInfo(r.countdownTicks(), r.roundTimeTicks(), r.roundsToWin(), r.maxRounds(), r.roundEndTicks()),
             new ServerMessages.ArenaInfo(a.id(), a.width(), a.height(), a.gravity(), a.objectSpawns()), room.players(),
             room.fighterIds.stream().map(catalog::definition).toList());
@@ -258,39 +290,39 @@ public class RoomService {
         @Override
         public void onTick(MatchSnapshot s, long[] ack) {
             room.lastTick = s.tick();
+            if (!s.events().isEmpty()) room.stats.onEvents(s.events());
             TextMessage msg = messenger.encode(new ServerMessages.State(s, ack));
             for (WebSocketSession session : sessions(room)) messenger.send(session, msg);
         }
 
         @Override
         public void onMatchEnd(MatchResult result) {
-            List<WebSocketSession> toClose;
-            Seat winner = null, loser = null;
+            Seat[] seats;
             synchronized (room) {
                 room.status = RoomStatus.FINISHED;
                 for (Seat seat : room.seats) {
                     if (seat != null && seat.forfeitTimer != null) seat.forfeitTimer.cancel(false);
                 }
-                if (!result.isDraw()) {
-                    winner = room.seats[result.winner()];
-                    loser = room.seats[1 - result.winner()];
-                }
-                broadcast(room, new ServerMessages.End(result));
-                toClose = sessions(room);
+                seats = room.seats.clone();
                 rooms.remove(room.code);
             }
-            if (winner != null && loser != null) {
+            // Persist outside the room lock: Elo, history, Codex, unlocks, Lab Note.
+            MatchReward[] rewards = {null, null};
+            if (result.reason() != MatchResult.Reason.ABORTED && seats[0] != null && seats[1] != null) {
                 try {
-                    results.recordWin(winner.playerId, loser.playerId);
+                    rewards = results.record(new MatchResultService.Summary(room.mode,
+                        new long[] {seats[0].playerId, seats[1].playerId}, result, room.stats));
                 } catch (RuntimeException e) {
                     log.error("Room {}: failed to record result", room.code, e);
                 }
             }
-            toClose.forEach(s -> {
-                bySession.remove(s.getId());
-                messenger.close(s, CloseStatus.NORMAL.withReason("Match over"));
-            });
-            log.info("Room {}: match ended {}", room.code, result);
+            for (Seat seat : seats) {
+                if (seat == null || seat.session == null) continue;
+                messenger.send(seat.session, new ServerMessages.End(result, rewards[seat.slot]));
+                bySession.remove(seat.session.getId());
+                messenger.close(seat.session, CloseStatus.NORMAL.withReason("Match over"));
+            }
+            log.info("Room {}: {} match ended {}", room.code, room.mode, result);
         }
     }
 
@@ -314,13 +346,27 @@ public class RoomService {
         messenger.close(session, CloseStatus.POLICY_VIOLATION.withReason(code));
     }
 
-    /** Expire rooms nobody is using. */
-    @Scheduled(fixedDelay = 60_000)
+    /** Matchmade players have this long to connect and pick before the room is cancelled. */
+    static final java.time.Duration RESERVED_ROOM_TIMEOUT = java.time.Duration.ofSeconds(60);
+
+    /** Expire rooms nobody is using, and matchmade rooms whose opponent never showed up. */
+    @Scheduled(fixedDelay = 10_000)
     public void expireIdleRooms() {
-        Instant cutoff = Instant.now().minus(props.roomTtl());
+        Instant now = Instant.now();
+        Instant cutoff = now.minus(props.roomTtl());
+        Instant reservedCutoff = now.minus(RESERVED_ROOM_TIMEOUT);
         rooms.values().removeIf(room -> {
             synchronized (room) {
-                return room.status == RoomStatus.WAITING && !room.anyoneConnected() && room.createdAt.isBefore(cutoff);
+                if (room.status != RoomStatus.WAITING) return false;
+                if (room.reserved != null && room.createdAt.isBefore(reservedCutoff)) {
+                    for (Seat seat : room.seats) {
+                        if (seat != null && seat.session != null) {
+                            reject(seat.session, "OPPONENT_NO_SHOW", "Your opponent didn't arrive. Back to the queue!");
+                        }
+                    }
+                    return true;
+                }
+                return !room.anyoneConnected() && room.createdAt.isBefore(cutoff);
             }
         });
     }

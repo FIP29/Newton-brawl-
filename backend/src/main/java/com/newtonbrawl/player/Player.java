@@ -35,6 +35,12 @@ public class Player {
     @Column(nullable = false)
     private int elo = STARTING_ELO;
 
+    @Column(name = "peak_elo", nullable = false)
+    private int peakElo = STARTING_ELO;
+
+    @Column(name = "ranked_games", nullable = false)
+    private int rankedGames;
+
     @Column(nullable = false)
     private int wins;
 
@@ -63,6 +69,13 @@ public class Player {
         return RankTier.forElo(elo);
     }
 
+    /** Applies a ranked result: new rating, one more ranked game, peak tracking. */
+    public void applyRanked(int newElo) {
+        this.elo = newElo;
+        this.rankedGames++;
+        this.peakElo = Math.max(peakElo, newElo);
+    }
+
     public void recordWin() {
         wins++;
     }
@@ -81,6 +94,8 @@ public class Player {
     public String getPasswordHash() { return passwordHash; }
     public String getDisplayName() { return displayName; }
     public int getElo() { return elo; }
+    public int getPeakElo() { return peakElo; }
+    public int getRankedGames() { return rankedGames; }
     public int getWins() { return wins; }
     public int getLosses() { return losses; }
     public Instant getCreatedAt() { return createdAt; }

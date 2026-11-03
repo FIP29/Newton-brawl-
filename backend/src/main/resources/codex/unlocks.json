@@ -1,0 +1,172 @@
+{
+  "unlocks": [
+    {
+      "id": "fighter.galileo",
+      "type": "FIGHTER",
+      "fighter": "galileo",
+      "name": "Galileo Galilei",
+      "requirement": {
+        "type": "MATCHES_PLAYED",
+        "count": 3
+      }
+    },
+    {
+      "id": "fighter.archimedes",
+      "type": "FIGHTER",
+      "fighter": "archimedes",
+      "name": "Archimedes",
+      "requirement": {
+        "type": "MATCHES_PLAYED",
+        "count": 8
+      }
+    },
+    {
+      "id": "fighter.faraday",
+      "type": "FIGHTER",
+      "fighter": "faraday",
+      "name": "Michael Faraday",
+      "requirement": {
+        "type": "CODEX_ENTRIES",
+        "count": 6
+      }
+    },
+    {
+      "id": "fighter.hooke",
+      "type": "FIGHTER",
+      "fighter": "hooke",
+      "name": "Robert Hooke",
+      "requirement": {
+        "type": "WINS",
+        "count": 5
+      }
+    },
+    {
+      "id": "fighter.schrodinger",
+      "type": "FIGHTER",
+      "fighter": "schrodinger",
+      "name": "Erwin Schrödinger",
+      "requirement": {
+        "type": "CODEX_ENTRIES",
+        "count": 10
+      }
+    },
+    {
+      "id": "fighter.heisenberg",
+      "type": "FIGHTER",
+      "fighter": "heisenberg",
+      "name": "Werner Heisenberg",
+      "requirement": {
+        "type": "MATCHES_PLAYED",
+        "count": 15
+      }
+    },
+    {
+      "id": "fighter.hawking",
+      "type": "FIGHTER",
+      "fighter": "hawking",
+      "name": "Stephen Hawking",
+      "requirement": {
+        "type": "WINS",
+        "count": 12
+      }
+    },
+    {
+      "id": "fighter.doppler",
+      "type": "FIGHTER",
+      "fighter": "doppler",
+      "name": "Christian Doppler",
+      "requirement": {
+        "type": "MATCHES_PLAYED",
+        "count": 25
+      }
+    },
+    {
+      "id": "fighter.bernoulli",
+      "type": "FIGHTER",
+      "fighter": "bernoulli",
+      "name": "Daniel Bernoulli",
+      "requirement": {
+        "type": "CODEX_ENTRIES",
+        "count": 14
+      }
+    },
+    {
+      "id": "fighter.edison",
+      "type": "FIGHTER",
+      "fighter": "edison",
+      "name": "Thomas Edison",
+      "requirement": {
+        "type": "WINS",
+        "count": 20
+      }
+    },
+    {
+      "id": "fighter.sn-bose",
+      "type": "FIGHTER",
+      "fighter": "sn-bose",
+      "name": "Satyendra Nath Bose",
+      "requirement": {
+        "type": "CODEX_ENTRIES",
+        "count": 16
+      }
+    },
+    {
+      "id": "fighter.jc-bose",
+      "type": "FIGHTER",
+      "fighter": "jc-bose",
+      "name": "Jagadish Chandra Bose",
+      "requirement": {
+        "type": "MATCHES_PLAYED",
+        "count": 35
+      }
+    },
+    {
+      "id": "skin.newton.royal-society",
+      "type": "SKIN",
+      "fighter": "newton",
+      "skin": "royal-society",
+      "name": "Royal Society President",
+      "requirement": {
+        "type": "WINS_WITH",
+        "fighter": "newton",
+        "count": 3
+      }
+    },
+    {
+      "id": "skin.tesla.colorado-springs",
+      "type": "SKIN",
+      "fighter": "tesla",
+      "skin": "colorado-springs",
+      "name": "Colorado Springs 1899",
+      "requirement": {
+        "type": "WINS_WITH",
+        "fighter": "tesla",
+        "count": 3
+      }
+    },
+    {
+      "id": "skin.curie.radium-institute",
+      "type": "SKIN",
+      "fighter": "curie",
+      "skin": "radium-institute",
+      "name": "Radium Institute Lab Coat",
+      "requirement": {
+        "type": "WINS_WITH",
+        "fighter": "curie",
+        "count": 3
+      }
+    },
+    {
+      "id": "skin.einstein.patent-clerk",
+      "type": "SKIN",
+      "fighter": "einstein",
+      "skin": "patent-clerk",
+      "name": "Bern Patent Clerk, 1905",
+      "requirement": {
+        "type": "WINS_WITH",
+        "fighter": "einstein",
+        "count": 3
+      }
+    }
+  ]
+}

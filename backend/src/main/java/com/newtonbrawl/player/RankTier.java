@@ -27,6 +27,12 @@ public enum RankTier {
         return minElo;
     }
 
+    /** The tier above this one, or null at the top. */
+    public RankTier next() {
+        RankTier[] all = values();
+        return ordinal() + 1 < all.length ? all[ordinal() + 1] : null;
+    }
+
     /** Highest tier whose threshold the rating meets. */
     public static RankTier forElo(int elo) {
         RankTier result = ATOM;

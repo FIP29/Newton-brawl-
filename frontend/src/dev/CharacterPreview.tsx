@@ -3,6 +3,7 @@ import { Application, Container, Graphics, Text } from 'pixi.js';
 import { FIGHTERS, PLAYABLE } from '../game/data/fighters';
 import { ProceduralFighterVisual, idleView } from '../game/render/characters/FighterVisual';
 import type { FighterView } from '../game/protocol';
+import { SKINS } from '../game/render/characters/looks';
 
 /** Dev-only gallery (/dev/characters): every scientist in a set of poses, for art iteration. */
 export function CharacterPreview() {
@@ -43,6 +44,18 @@ export function CharacterPreview() {
         });
         const floor = new Graphics().rect(0, -(row + 1) * 250 + 18, 1200, 2).fill({ color: 0xffffff, alpha: 0.1 });
         world.addChild(floor);
+      });
+      // Row 5: unlockable historical skins.
+      Object.entries(SKINS).forEach(([id, skins], i) => {
+        const [skin] = Object.keys(skins);
+        const def = FIGHTERS[id];
+        const v = new ProceduralFighterVisual(def, skin);
+        const view = idleView(def, { x: 110 + i * 190 * 1.5, y: 0 });
+        const cell = new Container();
+        cell.position.set(0, -5 * 250 + 20);
+        cell.addChild(v.root);
+        world.addChild(cell);
+        visuals.push({ v, view });
       });
       world.position.set(0, 0);
       app.ticker.add((tk) => visuals.forEach(({ v, view }) => v.update(view, tk.deltaMS / 1000)));

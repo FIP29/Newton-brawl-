@@ -16,8 +16,8 @@ The art direction is called Neon Chalkboard. Netcode is server-authoritative, an
 | 2 | Java match engine + WebSocket, two players moving/hitting online (placeholder shapes) | ✅ done |
 | 3 | Prediction/interpolation, health, energy, rounds, timer, local 2-player | ✅ done |
 | 4 | Newton, Tesla, Curie, Einstein + The Lab with full VFX | ✅ done |
-| 5 | Matchmaking, ranked Elo, leaderboard, Codex, Lab Notes, unlocks | next |
-| 6 | Galileo, Archimedes, Faraday, Hooke + Space Station | |
+| 5 | Matchmaking, ranked Elo, leaderboard, Codex, Lab Notes, unlocks | ✅ done |
+| 6 | Galileo, Archimedes, Faraday, Hooke + Space Station | next |
 | 7 | Schrödinger, Heisenberg, Hawking, Doppler + Black Hole Edge | |
 | 8 | Bernoulli, Edison, S.N. Bose, J.C. Bose + Curzon Hall + rivalries | |
 | 9 | Polish: shaders, cinematic ultimates, sound, balancing | |
@@ -29,6 +29,28 @@ The art direction is called Neon Chalkboard. Netcode is server-authoritative, an
 | ![Character select](docs/screenshots/character-select.jpg) | ![The Lab arena](docs/screenshots/the-lab.jpg) |
 | **Specials: Apple Drop and Chain Lightning arcing through a beaker** | **ULTIMATE cinematic: Tesla Coil** |
 | ![Specials](docs/screenshots/specials.jpg) | ![Ultimate cinematic](docs/screenshots/ultimate-cinematic.jpg) |
+
+| Victory + Lab Note | Science Codex |
+|---|---|
+| ![Victory screen with Elo change and Lab Note](docs/screenshots/victory-lab-note.jpg) | ![Science Codex](docs/screenshots/codex.jpg) |
+| **Ranked ladder** | **Profile** |
+| ![Leaderboard](docs/screenshots/leaderboard.jpg) | ![Profile](docs/screenshots/profile.jpg) |
+
+## Progression
+
+- **Matchmaking:** *Casual* pairs the two longest-waiting players. *Ranked* only pairs players inside an Elo window: ±100 to start, widening by 25 per second waited, up to ±600. Clients poll their ticket once a second and then join a **reserved room** that only those two players can enter. A ticket is dropped if its owner stops polling, and a reserved room is cancelled if the opponent doesn't arrive within 60 s. **Private rooms** (share a code) still work.
+- **Elo** (ranked only): E = 1 / (1 + 10^((Rb − Ra)/400)), then R′ = R + K·(S − E). K is 40 for your first 10 ranked games and 24 after that. Ratings never drop below 100. Tiers: **Atom** < 1100 ≤ **Molecule** < 1300 ≤ **Star** < 1500 ≤ **Supernova** < 1700 ≤ **Black Hole**. Peak Elo is tracked.
+- **Match history:** every match is stored (mode, fighters, rounds, Elo before and after, reason). Wins and losses count in every mode.
+- **Science Codex** (`backend/src/main/resources/codex/codex.json`): 16 scientist pages, each with a bio and a fun fact, plus the law, an explanation and a Lab Note for every starter special and ultimate. A page unlocks when you play as or against that scientist. A move entry unlocks when you **land it or get hit by it**. The server withholds the text of locked entries.
+- **Lab Note:** after each match, every player gets a short note on the science behind the move they used most (or the one that hit them most). Local matches show one too.
+- **Unlocks** (`codex/unlocks.json`): the 12 upcoming fighters unlock by matches played, wins or Codex entries. They're flagged "arrives in a later update" until their phase ships. Each starter also has a historical skin earned by winning 3 matches with them:
+  - Newton: *Royal Society President*
+  - Tesla: *Colorado Springs 1899*
+  - Curie: *Radium Institute Lab Coat*
+  - Einstein: *Bern Patent Clerk, 1905*, with dark hair, as he had then
+
+  The server checks every pick against your unlocks.
+- **Rewards screen:** an animated Elo counter with tier progress (and a "TIER UP!" banner), new Codex entries and unlocks, and the Lab Note.
 
 ## The starter roster
 
@@ -115,6 +137,21 @@ npm test                       # Java↔TS simulation parity + prediction tests
 | GET | `/api/rooms/{code}` | Bearer | room status (404 if unknown or finished) |
 | WS | `/ws/match?room=CODE&token=JWT` | JWT in query | live match, see protocol below |
 
+### Progression
+
+| Method | Path | Notes |
+|--------|------|-------|
+| POST | `/api/matchmaking/{casual\|ranked}` | join a queue → `{ticket, state, roomCode?, waitedSeconds, eloWindow, playersSearching}` |
+| GET | `/api/matchmaking/tickets/{id}` | poll (~1 s); `roomCode` appears once matched |
+| DELETE | `/api/matchmaking/tickets/{id}` | leave the queue |
+| GET | `/api/leaderboard?page=&size=` | ranked ladder + your own row |
+| GET | `/api/codex` | all pages; text only for unlocked entries |
+| GET | `/api/codex/lab-note?fighter=&move=` | a Lab Note (used after local matches) |
+| GET | `/api/unlocks` · `/api/unlocks/usable` | unlock progress · fighters and skins you can pick |
+| GET | `/api/players/me/matches?limit=` · `/api/players/me/fighters` | match history · per-fighter stats |
+
+The match socket's `end` message now carries a personal `reward`: `{mode, eloBefore, eloAfter, tierBefore, tierAfter, newCodex, newUnlocks, labNote}`.
+
 ### Auth & profile
 
 | Method | Path | Auth | Body / result |
@@ -166,7 +203,13 @@ com.newtonbrawl
 ├── security/    JwtService, JwtAuthenticationFilter, AuthenticatedPlayer principal
 ├── config/      SecurityConfig, typed @ConfigurationProperties
 ├── common/      ApiError, GlobalExceptionHandler, domain exceptions
-├── match/       rooms (REST), RoomService (match lifecycle), WebSocket handler + handshake auth, protocol
+├── match/       rooms (REST), RoomService (match lifecycle), MatchStats, MatchResultService (rewards), WebSocket + protocol
+├── matchmaking/ casual + ranked queues (widening Elo window)
+├── ranked/      Elo maths
+├── history/     match records
+├── codex/       Science Codex catalogue, progress, Lab Notes
+├── unlock/      fighter/skin unlock catalogue + evaluation
+├── leaderboard/ ranked ladder
 └── engine/      Spring-free simulation
     ├── input/     InputBits, InputFrame, InputQueue
     ├── fighter/   FighterDefinition (JSON), Fighter base class, FighterCatalog, roster/ (Newton, Tesla, Curie, Einstein)
@@ -182,8 +225,8 @@ Rank tiers are derived from Elo and never stored: Atom < 1100 ≤ Molecule < 130
 src/
 ├── api/        fetch client (JWT, typed ApiError), DTO types, auth endpoints
 ├── auth/       AuthProvider (restores the session via /players/me), RequireAuth route guard
-├── screens/    LoginScreen, MainMenuScreen, PlayOnlineScreen, FightScreen, LocalVersusScreen
-├── components/ FightHud, CharacterSelect, FightOverlays (equation flashes, combos, ULTIMATE cinematic), portraits
+├── screens/    Login, MainMenu, PlayOnline (queues), Fight, LocalVersus, Codex, Leaderboard, Profile
+├── components/ FightHud, CharacterSelect, FightOverlays, VictoryPanel (rewards + Lab Note), TierBadge, portraits
 ├── game/
 │   ├── protocol.ts          wire types mirroring the backend
 │   ├── sim/                 TypeScript port of the engine (+ Java parity fixture/test)

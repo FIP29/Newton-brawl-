@@ -83,7 +83,7 @@ export class FightRenderer {
   }
 
   /** Builds the arena and fighters once the match configuration is known. */
-  setup(arena: ArenaInfo, fighters: FighterDefinition[]) {
+  setup(arena: ArenaInfo, fighters: FighterDefinition[], skins: (string | null)[] = []) {
     this.arena = arena;
     this.defs = fighters;
     this.colors = fighters.map((d) => lookFor(d.id).glow);
@@ -101,8 +101,9 @@ export class FightRenderer {
     this.entityFront.addChild(this.entities.front);
     this.lightLayer.addChild(this.entities.lights);
     this.visuals.forEach((v) => v.destroy());
-    this.visuals = fighters.map((d) => {
-      const v = createFighterVisual(d);
+    this.visuals = [];
+    this.visuals = fighters.map((d, i) => {
+      const v = createFighterVisual(d, skins[i] ?? null);
       this.fighterLayer.addChild(v.root);
       return v;
     });

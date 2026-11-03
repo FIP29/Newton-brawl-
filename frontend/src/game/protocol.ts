@@ -103,6 +103,7 @@ export interface PlayerInfo {
   slot: number; id: number; username: string; displayName: string; elo: number; connected: boolean;
   /** Picked fighter, or null while choosing. */
   fighter: string | null;
+  skin: string;
 }
 
 export interface ArenaInfo { id: string; width: number; height: number; gravity: number; objectSpawns: number[] }
@@ -112,12 +113,14 @@ export interface MatchRules { countdownTicks: number; roundTimeTicks: number; ro
 export interface RoundResult { round: number; winner: number; reason: 'KO' | 'DOUBLE_KO' | 'TIME' }
 
 export type ServerMessage =
-  | { t: 'welcome'; room: string; slot: number; players: PlayerInfo[]; roster: FighterDefinition[] }
+  | { t: 'welcome'; room: string; slot: number; mode: 'CASUAL' | 'RANKED' | 'PRIVATE'; players: PlayerInfo[];
+      roster: FighterDefinition[]; usable: Record<string, string[]> }
   | { t: 'lobby'; players: PlayerInfo[] }
-  | { t: 'start'; matchId: string; tickRate: number; rules: MatchRules; arena: ArenaInfo;
+  | { t: 'start'; matchId: string; mode: 'CASUAL' | 'RANKED' | 'PRIVATE'; tickRate: number; rules: MatchRules; arena: ArenaInfo;
       players: PlayerInfo[]; fighters: FighterDefinition[] }
   | StateMessage
-  | { t: 'end'; winner: number; reason: 'DECISION' | 'FORFEIT' | 'ABORTED'; ticks: number; roundWins: number[] }
+  | { t: 'end'; winner: number; reason: 'DECISION' | 'FORFEIT' | 'ABORTED'; ticks: number; roundWins: number[];
+      reward: import('../api/progress').MatchReward | null }
   | { t: 'pong'; c: number; tick: number }
   | { t: 'error'; code: string; message: string };
 

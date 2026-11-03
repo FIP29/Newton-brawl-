@@ -18,7 +18,7 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
  * <pre>
  *   {"t":"in",   "s": seq, "b": buttons}   one per client tick, see InputBits
  *   {"t":"ping", "c": clientTimeMs}         answered with {"t":"pong", ...}
- *   {"t":"pick", "f": fighterId}            character select (before the match starts)
+ *   {"t":"pick", "f": fighterId, "s": skin} character select (before the match starts)
  * </pre>
  * Server → client messages are defined in {@link com.newtonbrawl.match.protocol.ServerMessages}.
  */
@@ -69,7 +69,7 @@ public class MatchWebSocketHandler extends TextWebSocketHandler {
         switch (msg.path("t").asText()) {
             case "in" -> rooms.input(session, msg.path("s").asLong(-1), msg.path("b").asInt(0));
             case "ping" -> rooms.ping(safe(session), msg.path("c").asDouble());
-            case "pick" -> rooms.pick(session, msg.path("f").asText(null));
+            case "pick" -> rooms.pick(session, msg.path("f").asText(null), msg.path("s").asText(null));
             default -> log.debug("Unknown message type from {}", session.getId());
         }
     }

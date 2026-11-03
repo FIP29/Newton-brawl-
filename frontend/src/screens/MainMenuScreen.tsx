@@ -3,15 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import gsap from 'gsap';
 import { useAuth } from '../auth/AuthContext';
 import { sfx } from '../audio/sfx';
+import { TierBadge } from '../components/TierBadge';
 
 interface MenuItem { label: string; hint: string; color: string; phase: number; to?: string }
 
 /** Menu entries light up as later phases ship; for now they show which phase delivers them. */
 const MENU: MenuItem[] = [
-  { label: 'Play Online', hint: 'Private room code · queues in Phase 5', color: 'var(--newton)', phase: 2, to: '/play' },
+  { label: 'Play Online', hint: 'Casual · Ranked · Private room', color: 'var(--newton)', phase: 2, to: '/play' },
   { label: 'Local Versus', hint: 'Two players, one keyboard', color: 'var(--tesla)', phase: 3, to: '/local' },
-  { label: 'Science Codex', hint: 'The real laws behind every move', color: 'var(--curie)', phase: 5 },
-  { label: 'Leaderboard', hint: 'Atom → Black Hole', color: 'var(--einstein)', phase: 5 },
+  { label: 'Science Codex', hint: 'The real laws behind every move', color: 'var(--curie)', phase: 5, to: '/codex' },
+  { label: 'Leaderboard', hint: 'Atom → Black Hole', color: 'var(--einstein)', phase: 5, to: '/leaderboard' },
+  { label: 'Profile', hint: 'Record · history · unlocks', color: 'var(--doppler)', phase: 5, to: '/profile' },
 ];
 
 const TIER_COLOR: Record<string, string> = {
@@ -61,6 +63,7 @@ export function MainMenuScreen() {
           <div className="player-name">{player.displayName}</div>
           <div className="player-handle">@{player.username}</div>
           <div className="tier">
+            <TierBadge tier={player.rankTier} size={34} />
             <span className="tier-name">{player.rankTierName}</span>
             <span className="tier-elo">{player.elo} Elo</span>
           </div>
@@ -69,6 +72,7 @@ export function MainMenuScreen() {
             <div><dt>Losses</dt><dd>{player.losses}</dd></div>
             <div><dt>Win rate</dt><dd>{games ? `${player.winRate}%` : '—'}</dd></div>
           </dl>
+          <div className="vp-next">{player.nextTierName ? `${player.nextTierElo - player.elo} Elo to ${player.nextTierName}` : 'Top of the ladder'}</div>
           <button className="btn-ghost" onClick={() => { sfx.click(); logout(); }}>Log out</button>
         </aside>
       </div>

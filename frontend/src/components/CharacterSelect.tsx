@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import type { FighterDefinition } from '../game/protocol';
-import { lookFor } from '../game/render/characters/looks';
+import { lookFor, skinName } from '../game/render/characters/looks';
 import { CLASS_LABEL, ClassIcon } from './ClassIcon';
 import { fighterImages } from './portraits';
 import { sfx } from '../audio/sfx';
@@ -31,13 +31,19 @@ interface Props {
   onCardClick?: (id: string) => void;
   title?: string;
   footer?: React.ReactNode;
+  /** Fighter id → unlocked skins for the local player; fighters missing from it are locked. Omit = all usable. */
+  usable?: Record<string, string[]>;
+  /** Hints shown on locked cards (fighter id → requirement text). */
+  lockHints?: Record<string, string>;
+  skin?: string;
+  onSkin?: (skin: string) => void;
 }
 
 /**
  * Character select: one card per scientist with its idle portrait, class badge, ratings and the
  * real physics behind each special. Purely presentational — screens decide what the cursors do.
  */
-export function CharacterSelect({ roster, players, onCardClick, title = 'CHOOSE YOUR SCIENTIST', footer }: Props) {
+export function CharacterSelect({ roster, players, onCardClick, title = 'CHOOSE YOUR SCIENTIST', footer, usable, lockHints, skin, onSkin }: Props) {
   const [images, setImages] = useState<Record<string, string>>({});
   const root = useRef<HTMLDivElement>(null);
   useEffect(() => { void fighterImages().then(setImages); }, []);
@@ -58,10 +64,14 @@ export function CharacterSelect({ roster, players, onCardClick, title = 'CHOOSE 
           const color = hex(look.glow);
           const here = players.filter((p) => p.cursor === d.id);
           const r = RATINGS[d.id] ?? { power: 3, speed: 3, range: 3 };
+          const unavailable = usable !== undefined && !usable[d.id];
+          const skins = usable?.[d.id] ?? [];
+          const mineHere = here.some((p) => p.label === players[0]?.label) && players[0]?.cursor === d.id;
           return (
-            <button key={d.id} className={`cs-card ${here.length ? 'active' : ''} ${here.some((p) => p.locked) ? 'locked' : ''}`}
-                    style={{ '--accent': color } as React.CSSProperties}
-                    onMouseEnter={sfx.hover} onClick={() => onCardClick?.(d.id)} aria-pressed={here.length > 0}>
+            <button key={d.id} className={`cs-card ${here.length ? 'active' : ''} ${here.some((p) => p.locked) ? 'locked' : ''} ${unavailable ? 'unavailable' : ''}`}
+                    style={{ '--accent': color } as React.CSSProperties} disabled={unavailable}
+                    onMouseEnter={sfx.hover} onClick={() => !unavailable && onCardClick?.(d.id)} aria-pressed={here.length > 0}>
+              {unavailable && <div className="cs-lock"><span>🔒 Locked</span><small>{lockHints?.[d.id] ?? 'Keep playing to unlock'}</small></div>}
               <div className="cs-tags">
                 {here.map((p) => (
                   <span key={p.label} className="cs-tag" style={{ background: p.color }}>{p.label}{p.locked ? ' ✓' : ''}</span>
@@ -77,6 +87,16 @@ export function CharacterSelect({ roster, players, onCardClick, title = 'CHOOSE 
                   <div key={k}><dt>{k}</dt><dd>{Array.from({ length: 5 }, (_, i) => <i key={i} className={i < r[k] ? 'on' : ''} />)}</dd></div>
                 ))}
               </dl>
+              {onSkin && mineHere && skins.length > 1 && (
+                <div className="cs-skins" onClick={(e) => e.stopPropagation()}>
+                  {skins.map((sk) => (
+                    <span key={sk} role="button" tabIndex={0} className={`cs-skin ${sk === (skin ?? 'classic') ? 'on' : ''}`}
+                          onClick={() => { sfx.click(); onSkin(sk); }} onKeyDown={(e) => e.key === 'Enter' && onSkin(sk)}>
+                      {skinName(d.id, sk)}
+                    </span>
+                  ))}
+                </div>
+              )}
               <ul className="cs-moves">
                 {(['special1', 'special2', 'ultimate'] as const).map((id) => {
                   const m = d.moves[id];

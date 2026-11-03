@@ -83,9 +83,11 @@ class MatchWebSocketIntegrationTest {
         }
     }
 
+    @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
+
     @BeforeEach
     void clean() {
-        players.deleteAll();
+        com.newtonbrawl.TestData.wipe(jdbc);
     }
 
     private Login register(String name) {

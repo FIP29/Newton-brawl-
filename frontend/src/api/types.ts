@@ -10,6 +10,10 @@ export interface PlayerProfile {
   losses: number;
   winRate: number;
   createdAt: string;
+  peakElo: number;
+  rankedGames: number;
+  nextTierName: string | null;
+  nextTierElo: number;
 }
 
 /** Mirrors com.newtonbrawl.auth.dto.AuthResponse */

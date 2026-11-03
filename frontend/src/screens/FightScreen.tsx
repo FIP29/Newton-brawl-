@@ -14,6 +14,8 @@ import { Banner, HudBar, useMatchPresentation } from '../components/FightHud';
 import { CharacterSelect } from '../components/CharacterSelect';
 import { useFightOverlays } from '../components/FightOverlays';
 import { fighterPortraits } from '../components/portraits';
+import { VictoryPanel } from '../components/VictoryPanel';
+import { unlocksApi } from '../api/progress';
 
 type Status = 'connecting' | 'select' | 'live' | 'ended' | 'error';
 const hex = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
@@ -46,13 +48,32 @@ export function FightScreen() {
   const [attempt, setAttempt] = useState(0);
   const [showHelp, setShowHelp] = useState(true);
   const [images, setImages] = useState<Record<string, string>>({});
+  const [mode, setMode] = useState<'CASUAL' | 'RANKED' | 'PRIVATE'>('PRIVATE');
+  const [usable, setUsable] = useState<Record<string, string[]> | undefined>(undefined);
+  const [lockHints, setLockHints] = useState<Record<string, string>>({});
+  const [skin, setSkin] = useState('classic');
+  const [toast, setToast] = useState<string | null>(null);
+  const { refresh } = useAuth();
   const { hud, banner, push, reset } = useMatchPresentation();
   const overlays = useFightOverlays();
   const connRef = useRef<MatchConnection | null>(null);
+  const skinRef = useRef('classic');
   const selectRef = useRef({ hover: 0, roster: [] as FighterDefinition[], status: 'connecting' as Status });
   selectRef.current = { hover, roster, status };
 
   useEffect(() => { void fighterPortraits().then(setImages); }, []);
+  useEffect(() => {
+    void unlocksApi.list().then((list) => {
+      const hints: Record<string, string> = {};
+      list.filter((u) => u.type === 'FIGHTER').forEach((u) => { hints[u.fighter] = `${u.requirement} (${u.progress}/${u.target})`; });
+      setLockHints(hints);
+    }).catch(() => undefined);
+  }, []);
+  useEffect(() => {
+    if (!toast) return;
+    const t = window.setTimeout(() => setToast(null), 2500);
+    return () => window.clearTimeout(t);
+  }, [toast]);
 
   useEffect(() => {
     if (!host) return;
@@ -83,8 +104,9 @@ export function FightScreen() {
       start = msg;
       setDefs(msg.fighters);
       if (mySlot >= 0) predictor = new Predictor(msg.arena, msg.fighters, mySlot);
-      if (ready) renderer.setup(msg.arena, msg.fighters);
+      if (ready) renderer.setup(msg.arena, msg.fighters, skinsOf(msg));
     };
+    const skinsOf = (msg: StartMessage) => [0, 1].map((s) => msg.players.find((p) => p.slot === s)?.skin ?? null);
 
     const conn = new MatchConnection(code, {
       onMessage(msg) {
@@ -94,6 +116,8 @@ export function FightScreen() {
             setSlot(msg.slot);
             setPlayers(msg.players);
             setRoster(msg.roster);
+            setMode(msg.mode);
+            setUsable(msg.usable);
             setStatus((s) => (s === 'live' ? s : 'select'));
             break;
           case 'lobby':
@@ -114,9 +138,11 @@ export function FightScreen() {
           case 'end':
             ended = true;
             setEnd(msg);
+            void refresh();
             window.setTimeout(() => !disposed && setStatus('ended'), 1200);
             break;
           case 'error':
+            if (msg.code === 'LOCKED') { sfx.error(); setToast(msg.message); break; }
             setError(msg.message);
             setStatus('error');
             break;
@@ -164,7 +190,7 @@ export function FightScreen() {
       if (sel.status === 'select' && sel.roster.length) {
         if (e.code === 'KeyA' || e.code === 'ArrowLeft') { sfx.hover(); setHover((h) => (h + sel.roster.length - 1) % sel.roster.length); }
         if (e.code === 'KeyD' || e.code === 'ArrowRight') { sfx.hover(); setHover((h) => (h + 1) % sel.roster.length); }
-        if (e.code === 'KeyJ' || e.code === 'Enter') { sfx.success(); conn.pick(sel.roster[sel.hover].id); }
+        if (e.code === 'KeyJ' || e.code === 'Enter') { sfx.success(); conn.pick(sel.roster[sel.hover].id, skinRef.current); }
         return;
       }
       if (e.code === 'KeyH') renderer.showHitboxes = !renderer.showHitboxes;
@@ -179,7 +205,7 @@ export function FightScreen() {
       if (disposed) { renderer.destroy(); return; }
       ready = true;
       if (import.meta.env.DEV) (window as unknown as { __nbRenderer: FightRenderer }).__nbRenderer = renderer;
-      if (start) renderer.setup(start.arena, start.fighters);
+      if (start) renderer.setup(start.arena, start.fighters, skinsOf(start));
       renderer.app.ticker.add(frame);
     });
 
@@ -195,7 +221,7 @@ export function FightScreen() {
     };
     // overlays.* are stable callbacks
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [code, attempt, host, push, reset]);
+  }, [code, attempt, host, push, reset, refresh]);
 
   const names = [0, 1].map((s) => players.find((p) => p.slot === s)?.displayName ?? (s === slot ? me?.displayName ?? 'You' : '???'));
   const result = end && (end.winner < 0 ? 'DRAW' : end.winner === slot ? 'VICTORY' : 'DEFEAT');
@@ -203,10 +229,13 @@ export function FightScreen() {
   const theirs = players.find((p) => p.slot !== slot);
   const fighterInfo = defs.length === 2 ? defs.map((d) => ({ id: d.id, name: d.name, color: hex(lookFor(d.id).glow) })) : undefined;
 
-  const pick = (id: string) => {
+  const pick = (id: string, withSkin?: string) => {
     sfx.success();
+    const sk = withSkin ?? (id === mine?.fighter ? skin : 'classic');
     setHover(roster.findIndex((d) => d.id === id));
-    connRef.current?.pick(id);
+    setSkin(sk);
+    skinRef.current = sk;
+    connRef.current?.pick(id, sk);
   };
 
   const newRoom = async () => {
@@ -233,15 +262,24 @@ export function FightScreen() {
         <div className="fight-overlay select-overlay">
           <CharacterSelect
             roster={roster}
-            onCardClick={pick}
+            onCardClick={(id) => pick(id)}
+            usable={usable}
+            lockHints={lockHints}
+            skin={skin}
+            onSkin={(sk) => { const id = mine?.fighter ?? roster[hover]?.id; if (id) pick(id, sk); }}
+            title={mode === 'PRIVATE' ? 'CHOOSE YOUR SCIENTIST' : `${mode} MATCH · CHOOSE YOUR SCIENTIST`}
             players={[
               { label: 'YOU', color: 'var(--newton)', cursor: mine?.fighter ?? roster[hover]?.id ?? null, locked: !!mine?.fighter },
               ...(theirs ? [{ label: theirs.displayName, color: 'var(--tesla)', cursor: theirs.fighter, locked: !!theirs.fighter }] : []),
             ]}
             footer={
               <div className="cs-footer">
-                <span className="room-line">Room <b className="room-code-inline">{code}</b>
-                  <button className="btn-ghost small" onClick={() => { void navigator.clipboard?.writeText(code); sfx.success(); }}>Copy</button></span>
+                {mode === 'PRIVATE' ? (
+                  <span className="room-line">Room <b className="room-code-inline">{code}</b>
+                    <button className="btn-ghost small" onClick={() => { void navigator.clipboard?.writeText(code); sfx.success(); }}>Copy</button></span>
+                ) : (
+                  <span className={`mode-badge ${mode.toLowerCase()}`}>{mode}</span>
+                )}
                 <span>{!theirs ? 'Waiting for an opponent to join…' : theirs.fighter ? `${theirs.displayName} is ready` : `${theirs.displayName} is choosing…`}</span>
                 <span><kbd>A</kbd><kbd>D</kbd> choose · <kbd>J</kbd> lock in (you can change until both are locked)</span>
                 <Link className="btn-ghost" to="/play">Leave</Link>
@@ -251,21 +289,29 @@ export function FightScreen() {
         </div>
       )}
 
+      {toast && <div className="toast" role="status">{toast}</div>}
+      {status === 'live' && mode !== 'PRIVATE' && <div className={`mode-badge floating ${mode.toLowerCase()}`}>{mode}</div>}
+
       {status === 'live' && players.some((p) => !p.connected) && (
         <div className="net-warning">Opponent disconnected — waiting for them to reconnect…</div>
       )}
 
       {status === 'ended' && end && (
-        <div className="fight-overlay">
-          <div className={`panel overlay-card result-${result?.toLowerCase()}`}>
-            <div className="result-title">{result}</div>
-            <div className="result-score">{end.roundWins[0]} – {end.roundWins[1]}</div>
-            <p className="chalk-note">{reasonText(end, slot)}</p>
-            <div className="overlay-actions">
-              <button className="btn-neon" onClick={newRoom}>New room</button>
+        <div className="fight-overlay scroll">
+          <VictoryPanel
+            title={result ?? ''}
+            score={`${end.roundWins[0]} – ${end.roundWins[1]}`}
+            subtitle={reasonText(end, slot)}
+            reward={end.reward}
+            variant={result === 'VICTORY' ? 'victory' : result === 'DEFEAT' ? 'defeat' : 'draw'}
+            actions={<>
+              {mode === 'PRIVATE'
+                ? <button className="btn-neon" onClick={newRoom}>New room</button>
+                : <button className="btn-neon" onClick={() => navigate(`/play?queue=${mode.toLowerCase()}`)}>Play again</button>}
+              <Link className="btn-ghost" to="/codex">Codex</Link>
               <Link className="btn-ghost" to="/">Main menu</Link>
-            </div>
-          </div>
+            </>}
+          />
         </div>
       )}
 
@@ -275,7 +321,9 @@ export function FightScreen() {
             <div className="result-title small">Signal lost</div>
             <p className="form-error">{error}</p>
             <div className="overlay-actions">
-              <button className="btn-neon" onClick={() => { setError(null); setStatus('connecting'); setAttempt((a) => a + 1); }}>Reconnect</button>
+              {mode !== 'PRIVATE'
+                ? <button className="btn-neon" onClick={() => navigate(`/play?queue=${mode.toLowerCase()}`)}>Back to the queue</button>
+                : <button className="btn-neon" onClick={() => { setError(null); setStatus('connecting'); setAttempt((a) => a + 1); }}>Reconnect</button>}
               <Link className="btn-ghost" to="/play">Back</Link>
             </div>
           </div>

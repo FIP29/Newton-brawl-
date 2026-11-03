@@ -30,9 +30,11 @@ class AuthFlowIntegrationTest {
     @Autowired ObjectMapper json;
     @Autowired PlayerRepository players;
 
+    @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
+
     @BeforeEach
     void clean() {
-        players.deleteAll();
+        com.newtonbrawl.TestData.wipe(jdbc);
     }
 
     private MvcResult register(String username, String email, String password) throws Exception {

@@ -16,6 +16,8 @@ final class Seat {
     WebSocketSession session;
     /** Picked fighter id, or null while still on character select. */
     String fighter;
+    /** Picked skin id ("classic" by default). */
+    String skin = "classic";
     /** Pending forfeit while disconnected mid-match. */
     ScheduledFuture<?> forfeitTimer;
 

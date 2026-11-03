@@ -2,4 +2,4 @@ package com.newtonbrawl.match.dto;
 
 import com.newtonbrawl.match.RoomStatus;
 
-public record RoomDto(String code, RoomStatus status, int playerCount) {}
+public record RoomDto(String code, RoomStatus status, int playerCount, com.newtonbrawl.history.MatchMode mode) {}

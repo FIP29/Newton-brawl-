@@ -13,6 +13,8 @@ import { Banner, HudBar, useMatchPresentation } from '../components/FightHud';
 import { CharacterSelect } from '../components/CharacterSelect';
 import { useFightOverlays } from '../components/FightOverlays';
 import { fighterPortraits } from '../components/portraits';
+import { VictoryPanel } from '../components/VictoryPanel';
+import { codexApi, type LabNote } from '../api/progress';
 
 const NAMES = ['Player 1', 'Player 2'];
 const ROSTER = PLAYABLE.map((id) => FIGHTERS[id]);
@@ -108,6 +110,7 @@ function LocalFight({ picks, onChangeFighters }: { picks: [string, string]; onCh
   const [result, setResult] = useState<{ winner: number; roundWins: number[] } | null>(null);
   const [game, setGame] = useState(0); // bump to restart
   const [images, setImages] = useState<Record<string, string>>({});
+  const [labNote, setLabNote] = useState<LabNote | null>(null);
   const { hud, banner, push, reset } = useMatchPresentation();
   const overlays = useFightOverlays();
   const togglePause = useRef<() => void>(() => {});
@@ -123,6 +126,7 @@ function LocalFight({ picks, onChangeFighters }: { picks: [string, string]; onCh
     reset();
     overlays.reset();
     setResult(null);
+    setLabNote(null);
     setPaused(false);
 
     const sim = new MatchSimulation(THE_LAB, defs, STANDARD_RULES);
@@ -131,6 +135,8 @@ function LocalFight({ picks, onChangeFighters }: { picks: [string, string]; onCh
     const p2 = new InputController(KEYS_LOCAL_P2, 1).attach();
     const renderer = new FightRenderer();
     const prevBits = [0, 0];
+    // Specials landed per slot → the Lab Note explains the winner's favourite.
+    const landed: Array<Record<string, number>> = [{}, {}];
     let prev: Snapshot = sim.snapshot();
     let curr: Snapshot = prev;
     let acc = 0;
@@ -138,6 +144,13 @@ function LocalFight({ picks, onChangeFighters }: { picks: [string, string]; onCh
 
     const handle = (e: GameEvent) => {
       const combo = renderer.onEvent(e);
+      if ((e.type === 'HIT' || e.type === 'CAST') && e.move && e.attacker >= 0) {
+        const m = defs[e.attacker].moves[e.move];
+        if (m && (m.kind ?? 'NORMAL') !== 'NORMAL' && (e.type === 'HIT' || m.damage === 0)) {
+          landed[e.attacker][e.move] = (landed[e.attacker][e.move] ?? 0) + 1;
+        }
+      }
+      if (e.type === 'REFLECT') landed[e.attacker].ultimate = (landed[e.attacker].ultimate ?? 0) + 1;
       if (e.type === 'HIT' && e.move === 'ultimate' && defs[e.attacker].id === 'tesla') renderer.coilStrike(e.x, e.y);
       overlays.onEvent(e, defs, combo);
     };
@@ -168,6 +181,9 @@ function LocalFight({ picks, onChangeFighters }: { picks: [string, string]; onCh
       if (sim.phase === 'FINISHED' && sim.result && !reported) {
         reported = true;
         setResult({ winner: sim.result.winner, roundWins: sim.result.roundWins });
+        const who = Math.max(0, sim.result.winner);
+        const fav = Object.entries(landed[who]).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'special1';
+        void codexApi.labNote(defs[who].id, fav).then(setLabNote).catch(() => setLabNote(null));
       }
     };
 
@@ -227,16 +243,18 @@ function LocalFight({ picks, onChangeFighters }: { picks: [string, string]; onCh
       )}
 
       {result && (
-        <div className="fight-overlay">
-          <div className={`panel overlay-card ${result.winner === 1 ? 'result-p2' : result.winner === 0 ? 'result-victory' : 'result-draw'}`}>
-            <div className="result-title">{result.winner < 0 ? 'DRAW' : `${defs[result.winner].name.toUpperCase()} WINS`}</div>
-            <div className="result-score">{result.roundWins[0]} – {result.roundWins[1]}</div>
-            <div className="overlay-actions">
+        <div className="fight-overlay scroll">
+          <VictoryPanel
+            title={result.winner < 0 ? 'DRAW' : `${defs[result.winner].name.toUpperCase()} WINS`}
+            score={`${result.roundWins[0]} – ${result.roundWins[1]}`}
+            labNote={labNote}
+            variant={result.winner === 1 ? 'p2' : result.winner === 0 ? 'victory' : 'draw'}
+            actions={<>
               <button className="btn-neon" onClick={() => { sfx.click(); setGame((g) => g + 1); }}>Rematch</button>
               <button className="btn-ghost" onClick={onChangeFighters}>Change fighters</button>
               <Link className="btn-ghost" to="/">Main menu</Link>
-            </div>
-          </div>
+            </>}
+          />
         </div>
       )}
 

@@ -68,4 +68,31 @@ export const LOOKS: Record<string, Look> = {
   },
 };
 
-export const lookFor = (id: string): Look => LOOKS[id] ?? LOOKS.prototype;
+/**
+ * Unlockable historical skins (costume overrides; the neon signature colour stays the same).
+ * Ids must match `codex/unlocks.json` on the server.
+ */
+export const SKINS: Record<string, Record<string, { name: string; look: Partial<Look> }>> = {
+  newton: {
+    'royal-society': { name: 'Royal Society President', look: { coat: 0x1f2f5a, coatShade: 0x15203f, trim: 0xd3d9e2, legs: 0x1b1b24, accent: 0x9aa6b8 } },
+  },
+  tesla: {
+    'colorado-springs': { name: 'Colorado Springs 1899', look: { coat: 0x6f7681, coatShade: 0x565c66, trim: 0xd9dee6, legs: 0x5d636c, accent: 0x9b2c2c } },
+  },
+  curie: {
+    'radium-institute': { name: 'Radium Institute Lab Coat', look: { coat: 0xe6e9e4, coatShade: 0xc3c8c2, trim: 0x8a8f8a, shirt: 0x24212b } },
+  },
+  einstein: {
+    // In 1905 the young patent clerk had dark hair and wore a brown suit.
+    'patent-clerk': { name: 'Bern Patent Clerk, 1905', look: { coat: 0x5a3e2b, coatShade: 0x45301f, trim: 0x8b6b4a, legs: 0x4a3526,
+      hair: 0x3b2a20, hairShade: 0x2a1d16, outfit: 'suit', accent: 0x7a2b2b } },
+  },
+};
+
+export const skinName = (fighter: string, skin: string) => skin === 'classic' ? 'Classic' : SKINS[fighter]?.[skin]?.name ?? skin;
+
+export const lookFor = (id: string, skin?: string | null): Look => {
+  const base = LOOKS[id] ?? LOOKS.prototype;
+  const variant = skin && skin !== 'classic' ? SKINS[id]?.[skin] : undefined;
+  return variant ? { ...base, ...variant.look } : base;
+};

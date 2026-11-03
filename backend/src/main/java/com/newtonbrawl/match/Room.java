@@ -13,6 +13,10 @@ import java.util.List;
 final class Room {
     final String code;
     final long ownerId;
+    final com.newtonbrawl.history.MatchMode mode;
+    /** For matchmade rooms: the two player ids allowed in, by slot. Null for private rooms. */
+    final long[] reserved;
+    MatchStats stats;
     final Instant createdAt = Instant.now();
 
     final Seat[] seats = new Seat[2];
@@ -22,9 +26,17 @@ final class Room {
     /** Latest simulated tick (written by the match thread, read for pongs). */
     volatile long lastTick;
 
-    Room(String code, long ownerId) {
+    Room(String code, long ownerId, com.newtonbrawl.history.MatchMode mode, long[] reserved) {
         this.code = code;
         this.ownerId = ownerId;
+        this.mode = mode;
+        this.reserved = reserved;
+    }
+
+    /** Slot reserved for this player in a matchmade room, or -1. */
+    int reservedSlot(long playerId) {
+        if (reserved == null) return -1;
+        return reserved[0] == playerId ? 0 : reserved[1] == playerId ? 1 : -1;
     }
 
     Seat seatOf(long playerId) {
@@ -54,7 +66,7 @@ final class Room {
         List<PlayerInfo> list = new ArrayList<>(2);
         for (Seat s : seats) {
             if (s != null) {
-                list.add(new PlayerInfo(s.slot, s.playerId, s.username, s.displayName, s.elo, s.connected(), s.fighter));
+                list.add(new PlayerInfo(s.slot, s.playerId, s.username, s.displayName, s.elo, s.connected(), s.fighter, s.skin));
             }
         }
         return list;

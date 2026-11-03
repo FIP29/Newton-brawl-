@@ -12,6 +12,10 @@ import com.newtonbrawl.engine.sim.MatchSnapshot;
 import com.newtonbrawl.engine.sim.RoundResult;
 
 import java.util.List;
+import java.util.Map;
+
+import com.newtonbrawl.history.MatchMode;
+import com.newtonbrawl.match.MatchReward;
 
 /**
  * Every message the server sends over the match WebSocket. Each carries a short type tag {@code t}.
@@ -23,14 +27,19 @@ public final class ServerMessages {
     /** Public info about someone in a room. */
     /** @param fighter picked fighter id, or null while still choosing */
     public record PlayerInfo(int slot, long id, String username, String displayName, int elo, boolean connected,
-                             String fighter) {}
+                             String fighter, String skin) {}
 
     public record ArenaInfo(String id, double width, double height, double gravity, List<Double> objectSpawns) {}
 
-    /** First message after joining: which slot you are, who's here, and who can be picked. */
-    public record Welcome(String t, String room, int slot, List<PlayerInfo> players, List<FighterDefinition> roster) {
-        public Welcome(String room, int slot, List<PlayerInfo> players, List<FighterDefinition> roster) {
-            this("welcome", room, slot, players, roster);
+    /**
+     * First message after joining: which slot you are, who's here, who can be picked, and which of
+     * those fighters/skins this player has unlocked ({@code usable}: fighter id → skin ids).
+     */
+    public record Welcome(String t, String room, int slot, MatchMode mode, List<PlayerInfo> players,
+                          List<FighterDefinition> roster, Map<String, List<String>> usable) {
+        public Welcome(String room, int slot, MatchMode mode, List<PlayerInfo> players, List<FighterDefinition> roster,
+                       Map<String, List<String>> usable) {
+            this("welcome", room, slot, mode, players, roster, usable);
         }
     }
 
@@ -43,11 +52,11 @@ public final class ServerMessages {
     public record RulesInfo(int countdownTicks, int roundTimeTicks, int roundsToWin, int maxRounds, int roundEndTicks) {}
 
     /** Both players present: everything the client needs to render (and predict) the match. */
-    public record Start(String t, String matchId, int tickRate, RulesInfo rules, ArenaInfo arena,
+    public record Start(String t, String matchId, MatchMode mode, int tickRate, RulesInfo rules, ArenaInfo arena,
                         List<PlayerInfo> players, List<FighterDefinition> fighters) {
-        public Start(String matchId, int tickRate, RulesInfo rules, ArenaInfo arena,
+        public Start(String matchId, MatchMode mode, int tickRate, RulesInfo rules, ArenaInfo arena,
                      List<PlayerInfo> players, List<FighterDefinition> fighters) {
-            this("start", matchId, tickRate, rules, arena, players, fighters);
+            this("start", matchId, mode, tickRate, rules, arena, players, fighters);
         }
     }
 
@@ -62,8 +71,9 @@ public final class ServerMessages {
         }
     }
 
-    public record End(String t, int winner, MatchResult.Reason reason, long ticks, List<Integer> roundWins) {
-        public End(MatchResult r) { this("end", r.winner(), r.reason(), r.ticks(), r.roundWins()); }
+    /** Match over. {@code reward} is personal to the recipient (Elo change, unlocks, Lab Note); null if unrecorded. */
+    public record End(String t, int winner, MatchResult.Reason reason, long ticks, List<Integer> roundWins, MatchReward reward) {
+        public End(MatchResult r, MatchReward reward) { this("end", r.winner(), r.reason(), r.ticks(), r.roundWins(), reward); }
     }
 
     /** Echo of a client ping for round-trip measurement. */

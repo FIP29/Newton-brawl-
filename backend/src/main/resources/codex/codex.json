@@ -1,0 +1,216 @@
+{
+  "fighters": [
+    {
+      "id": "newton",
+      "name": "Isaac Newton",
+      "lived": "1643–1727",
+      "origin": "England",
+      "phase": 4,
+      "bio": "Mathematician and physicist whose Principia (1687) set out the three laws of motion and the law of universal gravitation, the same force pulling an apple to the ground and holding the Moon in orbit. He also co-invented calculus, showed that white light is a mix of colours, and built the first practical reflecting telescope.",
+      "funFact": "Newton spent his last 30 years running England's Royal Mint, where he personally hunted down counterfeiters.",
+      "moves": {
+        "special1": {
+          "law": "Gravitational acceleration: F = mg, g ≈ 9.8 m/s²",
+          "explain": "Near Earth's surface every object accelerates downward at about 9.8 m/s². The apple in Apple Drop uses exactly that value (980 units/s², since 100 units = 1 m), so it falls slowly at first and faster every moment.",
+          "labNote": "Drop an apple and in the first second it falls only about 4.9 m, but it's already moving at 9.8 m/s. Distance grows with the square of time (d = ½gt²), which is why falling things seem to speed up so suddenly."
+        },
+        "special2": {
+          "law": "Universal gravitation: F = G·m₁m₂ / r²",
+          "explain": "Every mass attracts every other mass with a force that weakens with the square of the distance. Gravity Flip imagines that force pointing the other way for a few seconds.",
+          "labNote": "Gravity is by far the weakest of the four fundamental forces. A fridge magnet beats the pull of the entire Earth! It only dominates the universe because masses are huge and gravity never cancels out."
+        },
+        "ultimate": {
+          "law": "Newton's third law: F₁₂ = −F₂₁",
+          "explain": "For every action there is an equal and opposite reaction: when you push on something, it pushes back on you just as hard. Third Law turns that literally against the attacker.",
+          "labNote": "When you punch a wall, the wall pushes back on your fist with exactly the same force. That's why it hurts! Rockets work the same way: they push gas backwards, and the gas pushes the rocket forwards."
+        }
+      }
+    },
+    {
+      "id": "tesla",
+      "name": "Nikola Tesla",
+      "lived": "1856–1943",
+      "origin": "Austrian Empire (today Croatia) / USA",
+      "phase": 4,
+      "bio": "Inventor and electrical engineer who developed the alternating-current (AC) induction motor and polyphase systems that power the modern electric grid. His Tesla coil (1891), a resonant transformer, produces dramatic high-voltage, high-frequency sparks, and he pioneered early radio and wireless experiments.",
+      "funFact": "The SI unit of magnetic flux density, the tesla (T), is named after him. An MRI scanner uses fields of about 1.5–3 T.",
+      "moves": {
+        "special1": {
+          "law": "Coulomb's law: F = k·q₁q₂ / r²",
+          "explain": "Electric charges attract or repel with a force that falls off with the square of distance. Lightning seeks the easiest conducting path, which is why Chain Lightning leaps through metal beakers.",
+          "labNote": "Lightning heats the air around it to roughly 30,000 °C, about five times hotter than the surface of the Sun. The air expands so violently that it makes the boom we call thunder."
+        },
+        "special2": {
+          "law": "Lorentz force: F = q(v × B)",
+          "explain": "A magnetic field pushes on moving charges at right angles to their motion. Electromagnets use this to pull on iron and steel, like Tesla's Magnetic Pull dragging metal across the lab.",
+          "labNote": "Earth is a giant magnet. Its magnetic field deflects charged particles streaming from the Sun, and the ones funnelled toward the poles make the air glow as the aurora."
+        },
+        "ultimate": {
+          "law": "Resonant frequency: f = 1 / (2π√(LC))",
+          "explain": "A Tesla coil pairs two circuits tuned to the same resonant frequency, set by their inductance L and capacitance C. Energy sloshes between them, building up enormous voltages.",
+          "labNote": "Resonance is like pushing a swing: small pushes at exactly the right rhythm add up to a huge motion. Tesla coils do the same with electricity, turning modest power into million-volt sparks."
+        }
+      }
+    },
+    {
+      "id": "curie",
+      "name": "Marie Curie",
+      "lived": "1867–1934",
+      "origin": "Poland / France",
+      "phase": 4,
+      "bio": "Physicist and chemist, born Maria Skłodowska in Warsaw, who pioneered research on radioactivity (a word she coined). With Pierre Curie she discovered the elements polonium and radium in 1898. She was the first woman to win a Nobel Prize, and remains the only person to win Nobel Prizes in two different sciences: Physics (1903) and Chemistry (1911).",
+      "funFact": "Her notebooks are still radioactive more than a century later. They're kept in lead-lined boxes, and visitors must wear protective gear to read them.",
+      "moves": {
+        "special1": {
+          "law": "Radioactive decay: N = N₀·(½)^(t / t½)",
+          "explain": "Unstable nuclei decay at random, but a big sample follows a precise rule: after one half-life, half of it is left; after two, a quarter. The Radioactive Orb's damage halves every half-life too.",
+          "labNote": "Half-lives range from fractions of a second to billions of years. Carbon-14's half-life of about 5,730 years lets scientists date bones and wood up to around 50,000 years old."
+        },
+        "special2": {
+          "law": "Alpha decay: ²²⁶Ra → ²²²Rn + α",
+          "explain": "Radium-226 decays by shooting out an alpha particle (two protons and two neutrons), turning into radon gas. Radium salts glow faintly in the dark, the inspiration for the Glow Trap.",
+          "labNote": "Alpha particles carry lots of energy but can be stopped by a sheet of paper, or even by the outer layer of your skin. They're only dangerous if the source gets inside the body."
+        },
+        "ultimate": {
+          "law": "Nuclear fission: n + ²³⁵U → Ba + Kr + 3n",
+          "explain": "When a neutron splits a uranium-235 nucleus, it releases energy and more neutrons, which can split more nuclei. That self-sustaining cascade is a chain reaction.",
+          "labNote": "Splitting one uranium-235 nucleus releases about 200 MeV, millions of times more energy than a chemical reaction like burning releases per atom. That's why a small amount of nuclear fuel can power a city."
+        }
+      }
+    },
+    {
+      "id": "einstein",
+      "name": "Albert Einstein",
+      "lived": "1879–1955",
+      "origin": "Germany / Switzerland / USA",
+      "phase": 4,
+      "bio": "Theoretical physicist who, in 1905 while working as a patent clerk in Bern, published papers on the photoelectric effect, Brownian motion and special relativity, including E = mc². His general relativity (1915) describes gravity as the curving of spacetime. He received the 1921 Nobel Prize in Physics for explaining the photoelectric effect.",
+      "funFact": "In 1924 he translated a paper sent to him by Satyendra Nath Bose from Dhaka into German and got it published. Their joint work gave us Bose–Einstein statistics.",
+      "moves": {
+        "special1": {
+          "law": "Speed of light: c = 299 792 458 m/s",
+          "explain": "Light in a vacuum travels at a fixed speed that's the same for every observer. Nothing carrying information can go faster. Light Dash is Einstein borrowing a little of that speed.",
+          "labNote": "Light from the Sun takes about 8 minutes 20 seconds to reach Earth, so you always see the Sun as it was a few minutes ago. Look at a distant star and you're seeing light that set off years ago."
+        },
+        "special2": {
+          "law": "Time dilation: Δt′ = Δt / √(1 − v²/c²)",
+          "explain": "Moving clocks tick slower, and so do clocks deep in a gravity well. The Time Dilation Bubble slows everything inside it relative to Einstein.",
+          "labNote": "GPS satellites have to correct for relativity: their clocks gain about 38 microseconds a day compared with clocks on the ground. Without the fix, your map position would drift by kilometres every day."
+        },
+        "ultimate": {
+          "law": "Mass–energy equivalence: E = mc²",
+          "explain": "Mass is a concentrated form of energy, and c² is an enormous conversion factor. A tiny amount of mass holds a huge amount of energy.",
+          "labNote": "One gram of mass, fully converted to energy, would release about 90 trillion joules. That's roughly what a large power station produces in a day. The Sun turns about 4 million tonnes of mass into light every second."
+        }
+      }
+    },
+    {
+      "id": "galileo",
+      "name": "Galileo Galilei",
+      "lived": "1564–1642",
+      "origin": "Italy",
+      "phase": 6,
+      "bio": "Astronomer and physicist who turned an early telescope on the sky in 1609–10 and discovered four moons orbiting Jupiter, now called the Galilean moons, which he described in Sidereus Nuncius (\"The Starry Messenger\"). He studied pendulums and falling bodies, and argued that, ignoring air resistance, heavy and light objects fall at the same rate.",
+      "funFact": "In 1971 Apollo 15 astronaut David Scott dropped a hammer and a feather on the airless Moon. They hit the ground together, just as Galileo predicted."
+    },
+    {
+      "id": "archimedes",
+      "name": "Archimedes",
+      "lived": "c. 287–212 BC",
+      "origin": "Syracuse (Sicily)",
+      "phase": 6,
+      "bio": "Mathematician and engineer of the ancient Greek world who explained the law of the lever and the principle of buoyancy: an object in a fluid is pushed up by a force equal to the weight of the fluid it displaces. He also produced one of the best ancient approximations of π.",
+      "funFact": "He is said to have declared \"Give me a place to stand, and I will move the Earth\", a perfect summary of what a long enough lever can do."
+    },
+    {
+      "id": "faraday",
+      "name": "Michael Faraday",
+      "lived": "1791–1867",
+      "origin": "England",
+      "phase": 6,
+      "bio": "Experimental scientist who discovered electromagnetic induction in 1831, the principle behind every electric generator and transformer. A changing magnetic field drives a current through a wire. He also showed that a conducting enclosure, now called a Faraday cage, shields its inside from electric fields.",
+      "funFact": "He had almost no formal schooling. He educated himself by reading the books he was binding as a teenage apprentice, and later started the Royal Institution's Christmas Lectures for young people (1825), which still run today."
+    },
+    {
+      "id": "hooke",
+      "name": "Robert Hooke",
+      "lived": "1635–1703",
+      "origin": "England",
+      "phase": 6,
+      "bio": "Polymath who found that the force needed to stretch a spring is proportional to how far it is stretched (F = −kx). His book Micrographia (1665) amazed readers with microscope drawings, and he coined the word \"cell\" for the tiny compartments he saw in cork.",
+      "funFact": "He first announced his spring law as a scrambled Latin anagram, \"ceiiinosssttuv\", to claim priority. Decoded, it reads \"ut tensio, sic vis\": as the extension, so the force."
+    },
+    {
+      "id": "schrodinger",
+      "name": "Erwin Schrödinger",
+      "lived": "1887–1961",
+      "origin": "Austria",
+      "phase": 7,
+      "bio": "Physicist who in 1926 wrote the wave equation that describes how quantum systems evolve, sharing the 1933 Nobel Prize in Physics. His wave functions let a particle be in a superposition of several states at once.",
+      "funFact": "His famous cat, both alive and dead in a sealed box, was invented in 1935 to show how strange quantum superposition becomes when applied to everyday objects."
+    },
+    {
+      "id": "heisenberg",
+      "name": "Werner Heisenberg",
+      "lived": "1901–1976",
+      "origin": "Germany",
+      "phase": 7,
+      "bio": "Physicist who created matrix mechanics in 1925 and formulated the uncertainty principle in 1927: the more precisely you know a particle's position, the less precisely you can know its momentum (Δx·Δp ≥ ħ/2). He received the 1932 Nobel Prize in Physics.",
+      "funFact": "He worked out the key ideas of matrix mechanics while recovering from severe hay fever on the remote, nearly pollen-free North Sea island of Heligoland."
+    },
+    {
+      "id": "hawking",
+      "name": "Stephen Hawking",
+      "lived": "1942–2018",
+      "origin": "England",
+      "phase": 7,
+      "bio": "Theoretical physicist who showed in 1974 that black holes are not completely black. Quantum effects near the event horizon make them emit Hawking radiation and slowly evaporate. He held Cambridge's Lucasian Professorship, Newton's old post, and his book A Brief History of Time brought cosmology to millions.",
+      "funFact": "In 2009 he held a party for time travellers and sent the invitations only after it was over. Nobody showed up."
+    },
+    {
+      "id": "doppler",
+      "name": "Christian Doppler",
+      "lived": "1803–1853",
+      "origin": "Austria",
+      "phase": 7,
+      "bio": "Physicist who proposed in 1842 that the observed frequency of a wave depends on the motion of its source relative to the observer. It's the reason a passing siren drops in pitch, and how astronomers measure the motion of stars through red- and blueshift.",
+      "funFact": "In 1845 Buys Ballot tested the idea with trumpeters playing a steady note on a moving train, while musicians with perfect pitch listened from beside the track."
+    },
+    {
+      "id": "bernoulli",
+      "name": "Daniel Bernoulli",
+      "lived": "1700–1782",
+      "origin": "Switzerland",
+      "phase": 8,
+      "bio": "Mathematician and physicist whose Hydrodynamica (1738) laid out the principle that in a flowing fluid, faster flow comes with lower pressure. That idea helps explain lift on wings and how atomizers and carburettors work. He came from a famous family of mathematicians.",
+      "funFact": "His father Johann, a rival, published a book on hydraulics with an earlier date on it, seemingly to claim the ideas first."
+    },
+    {
+      "id": "edison",
+      "name": "Thomas Edison",
+      "lived": "1847–1931",
+      "origin": "USA",
+      "phase": 8,
+      "bio": "Inventor and businessman whose Menlo Park laboratory produced the phonograph (1877), a long-lasting practical incandescent light bulb (1879) and electric power distribution systems. He championed direct current (DC) in the \"war of the currents\" against Tesla and Westinghouse's AC.",
+      "funFact": "He held 1,093 US patents, one of the largest totals ever granted to a single person."
+    },
+    {
+      "id": "sn-bose",
+      "name": "Satyendra Nath Bose",
+      "lived": "1894–1974",
+      "origin": "British India (Kolkata; worked in Dhaka)",
+      "phase": 8,
+      "bio": "Physicist who, while teaching at the University of Dhaka in 1924, derived Planck's radiation law using a new way of counting identical particles. Einstein extended it, creating Bose–Einstein statistics and predicting the Bose–Einstein condensate, a state in which atoms cooled near absolute zero behave as one. Particles that follow these statistics are called bosons in his honour.",
+      "funFact": "The first Bose–Einstein condensate was made in a lab in 1995, 71 years after his paper, and it earned the 2001 Nobel Prize in Physics."
+    },
+    {
+      "id": "jc-bose",
+      "name": "Jagadish Chandra Bose",
+      "lived": "1858–1937",
+      "origin": "Bengal (born in Mymensingh, today Bangladesh)",
+      "phase": 8,
+      "bio": "Physicist and biologist who in the 1890s pioneered research on millimetre-wavelength radio (microwaves) and built early detectors. He later invented the crescograph to measure the tiny growth and responses of plants to stimuli, and founded the Bose Institute in Kolkata.",
+      "funFact": "He chose not to profit from patents on much of his radio research, and he wrote one of the earliest works of Bengali science fiction."
+    }
+  ]
+}

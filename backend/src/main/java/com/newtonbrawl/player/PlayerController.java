@@ -34,6 +34,17 @@ public class PlayerController {
         return playerService.updateDisplayName(me.id(), body.displayName());
     }
 
+    @GetMapping("/me/matches")
+    public java.util.List<com.newtonbrawl.history.MatchHistoryDto> myMatches(@AuthenticationPrincipal AuthenticatedPlayer me,
+                                                                              @org.springframework.web.bind.annotation.RequestParam(defaultValue = "20") int limit) {
+        return playerService.recentMatches(me.id(), limit);
+    }
+
+    @GetMapping("/me/fighters")
+    public java.util.List<PlayerService.FighterStats> myFighters(@AuthenticationPrincipal AuthenticatedPlayer me) {
+        return playerService.fighterStats(me.id());
+    }
+
     /** Any player's public profile. */
     @GetMapping("/{id}")
     public PlayerProfileDto byId(@PathVariable long id) {

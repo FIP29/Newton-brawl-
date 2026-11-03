@@ -40,6 +40,11 @@ public class GlobalExceptionHandler {
             .body(ApiError.of(HttpStatus.BAD_REQUEST, "Malformed request body", req.getRequestURI()));
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    ResponseEntity<ApiError> handleIllegalArgument(IllegalArgumentException ex, HttpServletRequest req) {
+        return ResponseEntity.badRequest().body(ApiError.of(HttpStatus.BAD_REQUEST, ex.getMessage(), req.getRequestURI()));
+    }
+
     @ExceptionHandler(NoResourceFoundException.class)
     ResponseEntity<ApiError> handleNoResource(NoResourceFoundException ex, HttpServletRequest req) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)

@@ -74,8 +74,8 @@ export class MatchConnection {
   }
 
   /** Character select (before the match starts). */
-  pick(fighterId: string) {
-    if (this.ws.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify({ t: 'pick', f: fighterId }));
+  pick(fighterId: string, skin = 'classic') {
+    if (this.ws.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify({ t: 'pick', f: fighterId, s: skin }));
   }
 
   private ping() {

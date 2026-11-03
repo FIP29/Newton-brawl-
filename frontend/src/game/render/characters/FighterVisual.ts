@@ -35,8 +35,8 @@ export class ProceduralFighterVisual implements FighterVisual {
   private flashT = 0;
   pose: Pose | null = null;
 
-  constructor(private readonly def: FighterDefinition) {
-    this.look = lookFor(def.id);
+  constructor(private readonly def: FighterDefinition, skin?: string | null) {
+    this.look = lookFor(def.id, skin);
     this.glow = new GlowFilter({ color: this.look.glow, distance: 14, outerStrength: 1.6, innerStrength: 0, quality: 0.2 });
     this.body.addChild(this.g);
     this.root.addChild(this.body);
@@ -122,8 +122,8 @@ export class SpriteFighterVisual implements FighterVisual {
   destroy() { this.fallback.destroy(); this.root.destroy({ children: true }); }
 }
 
-export function createFighterVisual(def: FighterDefinition): FighterVisual {
-  const procedural = new ProceduralFighterVisual(def);
+export function createFighterVisual(def: FighterDefinition, skin?: string | null): FighterVisual {
+  const procedural = new ProceduralFighterVisual(def, skin);
   const manifest = ART_MANIFESTS[def.id];
   return manifest ? new SpriteFighterVisual(manifest, procedural) : procedural;
 }
