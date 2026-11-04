@@ -24,6 +24,10 @@ The database tables are created automatically on first start (Flyway migrations)
 
 ## Option S: frontend on Vercel, backend on Render, database on Supabase
 
+Templates of every variable: [`backend/.env.example`](backend/.env.example) (Render) and
+[`frontend/.env.example`](frontend/.env.example) (Vercel). Paste the values into each site's
+Environment Variables page; don't commit real secrets.
+
 The backend speaks **MySQL or PostgreSQL**: it picks the right migrations
 (`db/migration/mysql` or `db/migration/postgresql`) from `DB_URL`. Supabase is PostgreSQL.
 Do the three parts in this order.
