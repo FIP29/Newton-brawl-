@@ -169,7 +169,7 @@ They're procedural vector art on a two-bone-IK rig (`frontend/src/game/render/ch
 
 ## Deploying
 
-One Docker image serves the game, the API and online matches; it needs a MySQL database. Step-by-step guides for Railway and for your own server are in [DEPLOY.md](DEPLOY.md).
+One Docker image serves the game, the API and online matches; it needs a MySQL database. Step-by-step guides (Railway, your own server, or the frontend on Vercel with the backend on Railway) are in [DEPLOY.md](DEPLOY.md).
 
 ## Running locally
 

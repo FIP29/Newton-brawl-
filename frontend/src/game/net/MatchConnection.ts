@@ -23,8 +23,7 @@ export class MatchConnection {
   rtt = 0;
 
   constructor(room: string, private readonly handlers: ConnectionHandlers) {
-    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-    const base = import.meta.env.VITE_WS_BASE ?? `${proto}://${location.host}`;
+    const base = wsBase();
     const token = encodeURIComponent(tokenStore.get() ?? '');
     this.ws = new WebSocket(`${base}/ws/match?room=${encodeURIComponent(room)}&token=${token}`);
 
@@ -87,4 +86,17 @@ export class MatchConnection {
     window.clearInterval(this.pingTimer);
     this.ws.close(1000, 'leaving');
   }
+}
+
+/**
+ * Where the match server lives. Same origin by default (one server serves everything); when the
+ * frontend is hosted separately (e.g. on Vercel) it follows VITE_API_BASE, switching http(s) to
+ * ws(s). VITE_WS_BASE overrides both.
+ */
+function wsBase(): string {
+  const explicit = import.meta.env.VITE_WS_BASE as string | undefined;
+  if (explicit) return explicit.replace(/\/$/, '');
+  const api = import.meta.env.VITE_API_BASE as string | undefined;
+  if (api) return api.replace(/\/$/, '').replace(/^http/, 'ws');
+  return `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`;
 }

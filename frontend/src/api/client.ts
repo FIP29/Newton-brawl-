@@ -42,7 +42,8 @@ export function onUnauthorized(fn: UnauthorizedListener): () => void {
   return () => unauthorizedListeners.delete(fn);
 }
 
-const BASE = import.meta.env.VITE_API_BASE ?? '';
+/** The backend's address; empty = same origin. Set VITE_API_BASE when the frontend is hosted separately (Vercel). */
+const BASE = ((import.meta.env.VITE_API_BASE as string | undefined) ?? '').replace(/\/$/, '');
 
 export async function api<T>(path: string, init: RequestInit & { json?: unknown } = {}): Promise<T> {
   const headers = new Headers(init.headers);

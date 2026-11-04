@@ -22,6 +22,30 @@ The database tables are created automatically on first start (Flyway migrations)
 
 ---
 
+## Option V: frontend on Vercel + backend on Railway
+
+Vercel only runs static sites and short-lived serverless functions, so it can't run the backend
+(live matches stay in memory, the simulation runs 60 times a second and fights use long-lived
+WebSockets). Split it: **the game (frontend) on Vercel**, **the backend + MySQL on Railway**.
+
+1. **Backend first:** follow Option A below. Note its domain, e.g. `https://newton-brawl.up.railway.app`.
+2. **Vercel:** https://vercel.com → **Add New → Project →** import this GitHub repository.
+   - **Root Directory:** leave it at the repository root (`./`). `vercel.json` there already builds
+     `frontend/` (it needs the fighter data in `backend/`) and serves `frontend/dist`.
+   - **Branch:** pick the production branch in **Settings → Git** (e.g. `main`, or `ccr-b9f0a571-np7x0r`).
+   - **Environment Variables:** `VITE_API_BASE=https://newton-brawl.up.railway.app` (your Railway
+     domain, no trailing slash). WebSockets follow it automatically (`wss://…`).
+   - **Deploy.** You get an address like `https://newton-brawl.vercel.app`.
+3. **Back on Railway**, set the backend's `CORS_ORIGINS` to the Vercel address,
+   e.g. `CORS_ORIGINS=https://newton-brawl.vercel.app`. Several addresses can be listed,
+   comma-separated (add your custom domain too). Without this, logins and online fights are refused.
+4. Open the Vercel address and play.
+
+Notes:
+- `VITE_API_BASE` is baked in when the frontend is built: after changing it, redeploy on Vercel.
+- Vercel's preview deployments get their own random addresses; they can only talk to the backend
+  if you add those addresses to `CORS_ORIGINS` too. The production address is enough for playing.
+
 ## Option A: Railway (easiest)
 
 Railway builds the Dockerfile straight from GitHub and offers a MySQL database in the same project.
