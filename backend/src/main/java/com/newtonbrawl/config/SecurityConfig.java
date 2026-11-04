@@ -22,8 +22,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.List;
 
 /**
- * Stateless JWT security. Public: auth endpoints, health, (later) the WebSocket handshake,
- * which authenticates with its own token check. Everything else under /api requires a token.
+ * Stateless JWT security. Public: auth endpoints, health, the WebSocket handshake (which checks its
+ * own token) and the built game files. Everything else under /api requires a token.
  */
 @Configuration
 public class SecurityConfig {
@@ -39,7 +39,9 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/api/auth/**", "/actuator/health", "/ws/**", "/h2-console/**").permitAll()
-                .anyRequest().authenticated())
+                .requestMatchers("/api/**", "/actuator/**").authenticated()
+                // Everything else is the game itself (index.html, JS, CSS, fonts): public.
+                .anyRequest().permitAll())
             // Return our JSON error shape instead of an empty 401/403.
             .exceptionHandling(ex -> ex
                 .authenticationEntryPoint((req, res, e) -> {

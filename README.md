@@ -167,6 +167,10 @@ They're procedural vector art on a two-bone-IK rig (`frontend/src/game/render/ch
 - `BalanceLeagueTest` guards against regressions: no fighter may leave 30–70%. `mvn test -Dtest=BalanceLeagueTest -Dbalance.full=true` runs the bigger league and rewrites the report.
 - Bots aren't people: the numbers flag outliers, they don't settle a matchup.
 
+## Deploying
+
+One Docker image serves the game, the API and online matches; it needs a MySQL database. Step-by-step guides for Railway and for your own server are in [DEPLOY.md](DEPLOY.md).
+
 ## Running locally
 
 ### Backend

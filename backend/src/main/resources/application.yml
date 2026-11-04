@@ -1,6 +1,11 @@
 # Default profile = MySQL. Use `--spring.profiles.active=dev` for a zero-setup H2 database.
 server:
-  port: 8080
+  port: ${PORT:8080}   # hosting platforms (Railway, Render, Fly…) pass the port in PORT
+  # Behind a platform's HTTPS proxy: trust X-Forwarded-* so redirects and URLs use https.
+  forward-headers-strategy: framework
+  compression:
+    enabled: true
+    mime-types: text/html,text/css,application/javascript,application/json,image/svg+xml
 
 spring:
   application:

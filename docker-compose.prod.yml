@@ -1,0 +1,34 @@
+# Self-hosting on your own server (VPS): the game + MySQL.
+#   cp .env.example .env   # then fill it in
+#   docker compose -f docker-compose.prod.yml up -d --build
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:mysql://mysql:3306/newton_brawl?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      DB_USER: newton
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      CORS_ORIGINS: ${PUBLIC_URL}
+    ports:
+      - "8080:8080"
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: newton_brawl
+      MYSQL_USER: newton
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      retries: 30
+volumes:
+  mysql-data:

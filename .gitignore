@@ -13,3 +13,5 @@ frontend/dist/
 .env
 *.local
 frontend/*.tsbuildinfo
+# Built frontend bundled by the Docker image
+backend/src/main/resources/static/
