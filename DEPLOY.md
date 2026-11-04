@@ -30,8 +30,10 @@ WebSockets). Split it: **the game (frontend) on Vercel**, **the backend + MySQL 
 
 1. **Backend first:** follow Option A below. Note its domain, e.g. `https://newton-brawl.up.railway.app`.
 2. **Vercel:** https://vercel.com → **Add New → Project →** import this GitHub repository.
-   - **Root Directory:** leave it at the repository root (`./`). `vercel.json` there already builds
-     `frontend/` (it needs the fighter data in `backend/`) and serves `frontend/dist`.
+   - **Root Directory:** either the repository root (`./`) or `frontend` works; each has its own
+     `vercel.json`. With `frontend`, keep **"Include files outside the root directory in the Build
+     Step"** enabled (the default), because the game imports fighter data from `backend/`.
+   - Leave the build/install/output command overrides **off**; `vercel.json` sets them.
    - **Branch:** pick the production branch in **Settings → Git** (e.g. `main`, or `ccr-b9f0a571-np7x0r`).
    - **Environment Variables:** `VITE_API_BASE=https://newton-brawl.up.railway.app` (your Railway
      domain, no trailing slash). WebSockets follow it automatically (`wss://…`).
