@@ -4,7 +4,7 @@ A 2D online PvP fighting game where every fighter is a famous scientist and ever
 The art direction is called Neon Chalkboard. Netcode is server-authoritative, and the ranked ladder goes from **Atom → Black Hole**.
 
 ```
-/backend   Java 21 · Spring Boot 3 · Spring Security (JWT) · JPA · Flyway · MySQL
+/backend   Java 21 · Spring Boot 3 · Spring Security (JWT) · JPA · Flyway · MySQL or PostgreSQL
 /frontend  TypeScript · Vite · React · PixiJS v8 · pixi-filters · GSAP · Howler.js
 ```
 
@@ -169,7 +169,7 @@ They're procedural vector art on a two-bone-IK rig (`frontend/src/game/render/ch
 
 ## Deploying
 
-One Docker image serves the game, the API and online matches; it needs a MySQL database. Step-by-step guides (Railway, your own server, or the frontend on Vercel with the backend on Railway) are in [DEPLOY.md](DEPLOY.md).
+One Docker image serves the game, the API and online matches; it needs a MySQL database. It works with MySQL or PostgreSQL (e.g. Supabase). Step-by-step guides (Vercel + Render + Supabase, Railway, or your own server) are in [DEPLOY.md](DEPLOY.md).
 
 ## Running locally
 

@@ -22,6 +22,60 @@ The database tables are created automatically on first start (Flyway migrations)
 
 ---
 
+## Option S: frontend on Vercel, backend on Render, database on Supabase
+
+The backend speaks **MySQL or PostgreSQL**: it picks the right migrations
+(`db/migration/mysql` or `db/migration/postgresql`) from `DB_URL`. Supabase is PostgreSQL.
+Do the three parts in this order.
+
+### 1. Database: Supabase
+1. https://supabase.com → **New project**. Pick a region close to your players and use the
+   **same region** for Render (e.g. Singapore). **Save the database password** you set.
+2. Click **Connect** (top of the project page) and choose **Session pooler**. You'll see a string like
+   `postgresql://postgres.abcdefghijkl:[YOUR-PASSWORD]@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres`.
+   Turn it into three values for Render:
+   ```
+   DB_URL=jdbc:postgresql://aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres?sslmode=require
+   DB_USER=postgres.abcdefghijkl
+   DB_PASSWORD=<your database password>
+   ```
+   (Copy *your* host and user from the dashboard; the ones above are examples.)
+   - Use the **Session pooler**, not "Direct connection" (IPv6 only, which Render can't reach)
+     and not the "Transaction pooler" on port 6543.
+3. Don't create any tables: the backend creates them on its first start. It also turns on Row
+   Level Security for them, so Supabase's public API can't read player data; the game only uses
+   its own backend, so nothing else is needed.
+
+### 2. Backend: Render
+1. https://render.com → **New → Web Service →** connect GitHub and pick this repository,
+   branch `ccr-b9f0a571-np7x0r` (or `main` once merged).
+2. **Language/Runtime: Docker** (Render finds the `Dockerfile`). Same region as Supabase.
+   Instance type: Free works for trying it out (see the note below).
+3. **Environment variables:** the three `DB_…` values above, plus
+   ```
+   JWT_SECRET=<output of: openssl rand -base64 48>
+   CORS_ORIGINS=https://your-project.vercel.app
+   ```
+   (`CORS_ORIGINS` is your Vercel address from step 3; put a placeholder now and fix it after.)
+4. **Advanced → Health Check Path:** `/actuator/health`. Create the service. The first build
+   takes a few minutes; it's ready when the log shows `Started NewtonBrawlApplication`.
+   You get an address like `https://newton-brawl.onrender.com`.
+   Opening it shows the game too (the image includes it), which is a handy check.
+
+Render's **free** plan stops the service after 15 minutes without visitors; the next visit waits
+about a minute while it starts again. A paid instance stays awake.
+
+### 3. Frontend: Vercel
+1. https://vercel.com → **Add New → Project →** import this repository. Root Directory: `./` or
+   `frontend` (both work). Leave the build command overrides off. Branch: **Settings → Git**.
+2. **Environment Variables:** `VITE_API_BASE=https://newton-brawl.onrender.com` (your Render
+   address, no trailing slash). Deploy.
+3. Copy the Vercel address into Render's `CORS_ORIGINS` (Render redeploys), and play.
+
+If logins fail with a network or CORS error, `CORS_ORIGINS` on Render doesn't exactly match the
+address in your browser (https, no trailing slash). If the Render log shows a database connection
+error, re-check the Session pooler host, the `postgres.<project>` user and the password.
+
 ## Option V: frontend on Vercel + backend on Railway
 
 Vercel only runs static sites and short-lived serverless functions, so it can't run the backend

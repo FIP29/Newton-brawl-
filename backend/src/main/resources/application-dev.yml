@@ -7,3 +7,6 @@ spring:
   h2:
     console:
       enabled: true
+  # H2 runs in MySQL mode, so it uses the MySQL migrations.
+  flyway:
+    locations: classpath:db/migration/mysql
