@@ -14,7 +14,7 @@ import { SoundSettings } from '../components/SoundSettings';
 import { Banner, HudBar, useMatchPresentation } from '../components/FightHud';
 import { CharacterSelect } from '../components/CharacterSelect';
 import { useFightOverlays } from '../components/FightOverlays';
-import { fighterPortraits } from '../components/portraits';
+import { portraitsFor } from '../components/portraits';
 import { VictoryPanel } from '../components/VictoryPanel';
 import { RivalryIntro, RivalryOutcome } from '../components/RivalryIntro';
 import { rivalryFor } from '../game/data/rivalries';
@@ -149,7 +149,7 @@ function LocalFight({ picks, arenaId, onChangeFighters }: { picks: [string, stri
   const togglePause = useRef<() => void>(() => {});
   const defs: [FighterDefinition, FighterDefinition] = [FIGHTERS[picks[0]], FIGHTERS[picks[1]]];
 
-  useEffect(() => { void fighterPortraits().then(setImages); }, []);
+  useEffect(() => { void portraitsFor(picks).then(setImages); }, [picks[0], picks[1]]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!host) return;

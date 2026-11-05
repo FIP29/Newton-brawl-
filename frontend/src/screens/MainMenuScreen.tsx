@@ -1,9 +1,10 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import gsap from 'gsap';
 import { useAuth } from '../auth/AuthContext';
 import { sfx } from '../audio/sfx';
 import { TierBadge } from '../components/TierBadge';
+import { ClaimAccount } from '../components/ClaimAccount';
 
 interface MenuItem { label: string; hint: string; color: string; phase: number; to?: string }
 
@@ -25,6 +26,7 @@ export function MainMenuScreen() {
   const { player, logout, refresh } = useAuth();
   const navigate = useNavigate();
   const root = useRef<HTMLDivElement>(null);
+  const [claiming, setClaiming] = useState(false);
 
   // Record/Elo may have changed in a match since the profile was loaded.
   useEffect(() => { void refresh(); }, [refresh]);
@@ -73,9 +75,20 @@ export function MainMenuScreen() {
             <div><dt>Win rate</dt><dd>{games ? `${player.winRate}%` : '—'}</dd></div>
           </dl>
           <div className="vp-next">{player.nextTierName ? `${player.nextTierElo - player.elo} Elo to ${player.nextTierName}` : 'Top of the ladder'}</div>
-          <button className="btn-ghost" onClick={() => { sfx.click(); logout(); }}>Log out</button>
+          {player.guest && (
+            <div className="guest-banner">
+              <b>Guest account.</b> Your progress lives on this device only, and ranked is locked.
+              <button className="btn-neon" onClick={() => { sfx.click(); setClaiming(true); }}>Save my progress</button>
+            </div>
+          )}
+          <button className="btn-ghost" onClick={() => {
+            sfx.click();
+            if (player.guest && !window.confirm('Log out of this guest account? Without an account you can\'t get back into it.')) return;
+            logout();
+          }}>Log out</button>
         </aside>
       </div>
+      {claiming && <ClaimAccount onClose={() => setClaiming(false)} />}
     </div>
   );
 }

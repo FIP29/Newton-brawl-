@@ -115,7 +115,8 @@ function UltimateCinematic({ def, slot, onDone }: { def: FighterDefinition; slot
   const color = hex(lookFor(def.id).glow);
   const ult = def.moves.ultimate;
   useLayoutEffect(() => {
-    void import('./portraits').then((m) => m.fighterPortraits()).then((imgs) => setImg(imgs[def.id] ?? null));
+    // Already rendered when the fight started (portraitsFor), so this resolves at once from the cache.
+    void import('./portraits').then((m) => m.portraitsFor([def.id])).then((imgs) => setImg(imgs[def.id] ?? null));
     const root = ref.current!;
     const q = (sel: string) => root.querySelector(sel);
     const from = slot === 0 ? -110 : 110;

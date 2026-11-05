@@ -73,6 +73,39 @@ class AuthFlowIntegrationTest {
     }
 
     @Test
+    void guestPlaysCasualButNotRankedThenClaimsAnAccount() throws Exception {
+        MvcResult g = mvc.perform(post("/api/auth/guest")).andExpect(status().isCreated()).andReturn();
+        JsonNode gj = json.readTree(g.getResponse().getContentAsString());
+        String token = gj.get("token").asText();
+        assertThat(gj.at("/player/guest").asBoolean()).isTrue();
+        assertThat(gj.at("/player/username").asText()).startsWith("Guest-");
+        long id = gj.at("/player/id").asLong();
+
+        mvc.perform(post("/api/matchmaking/ranked").header("Authorization", "Bearer " + token))
+            .andExpect(status().isForbidden());
+        mvc.perform(post("/api/matchmaking/casual").header("Authorization", "Bearer " + token))
+            .andExpect(status().isCreated());
+
+        MvcResult claim = mvc.perform(post("/api/auth/claim").header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"username\":\"marie\",\"email\":\"marie@sorbonne.fr\",\"password\":\"radium-glows\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.player.guest").value(false))
+            .andExpect(jsonPath("$.player.username").value("marie"))
+            .andReturn();
+        assertThat(json.readTree(claim.getResponse().getContentAsString()).at("/player/id").asLong()).isEqualTo(id);
+
+        mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"login\":\"marie\",\"password\":\"radium-glows\"}"))
+            .andExpect(status().isOk());
+        // already registered: can't claim twice
+        mvc.perform(post("/api/auth/claim").header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"username\":\"marie2\",\"email\":\"m2@sorbonne.fr\",\"password\":\"radium-glows\"}"))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
     void duplicateUsernameIsConflict() throws Exception {
         register("tesla", "nikola@example.com", "alternating-current");
         MvcResult dup = register("Tesla", "other@example.com", "alternating-current");

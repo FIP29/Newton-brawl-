@@ -76,3 +76,51 @@ export async function api<T>(path: string, init: RequestInit & { json?: unknown 
 function safeJson(text: string): unknown {
   try { return JSON.parse(text); } catch { return null; }
 }
+
+// ------------------------------------------------------------------ server wake-up
+
+export type ServerState = 'checking' | 'waking' | 'ready' | 'down';
+let serverState: ServerState = 'checking';
+let wakePromise: Promise<void> | null = null;
+const serverListeners = new Set<(s: ServerState) => void>();
+
+function setServerState(s: ServerState) {
+  serverState = s;
+  serverListeners.forEach((fn) => fn(s));
+}
+
+export function getServerState(): ServerState { return serverState; }
+export function onServerState(fn: (s: ServerState) => void): () => void {
+  serverListeners.add(fn);
+  return () => serverListeners.delete(fn);
+}
+
+/**
+ * Pings the health endpoint so a sleeping free-tier server starts booting the moment the page opens,
+ * not when the player presses "Create". Retries for up to ~4 minutes; safe to call many times.
+ */
+export function wakeServer(): Promise<void> {
+  if (wakePromise) return wakePromise;
+  wakePromise = (async () => {
+    const started = Date.now();
+    const slowAfter = setTimeout(() => { if (serverState === 'checking') setServerState('waking'); }, 1500);
+    try {
+      while (Date.now() - started < 240_000) {
+        try {
+          const ctl = new AbortController();
+          const t = setTimeout(() => ctl.abort(), 20_000);
+          const res = await fetch(BASE + '/actuator/health', { signal: ctl.signal, cache: 'no-store' });
+          clearTimeout(t);
+          if (res.ok) { setServerState('ready'); return; }
+        } catch { /* still asleep, or a network blip */ }
+        if (serverState === 'checking') setServerState('waking');
+        await new Promise((r) => setTimeout(r, 3000));
+      }
+      setServerState('down');
+      wakePromise = null; // let a later call try again
+    } finally {
+      clearTimeout(slowAfter);
+    }
+  })();
+  return wakePromise;
+}

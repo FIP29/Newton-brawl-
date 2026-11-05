@@ -4,12 +4,14 @@ import gsap from 'gsap';
 import { ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { sfx } from '../audio/sfx';
+import { AuthField } from '../components/AuthFields';
+import { ServerStatus } from '../components/ServerStatus';
 
 type Mode = 'login' | 'register';
 
 /** Login / register. The title "writes itself" in neon, then the form card rises in. */
 export function LoginScreen() {
-  const { status, login, register } = useAuth();
+  const { status, login, register, playAsGuest } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const root = useRef<HTMLDivElement>(null);
@@ -36,8 +38,6 @@ export function LoginScreen() {
     return <Navigate to={from} replace />;
   }
 
-  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setForm((f) => ({ ...f, [k]: e.target.value }));
 
   const switchMode = (m: Mode) => {
     if (m === mode) return;
@@ -48,33 +48,50 @@ export function LoginScreen() {
     gsap.fromTo('.auth-fields', { opacity: 0, x: m === 'register' ? 30 : -30 }, { opacity: 1, x: 0, duration: 0.35, ease: 'power2.out' });
   };
 
+  const [guestBusy, setGuestBusy] = useState(false);
+
+  const fail = (err: unknown) => {
+    sfx.error();
+    gsap.fromTo('.auth-card', { x: -10 }, { x: 0, duration: 0.4, ease: 'elastic.out(1.2, 0.3)' });
+    if (err instanceof ApiError) { setError(err.message); setFieldErrors(err.fieldErrors); }
+    else setError('Something went wrong');
+  };
+
+  const guest = async () => {
+    sfx.click();
+    setGuestBusy(true);
+    setError(null);
+    try {
+      await playAsGuest();
+      sfx.success();
+      navigate('/', { replace: true });
+    } catch (err) {
+      fail(err);
+    } finally {
+      setGuestBusy(false);
+    }
+  };
+
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true);
     setError(null);
     setFieldErrors({});
     try {
-      if (mode === 'login') await login(form.login, form.password);
-      else await register(form.username, form.email, form.password);
+      if (mode === 'login') await login(form.login.trim(), form.password);
+      else await register(form.username.trim(), form.email.trim(), form.password);
       sfx.success();
       navigate('/', { replace: true });
     } catch (err) {
-      sfx.error();
-      gsap.fromTo('.auth-card', { x: -10 }, { x: 0, duration: 0.4, ease: 'elastic.out(1.2, 0.3)' });
-      if (err instanceof ApiError) { setError(err.message); setFieldErrors(err.fieldErrors); }
-      else setError('Something went wrong');
+      fail(err);
     } finally {
       setBusy(false);
     }
   };
 
   const field = (name: keyof typeof form, label: string, type = 'text', autoComplete?: string) => (
-    <label className="field">
-      <span>{label}</span>
-      <input name={name} type={type} value={form[name]} onChange={set(name)} autoComplete={autoComplete}
-             aria-invalid={!!fieldErrors[name]} required />
-      {fieldErrors[name] && <em className="field-error">{fieldErrors[name]}</em>}
-    </label>
+    <AuthField name={name} label={label} type={type} autoComplete={autoComplete} value={form[name]}
+               error={fieldErrors[name]} onChange={(v) => setForm((f) => ({ ...f, [name]: v }))} />
   );
 
   return (
@@ -110,9 +127,17 @@ export function LoginScreen() {
 
         {error && <p className="form-error" role="alert">{error}</p>}
 
-        <button className="btn-neon" type="submit" disabled={busy} onMouseEnter={sfx.hover}>
+        <button className="btn-neon" type="submit" disabled={busy || guestBusy} onMouseEnter={sfx.hover}>
           {busy ? 'Calculating…' : mode === 'login' ? 'Enter the Lab' : 'Create Scientist'}
         </button>
+
+        <div className="auth-or">or</div>
+        <button className="btn-guest" type="button" onClick={guest} disabled={busy || guestBusy} onMouseEnter={sfx.hover}>
+          {guestBusy ? 'Opening the lab…' : 'Play as guest'}
+        </button>
+        <p className="guest-note">No sign-up. Casual, private and local matches. Save your progress with an account any time.</p>
+
+        <ServerStatus />
       </form>
     </div>
   );

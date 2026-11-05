@@ -91,6 +91,9 @@ public class MatchmakingService {
     public synchronized TicketStatus join(long playerId, MatchMode mode) {
         if (mode == MatchMode.PRIVATE) throw new IllegalArgumentException("Private matches use room codes");
         Player p = players.findById(playerId).orElseThrow(() -> new NotFoundException("Player not found"));
+        if (mode == MatchMode.RANKED && p.isGuest()) {
+            throw new com.newtonbrawl.common.exception.ForbiddenException("Create an account to play ranked — guests can play casual and private matches");
+        }
         // One ticket per player: re-joining replaces the old one.
         tickets.values().removeIf(t -> t.playerId == playerId && t.state == State.SEARCHING);
         Ticket t = new Ticket(playerId, mode, p.getElo(), clock.instant());

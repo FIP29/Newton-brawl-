@@ -11,6 +11,7 @@ export default defineConfig({
     fs: { allow: ['..'] },
     proxy: {
       '/api': 'http://localhost:8080',
+      '/actuator': 'http://localhost:8080',
       '/ws': { target: 'ws://localhost:8080', ws: true },
     },
   },

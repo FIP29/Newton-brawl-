@@ -55,11 +55,15 @@ export class FxSystem {
   private particles: Particle[] = [];
   private pool: Sprite[] = [];
   private transients: Transient[] = [];
+  private gPool: Graphics[] = [];
+  /** Hard cap on live particles: big ULTIMATE bursts on top of ambient motes can't snowball. */
+  static readonly MAX_PARTICLES = 650;
 
   constructor(private readonly tex: FxTextures) {}
 
   burst(x: number, y: number, color: number, count: number, speed: number,
         opts: { life?: number; size?: number; grav?: number; up?: number; streak?: boolean } = {}) {
+    count = Math.min(count, FxSystem.MAX_PARTICLES - this.particles.length);
     for (let i = 0; i < count; i++) {
       const s = this.pool.pop() ?? new Sprite(this.tex.dot);
       s.texture = opts.streak ? this.tex.streak : this.tex.dot;
@@ -81,6 +85,7 @@ export class FxSystem {
 
   /** Slow ambient mote (dust, embers). */
   mote(x: number, y: number, color: number, vy: number, life: number, size: number) {
+    if (this.particles.length >= FxSystem.MAX_PARTICLES * 0.8) return; // ambience yields to the action
     const s = this.pool.pop() ?? new Sprite(this.tex.dot);
     s.texture = this.tex.dot;
     s.anchor.set(0.5); s.tint = color; s.blendMode = 'add'; s.alpha = 0;
@@ -90,8 +95,10 @@ export class FxSystem {
   }
 
   transient(max: number, draw: (g: Graphics, k: number) => void) {
-    const g = new Graphics();
+    const g = this.gPool.pop() ?? new Graphics();
+    g.clear();
     g.blendMode = 'add';
+    g.alpha = 1;
     this.layer.addChild(g);
     this.transients.push({ g, age: 0, max, draw });
   }
@@ -109,26 +116,36 @@ export class FxSystem {
   }
 
   update(dt: number) {
-    this.particles = this.particles.filter((p) => {
+    const frames = dt * 60; // drag is tuned per 60 Hz frame; scale it so 144 Hz screens look the same
+    let keep = 0;
+    for (const p of this.particles) {
       p.life -= dt;
-      if (p.life <= 0) { this.layer.removeChild(p.s); this.pool.push(p.s); return false; }
+      if (p.life <= 0) { this.layer.removeChild(p.s); this.pool.push(p.s); continue; }
       p.vy -= p.grav * dt;
-      p.vx *= p.drag;
-      p.vy *= p.drag;
+      const drag = p.drag === 1 ? 1 : Math.pow(p.drag, frames);
+      p.vx *= drag;
+      p.vy *= drag;
       p.s.x += p.vx * dt;
       p.s.y += p.vy * dt;
       const k = p.life / p.max;
       p.s.alpha = p.grav === 0 ? Math.min(1, (1 - k) * 4, k * 2) * 0.6 : k;
       if (p.grow) p.s.scale.set(Math.max(0.05, p.s.scale.x + p.grow * dt));
       if (p.s.texture === this.tex.streak) p.s.rotation = Math.atan2(p.vy, p.vx);
-      return true;
-    });
-    this.transients = this.transients.filter((t) => {
+      this.particles[keep++] = p;
+    }
+    this.particles.length = keep;
+    keep = 0;
+    for (const t of this.transients) {
       t.age += dt;
-      if (t.age >= t.max) { t.g.destroy(); return false; }
+      if (t.age >= t.max) {
+        t.g.removeFromParent();
+        if (this.gPool.length < 32) this.gPool.push(t.g); else t.g.destroy();
+        continue;
+      }
       t.draw(t.g, t.age / t.max);
-      return true;
-    });
+      this.transients[keep++] = t;
+    }
+    this.transients.length = keep;
   }
 
   clear() {

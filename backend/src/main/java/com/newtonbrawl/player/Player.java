@@ -53,6 +53,10 @@ public class Player {
     @Column(name = "last_login_at")
     private Instant lastLoginAt;
 
+    /** A guest account: made with one click, no email or password the player knows. Can't play ranked. */
+    @Column(nullable = false)
+    private boolean guest;
+
     protected Player() {
         // for JPA
     }
@@ -63,6 +67,22 @@ public class Player {
         this.passwordHash = passwordHash;
         this.displayName = displayName;
         this.createdAt = Instant.now();
+    }
+
+    /** A throwaway guest account (random username, placeholder email, unguessable password). */
+    public static Player guest(String username, String email, String passwordHash) {
+        Player p = new Player(username, email, passwordHash, username);
+        p.guest = true;
+        return p;
+    }
+
+    /** Turns a guest into a full account, keeping its record, Codex and unlocks. */
+    public void claim(String username, String email, String passwordHash, String displayName) {
+        this.username = username;
+        this.email = email;
+        this.passwordHash = passwordHash;
+        this.displayName = displayName;
+        this.guest = false;
     }
 
     public RankTier rankTier() {
@@ -100,6 +120,7 @@ public class Player {
     public int getLosses() { return losses; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getLastLoginAt() { return lastLoginAt; }
+    public boolean isGuest() { return guest; }
 
     public void setDisplayName(String displayName) { this.displayName = displayName; }
 }

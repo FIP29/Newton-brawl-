@@ -66,8 +66,16 @@ Do the three parts in this order.
    You get an address like `https://newton-brawl.onrender.com`.
    Opening it shows the game too (the image includes it), which is a handy check.
 
-Render's **free** plan stops the service after 15 minutes without visitors; the next visit waits
-about a minute while it starts again. A paid instance stays awake.
+Render's **free** plan stops the service after 15 minutes without visitors, and the next visit waits
+while it starts again. Three things soften that:
+- The image starts fast: the jar is unpacked and a class-data-sharing archive is recorded at build time
+  (`JAVA_OPTS` keeps `-XX:TieredStopAtLevel=1` for the tiny free CPU).
+- The game pings `/actuator/health` the moment the page opens and shows "Waking the server up…" on the
+  login screen, so the server boots while the player types.
+- [`.github/workflows/keep-warm.yml`](.github/workflows/keep-warm.yml) pings it every 10 minutes so it
+  never falls asleep (one always-on free service fits in the 750 free hours a month). Set the repository
+  variable `BACKEND_URL` if your Render address differs. A free uptime monitor (UptimeRobot,
+  cron-job.org) hitting the same URL works too. A paid instance stays awake on its own.
 
 ### 3. Frontend: Vercel
 1. https://vercel.com → **Add New → Project →** import this repository. Root Directory: `./` or

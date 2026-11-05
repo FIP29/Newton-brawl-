@@ -14,6 +14,8 @@ export interface PlayerProfile {
   rankedGames: number;
   nextTierName: string | null;
   nextTierElo: number;
+  /** A one-click guest account: can't play ranked until it's claimed with a username, email and password. */
+  guest: boolean;
 }
 
 /** Mirrors com.newtonbrawl.auth.dto.AuthResponse */

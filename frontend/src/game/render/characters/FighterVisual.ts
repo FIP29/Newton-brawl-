@@ -17,6 +17,8 @@ export interface FighterVisual {
   flash(): void;
   /** Last pose (hand positions etc.) for effects anchoring; null for sprite art. */
   readonly pose: Pose | null;
+  /** Neon outline on/off (off at low graphics quality: it's an extra pass per fighter). */
+  setGlow?(on: boolean): void;
   destroy(): void;
 }
 
@@ -44,6 +46,8 @@ export class ProceduralFighterVisual implements FighterVisual {
   }
 
   flash() { this.flashT = 0.12; }
+
+  setGlow(on: boolean) { this.root.filters = on ? [this.glow] : null; }
 
   update(v: FighterView, dt: number) {
     this.flashT = Math.max(0, this.flashT - dt);

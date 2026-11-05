@@ -9,7 +9,7 @@ import java.time.Instant;
 public record PlayerProfileDto(long id, String username, String displayName, int elo,
                                String rankTier, String rankTierName, int wins, int losses,
                                double winRate, Instant createdAt, int peakElo, int rankedGames,
-                               String nextTierName, int nextTierElo) {
+                               String nextTierName, int nextTierElo, boolean guest) {
 
     public static PlayerProfileDto from(Player p) {
         int games = p.getWins() + p.getLosses();
@@ -18,6 +18,6 @@ public record PlayerProfileDto(long id, String username, String displayName, int
         return new PlayerProfileDto(p.getId(), p.getUsername(), p.getDisplayName(), p.getElo(),
             p.rankTier().name(), p.rankTier().displayName(), p.getWins(), p.getLosses(),
             winRate, p.getCreatedAt(), p.getPeakElo(), p.getRankedGames(),
-            next == null ? null : next.displayName(), next == null ? -1 : next.minElo());
+            next == null ? null : next.displayName(), next == null ? -1 : next.minElo(), p.isGuest());
     }
 }

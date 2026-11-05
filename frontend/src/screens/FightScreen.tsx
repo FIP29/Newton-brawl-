@@ -14,7 +14,7 @@ import { sfx } from '../audio/sfx';
 import { Banner, HudBar, useMatchPresentation } from '../components/FightHud';
 import { CharacterSelect } from '../components/CharacterSelect';
 import { useFightOverlays } from '../components/FightOverlays';
-import { fighterPortraits } from '../components/portraits';
+import { portraitsFor } from '../components/portraits';
 import { VictoryPanel } from '../components/VictoryPanel';
 import { RivalryIntro, RivalryOutcome } from '../components/RivalryIntro';
 import { rivalryFor } from '../game/data/rivalries';
@@ -64,7 +64,6 @@ export function FightScreen() {
   const selectRef = useRef({ hover: 0, roster: [] as FighterDefinition[], status: 'connecting' as Status });
   selectRef.current = { hover, roster, status };
 
-  useEffect(() => { void fighterPortraits().then(setImages); }, []);
   useEffect(() => {
     void unlocksApi.list().then((list) => {
       const hints: Record<string, string> = {};
@@ -231,6 +230,9 @@ export function FightScreen() {
   const result = end && (end.winner < 0 ? 'DRAW' : end.winner === slot ? 'VICTORY' : 'DEFEAT');
   const mine = players.find((p) => p.slot === slot);
   const theirs = players.find((p) => p.slot !== slot);
+  const fightIds = defs.map((d) => d.id).join(',');
+  // Only the two fighters in this match, rendered as soon as they're known (not mid-ULTIMATE).
+  useEffect(() => { if (fightIds) void portraitsFor(fightIds.split(',')).then((m) => setImages((old) => ({ ...old, ...m }))); }, [fightIds]);
   const fighterInfo = defs.length === 2 ? defs.map((d) => ({ id: d.id, name: d.name, color: hex(lookFor(d.id).glow) })) : undefined;
 
   const pick = (id: string, withSkin?: string) => {

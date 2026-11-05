@@ -138,8 +138,10 @@ export function PlayOnlineScreen() {
           {player && (
             <div className="play-rank"><TierBadge tier={player.rankTier} size={34} /> <b>{player.rankTierName}</b> · {player.elo} Elo</div>
           )}
-          <p className="chalk-note">Climb from Atom to Black Hole.</p>
-          <button className="btn-neon btn-violet" onClick={() => joinQueue('ranked')} disabled={!!ticket} onMouseEnter={sfx.hover}>Find ranked match</button>
+          <p className="chalk-note">{player?.guest ? 'Create an account (main menu → Save my progress) to play ranked.' : 'Climb from Atom to Black Hole.'}</p>
+          <button className="btn-neon btn-violet" onClick={() => joinQueue('ranked')} disabled={!!ticket || !!player?.guest} onMouseEnter={sfx.hover}>
+            {player?.guest ? 'Ranked locked for guests' : 'Find ranked match'}
+          </button>
         </section>
 
         <section className="play-card panel" style={{ '--accent': 'var(--newton)' } as React.CSSProperties}>

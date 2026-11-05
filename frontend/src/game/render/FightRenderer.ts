@@ -1,5 +1,6 @@
 import { Application, Container, Graphics, type Filter } from 'pixi.js';
-import { AdvancedBloomFilter, RGBSplitFilter, ShockwaveFilter } from 'pixi-filters';
+import { AdvancedBloomFilter, GlowFilter, RGBSplitFilter, ShockwaveFilter } from 'pixi-filters';
+import { BlurFilter } from 'pixi.js';
 import type { ArenaInfo, FighterDefinition, FighterView, GameEvent, ObjectView, ProjectileView, ZoneView } from '../protocol';
 import { NEON } from '../../fx/palette';
 import { THE_LAB } from '../sim/constants';
@@ -27,7 +28,7 @@ export interface RenderFrame {
   cinematic: number;
 }
 
-type Quality = 'high' | 'low';
+import { getGraphicsPref, initialQuality, onGraphicsPref, type Quality } from './graphicsSettings';
 
 interface Trail { g: Graphics; age: number }
 
@@ -61,6 +62,7 @@ export class FightRenderer {
   private ghosts = new Map<number, FighterVisual>();
   private skins: (string | null)[] = [];
   private trails: Trail[] = [];
+  private trailPool: Graphics[] = [];
   private trailTimer = 0;
 
   private bloom: AdvancedBloomFilter | null = null;
@@ -70,8 +72,12 @@ export class FightRenderer {
   private grade: ChalkGradeFilter | null = null;
   private lastZones: ZoneView[] = [];
   private filterTime = 0;
-  private quality: Quality = 'high';
-  private slowFrames = 0;
+  private quality: Quality = initialQuality();
+  private frameEma = 16.7;
+  private slowFrames = 0; // ms
+  private warmup = 1500; // ms to ignore after (re)building: shader compiles and texture uploads stall frames
+  private offPref: (() => void) | null = null;
+  private appliedFilters: Filter[] = [];
 
   private arena: ArenaInfo = THE_LAB;
   private defs: FighterDefinition[] = [];
@@ -82,8 +88,11 @@ export class FightRenderer {
   showHitboxes = false;
 
   async init(host: HTMLElement) {
+    // Cap the pixel density: every full-screen pass costs (width × height × resolution²), and above
+    // 1.5× the extra sharpness isn't worth dropped frames on phones and laptops with retina screens.
     await this.app.init({ preference: 'webgl', resizeTo: host, background: 0x0b0e11, antialias: true,
-                          resolution: Math.min(window.devicePixelRatio, 2), autoDensity: true });
+                          resolution: Math.min(window.devicePixelRatio || 1, 1.5), autoDensity: true,
+                          powerPreference: 'high-performance' });
     host.appendChild(this.app.canvas);
     this.tex = makeTextures(this.app.renderer);
     this.fx = new FxSystem(this.tex);
@@ -92,6 +101,16 @@ export class FightRenderer {
                         this.fx.layer, this.arenaFront, this.debug);
     this.scene.addChild(this.world);
     this.app.stage.addChild(this.scene, this.overlay);
+    this.applyQuality();
+    this.offPref = onGraphicsPref((p) => this.setQuality(initialQuality(p)));
+  }
+
+  /** Change the VFX tier. The arena's optional blurs are rebuilt on the next setup(). */
+  setQuality(q: Quality) {
+    if (q === this.quality) return;
+    this.quality = q;
+    this.slowFrames = 0;
+    this.warmup = 1000;
     this.applyQuality();
   }
 
@@ -105,13 +124,17 @@ export class FightRenderer {
       c.removeChildren().forEach((ch) => ch.destroy({ children: true }));
     }
     this.fx.clear();
-    const hq = this.quality === 'high';
+    this.trails = []; // their Graphics lived in fighterLayer, destroyed above
+    const hq = this.quality !== 'low';
+    this.warmup = 1500;
     this.lab = arena.id === 'space-station' ? new SpaceStation(arena.width, arena.height, this.tex, this.fx, hq)
       : arena.id === 'black-hole-edge' ? new BlackHoleEdge(arena.width, arena.height, this.tex, this.fx, hq)
       : arena.id === 'curzon-hall' ? new CurzonHall(arena.width, arena.height, this.tex, this.fx, hq)
       : new TheLab(arena.width, arena.height, this.tex, this.fx, hq);
     this.arenaBack.addChild(this.lab.back);
     this.arenaFront.addChild(this.lab.front);
+    bakeStaticFilters(this.lab.back);
+    bakeStaticFilters(this.lab.front);
     this.lightLayer.addChild(this.lab.lights);
     this.entities = new EntityLayer(this.tex, this.fx, arena.width, arena.height);
     this.entityBack.addChild(this.entities.back);
@@ -123,6 +146,7 @@ export class FightRenderer {
     this.skins = skins;
     this.visuals = fighters.map((d, i) => {
       const v = createFighterVisual(d, skins[i] ?? null);
+      v.setGlow?.(this.quality !== 'low');
       this.fighterLayer.addChild(v.root);
       return v;
     });
@@ -161,6 +185,7 @@ export class FightRenderer {
       let g = this.ghosts.get(z.id);
       if (!g) {
         g = createFighterVisual(this.defs[z.owner], this.skins[z.owner] ?? null);
+        g.setGlow?.(this.quality === 'high');
         this.fighterLayer.addChildAt(g.root, 0);
         this.ghosts.set(z.id, g);
         this.fx.burst(z.x, z.y, this.colors[z.owner], 24, 500, { grav: 0, life: 0.4 });
@@ -287,6 +312,7 @@ export class FightRenderer {
   resize() { this.app.resize(); }
 
   destroy() {
+    this.offPref?.();
     this.app.destroy(true, { children: true, texture: true });
   }
 
@@ -322,9 +348,12 @@ export class FightRenderer {
   // ----------------------------------------------------------------- filters
 
   private shockwave(x: number, y: number, power: number) {
-    if (this.quality !== 'high') return;
+    if (this.quality === 'low') return;
     const p = this.world.toGlobal({ x, y });
-    if (!this.shock) this.shock = new ShockwaveFilter({ amplitude: 26, wavelength: 140, speed: 900, brightness: 1.15, radius: -1 });
+    if (!this.shock) {
+      this.shock = new ShockwaveFilter({ amplitude: 26, wavelength: 140, speed: 900, brightness: 1.15, radius: -1 });
+      if (this.quality !== 'high') this.shock.resolution = 1;
+    }
     this.shock.center = { x: p.x, y: p.y };
     this.shock.amplitude = 26 * power;
     this.shock.time = 0;
@@ -354,34 +383,41 @@ export class FightRenderer {
       this.overlay.stroke({ width: 3, color: this.colors[this.cine.slot] ?? 0xffffff, alpha: 0.5 * cinK });
     }
 
+    const high = this.quality === 'high';
     const filters: Filter[] = [];
     if (this.shockActive && this.shock) {
       this.shock.time += dt;
       if (this.shock.time > 0.6) this.shockActive = false; else filters.push(this.shock);
     }
-    if (cinK > 0.02) {
-      if (!this.rgb) this.rgb = new RGBSplitFilter();
-      const o = 10 * cinK;
+    const lenses = this.quality !== 'low' ? this.lenses() : [];
+    if (lenses.length) {
+      if (!this.lensing) { this.lensing = new LensingFilter(); if (this.quality !== 'high') this.lensing.resolution = 1; }
+      this.lensing.lenses = lenses;
+      filters.unshift(this.lensing); // bend the scene first, then distort/bloom the result
+    }
+    if (this.bloom) filters.push(this.bloom);
+    if (high) {
+      // The grade's chromatic fringe doubles as the ULTIMATE colour split, so no extra pass is needed.
+      this.grade ??= new ChalkGradeFilter();
+      this.filterTime += dt;
+      this.grade.time = this.filterTime;
+      this.grade.fringe = 0.6 + cinK * 4;
+      filters.push(this.grade);
+    } else if (cinK > 0.02 && this.quality === 'medium') {
+      if (!this.rgb) { this.rgb = new RGBSplitFilter(); this.rgb.resolution = 1; }
+      const o = 8 * cinK;
       this.rgb.red = { x: -o, y: 0 };
       this.rgb.green = { x: 0, y: o * 0.5 };
       this.rgb.blue = { x: o, y: 0 };
       filters.push(this.rgb);
     }
-    const lenses = this.quality === 'high' ? this.lenses() : [];
-    if (lenses.length) {
-      this.lensing ??= new LensingFilter();
-      this.lensing.lenses = lenses;
-      filters.unshift(this.lensing); // bend the scene first, then distort/bloom the result
+    // Only touch scene.filters when the set of passes changes: reassigning every frame makes Pixi
+    // re-validate the chain and can reallocate render targets mid-fight.
+    const prev = this.appliedFilters;
+    if (filters.length !== prev.length || filters.some((f, i) => f !== prev[i])) {
+      this.appliedFilters = filters;
+      this.scene.filters = filters.length ? filters : null;
     }
-    if (this.bloom) filters.push(this.bloom);
-    if (this.quality === 'high') {
-      this.grade ??= new ChalkGradeFilter();
-      this.filterTime += dt;
-      this.grade.time = this.filterTime;
-      this.grade.fringe = 0.6 + cinK * 3;
-      filters.push(this.grade);
-    }
-    this.scene.filters = filters.length ? filters : null;
   }
 
   /**
@@ -405,19 +441,35 @@ export class FightRenderer {
   }
 
   private applyQuality() {
-    this.bloom = this.quality === 'high'
-      ? new AdvancedBloomFilter({ threshold: 0.62, bloomScale: 0.6, brightness: 1.0, blur: 6, quality: 5 })
-      : null;
+    this.bloom?.destroy();
+    this.bloom = null;
+    if (this.quality === 'high') {
+      this.bloom = new AdvancedBloomFilter({ threshold: 0.62, bloomScale: 0.6, brightness: 1.0, blur: 5, quality: 3 });
+    } else if (this.quality === 'medium') {
+      this.bloom = new AdvancedBloomFilter({ threshold: 0.62, bloomScale: 0.55, brightness: 1.0, blur: 4, quality: 2 });
+      this.bloom.resolution = 1; // at CSS pixels: on a retina screen that's a quarter of the work
+    }
+    if (this.lensing) this.lensing.resolution = this.quality === 'high' ? 'inherit' : 1;
+    if (this.shock) this.shock.resolution = this.quality === 'high' ? 'inherit' : 1;
+    this.visuals.forEach((v) => v.setGlow?.(this.quality !== 'low'));
+    this.appliedFilters = [];
+    this.scene.filters = null;
   }
 
-  /** If frames take > 28 ms for ~2 s, drop to low quality (no bloom/shockwave/god rays). */
+  /**
+   * "Auto" graphics: keep a smoothed frame time and, if the game can't hold ~50 fps for about two
+   * seconds, step down one tier (high → medium → low). Hitches from a hidden tab or GC are ignored.
+   */
   private autoQuality(dtMs: number) {
-    if (this.quality === 'low') return;
-    this.slowFrames = dtMs > 28 ? this.slowFrames + 1 : Math.max(0, this.slowFrames - 2);
-    if (this.slowFrames > 120) {
-      this.quality = 'low';
-      this.applyQuality();
-      console.info('[NEWTON BRAWL] Low frame rate detected: switching to low VFX quality.');
+    if (this.warmup > 0) { this.warmup -= Math.min(dtMs, 250); return; }
+    if (getGraphicsPref() !== 'auto' || this.quality === 'low' || dtMs > 1000) return; // >1 s: tab was hidden
+    this.frameEma += (Math.min(dtMs, 100) - this.frameEma) * 0.08;
+    // milliseconds spent below ~48 fps; recovering frames pay it back twice as fast
+    this.slowFrames = this.frameEma > 21 ? this.slowFrames + dtMs : Math.max(0, this.slowFrames - 2 * dtMs);
+    if (this.slowFrames > 2000) {
+      this.setQuality(this.quality === 'high' ? 'medium' : 'low');
+      this.frameEma = 16.7;
+      console.info(`[NEWTON BRAWL] Frames running slow: VFX quality set to ${this.quality}.`);
     }
   }
 
@@ -432,20 +484,25 @@ export class FightRenderer {
         const fast = Math.abs(v.vx) > 650 || Math.abs(v.vy) > 900 || v.invuln > 0;
         if (!fast) return;
         const H = this.defs[i].body.height, W = this.defs[i].body.width;
-        const g = new Graphics();
+        const g = this.trailPool.pop() ?? new Graphics();
+        g.clear();
         g.roundRect(v.x - W * 0.35, v.y, W * 0.7, H * 0.8, 20).fill({ color: this.colors[i], alpha: 0.25 });
         g.circle(v.x + v.facing * H * 0.04, v.y + H * 0.9, H * 0.1).fill({ color: this.colors[i], alpha: 0.25 });
         g.blendMode = 'add';
+        g.alpha = 1;
         this.fighterLayer.addChildAt(g, 0);
         this.trails.push({ g, age: 0 });
       });
     }
-    this.trails = this.trails.filter((t) => {
+    // Recycle afterimages instead of creating and destroying a Graphics every 30 ms (GC hitches).
+    let keep = 0;
+    for (const t of this.trails) {
       t.age += dt;
       t.g.alpha = Math.max(0, 1 - t.age / 0.3);
-      if (t.age >= 0.3) { t.g.destroy(); return false; }
-      return true;
-    });
+      if (t.age >= 0.3) { t.g.removeFromParent(); if (this.trailPool.length < 24) this.trailPool.push(t.g); else t.g.destroy(); }
+      else this.trails[keep++] = t;
+    }
+    this.trails.length = keep;
   }
 
   // ------------------------------------------------------------------- debug
@@ -472,4 +529,30 @@ export class FightRenderer {
 
 function clamp(v: number, lo: number, hi: number) {
   return lo > hi ? (lo + hi) / 2 : Math.max(lo, Math.min(hi, v));
+}
+
+/**
+ * Arena decorations with a glow or blur never change, but Pixi re-runs their filters every frame.
+ * Render each one once into a cached texture instead (blurred ones at half resolution — a blur
+ * hides the difference). Animated filters (god rays) and Text are left alone.
+ */
+function bakeStaticFilters(root: Container) {
+  const targets: Graphics[] = [];
+  const walk = (c: Container) => {
+    for (const ch of c.children) {
+      if (ch instanceof Graphics && ch.filters && (ch.filters as Filter[]).length
+          && (ch.filters as Filter[]).every((f) => f instanceof GlowFilter || f instanceof BlurFilter)) targets.push(ch);
+      else if (ch.children.length) walk(ch as Container);
+    }
+  };
+  walk(root);
+  for (const g of targets) {
+    const parent = g.parent;
+    if (!parent) continue;
+    const blurOnly = (g.filters as Filter[]).every((f) => f instanceof BlurFilter);
+    const wrap = new Container();
+    parent.addChildAt(wrap, parent.getChildIndex(g));
+    wrap.addChild(g);
+    wrap.cacheAsTexture({ resolution: blurOnly ? 0.5 : 1, antialias: true });
+  }
 }
