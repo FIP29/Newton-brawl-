@@ -9,3 +9,6 @@ spring:
   jpa:
     hibernate:
       ddl-auto: validate
+newton-brawl:
+  warmup:
+    enabled: false   # tests start many contexts; the warm-up only matters on a real server

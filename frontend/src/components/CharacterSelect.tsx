@@ -58,7 +58,12 @@ interface Props {
 export function CharacterSelect({ roster, players, onCardClick, title = 'CHOOSE YOUR SCIENTIST', footer, usable, lockHints, skin, onSkin }: Props) {
   const [images, setImages] = useState<Record<string, string>>({});
   const root = useRef<HTMLDivElement>(null);
-  useEffect(() => { void fighterImages().then(setImages); }, []);
+  // Cards fill in one by one as their renders finish (instantly when cached from an earlier visit).
+  useEffect(() => {
+    let live = true;
+    void fighterImages((id, url) => { if (live) setImages((m) => (m[id] ? m : { ...m, [id]: url })); });
+    return () => { live = false; };
+  }, []);
   useLayoutEffect(() => {
     const ctx = gsap.context(() => {
       gsap.from('.cs-card', { opacity: 0, y: 50, stagger: 0.07, duration: 0.5, ease: 'power3.out' });

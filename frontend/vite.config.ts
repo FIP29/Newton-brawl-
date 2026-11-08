@@ -5,6 +5,8 @@ import react from '@vitejs/plugin-react';
 // so the browser only ever talks to one origin.
 export default defineConfig({
   plugins: [react()],
+  // Changes on every build: cached fighter portraits from an older build (older art) are re-rendered.
+  define: { __BUILD_ID__: JSON.stringify(Date.now().toString(36)) },
   server: {
     port: 5173,
     // Fighter JSON is imported straight from the backend so both sides share one definition.

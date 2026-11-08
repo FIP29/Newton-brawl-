@@ -14,7 +14,7 @@ import { sfx } from '../audio/sfx';
 import { Banner, HudBar, useMatchPresentation } from '../components/FightHud';
 import { CharacterSelect } from '../components/CharacterSelect';
 import { useFightOverlays } from '../components/FightOverlays';
-import { portraitsFor } from '../components/portraits';
+import { portraitsFor, setFightActive } from '../components/portraits';
 import { VictoryPanel } from '../components/VictoryPanel';
 import { RivalryIntro, RivalryOutcome } from '../components/RivalryIntro';
 import { rivalryFor } from '../game/data/rivalries';
@@ -104,6 +104,10 @@ export function FightScreen() {
 
     const onStart = (msg: StartMessage) => {
       start = msg;
+      // From here on no background image work may touch the GPU, except these two portraits, which
+      // render right now during the "ROUND 1" countdown.
+      setFightActive(true);
+      void portraitsFor(msg.fighters.map((f) => f.id)).then((m) => { if (!disposed) setImages((old) => ({ ...old, ...m })); });
       setDefs(msg.fighters);
       if (mySlot >= 0) predictor = new Predictor(msg.arena, msg.fighters, mySlot);
       if (ready) renderer.setup(msg.arena, msg.fighters, skinsOf(msg));
@@ -135,11 +139,14 @@ export function FightScreen() {
             buffer.push(msg, performance.now());
             predictor?.onServerState(msg);
             latest = msg;
-            // Our own actions (and every ULTIMATE cinematic) get feedback the moment the server confirms them.
-            msg.events.forEach((e) => { if (e.attacker === mySlot || e.type === 'ULTIMATE') handle(e); });
+            // Our own actions get feedback the moment the server confirms them (our fighter is predicted,
+            // so it's already there). The opponent's, including their ULTIMATE, fire below when the
+            // interpolated view reaches that tick, so the cinematic starts exactly as their fighter freezes.
+            msg.events.forEach((e) => { if (e.attacker === mySlot) handle(e); });
             break;
           case 'end':
             ended = true;
+            setFightActive(false);
             setEnd(msg);
             void refresh();
             window.setTimeout(() => !disposed && setStatus('ended'), 1200);
@@ -173,7 +180,7 @@ export function FightScreen() {
 
       // Everyone else's events fire when the interpolated view reaches their tick.
       for (const s of buffer.between(lastEventTick, Math.floor(tick))) {
-        s.events.forEach((e) => { if (e.attacker !== mySlot && e.type !== 'ULTIMATE') handle(e); });
+        s.events.forEach((e) => { if (e.attacker !== mySlot) handle(e); });
         lastEventTick = s.tick;
       }
 
@@ -182,7 +189,8 @@ export function FightScreen() {
       if (mine && mySlot >= 0) fighters[mySlot] = mine;
       renderer.render({
         fighters, projectiles: sample.projectiles, zones: sample.base.zones, objects: sample.objects,
-        hitstop: latest.hitstop, cinematic: latest.cinematic,
+        // Freeze the camera with what's on screen (the interpolated snapshot), not the newest packet.
+        hitstop: sample.base.hitstop, cinematic: sample.base.cinematic,
       }, dt);
       push(latest, start.fighters.map((f) => f.maxHealth), start.rules, start.fighters.map((f) => f.name));
     };
@@ -214,6 +222,7 @@ export function FightScreen() {
 
     return () => {
       disposed = true;
+      setFightActive(false);
       conn.close();
       connRef.current = null;
       input.detach();
@@ -230,9 +239,6 @@ export function FightScreen() {
   const result = end && (end.winner < 0 ? 'DRAW' : end.winner === slot ? 'VICTORY' : 'DEFEAT');
   const mine = players.find((p) => p.slot === slot);
   const theirs = players.find((p) => p.slot !== slot);
-  const fightIds = defs.map((d) => d.id).join(',');
-  // Only the two fighters in this match, rendered as soon as they're known (not mid-ULTIMATE).
-  useEffect(() => { if (fightIds) void portraitsFor(fightIds.split(',')).then((m) => setImages((old) => ({ ...old, ...m }))); }, [fightIds]);
   const fighterInfo = defs.length === 2 ? defs.map((d) => ({ id: d.id, name: d.name, color: hex(lookFor(d.id).glow) })) : undefined;
 
   const pick = (id: string, withSkin?: string) => {

@@ -249,6 +249,11 @@ public class RoomService {
         }
     }
 
+    /** True while any room is mid-match (background work such as the engine warm-up backs off). */
+    public boolean anyMatchRunning() {
+        return rooms.values().stream().anyMatch(r -> r.status == RoomStatus.IN_PROGRESS);
+    }
+
     // ----------------------------------------------------------------- match
 
     /** Caller holds the room lock. */
@@ -257,6 +262,7 @@ public class RoomService {
         Fighter p2 = catalog.create(room.seats[1].fighter);
         room.arena = Arena.ALL.get(java.util.concurrent.ThreadLocalRandom.current().nextInt(Arena.ALL.size()));
         MatchSimulation sim = new MatchSimulation(room.arena, p1, p2, rules());
+        if (props.startEnergy() > 0) { sim.setEnergy(0, props.startEnergy()); sim.setEnergy(1, props.startEnergy()); }
         room.fighterIds = List.of(p1.id(), p2.id());
         room.stats = new MatchStats(p1.definition(), p2.definition());
         room.runner = new MatchRunner(room.code, sim, new RoomMatchListener(room));

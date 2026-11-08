@@ -2,6 +2,7 @@ import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import type { FighterDefinition, GameEvent } from '../game/protocol';
 import { lookFor } from '../game/render/characters/looks';
+import { readyPortrait } from './portraits';
 import { ChalkEquation } from './ChalkEquation';
 import { sfx } from '../audio/sfx';
 import { muffleMusic } from '../audio/engine';
@@ -111,12 +112,11 @@ function ComboBadge({ count, side, color }: Combo) {
 
 function UltimateCinematic({ def, slot, onDone }: { def: FighterDefinition; slot: number; onDone: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [img, setImg] = useState<string | null>(null);
+  // Never render a portrait here (that's a GPU read-back mid-fight): use it only if it's ready.
+  const [img] = useState<string | null>(() => readyPortrait(def.id));
   const color = hex(lookFor(def.id).glow);
   const ult = def.moves.ultimate;
   useLayoutEffect(() => {
-    // Already rendered when the fight started (portraitsFor), so this resolves at once from the cache.
-    void import('./portraits').then((m) => m.portraitsFor([def.id])).then((imgs) => setImg(imgs[def.id] ?? null));
     const root = ref.current!;
     const q = (sel: string) => root.querySelector(sel);
     const from = slot === 0 ? -110 : 110;
